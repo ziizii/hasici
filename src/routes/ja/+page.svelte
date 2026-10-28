@@ -152,7 +152,7 @@
 			class="flex min-h-14 items-center justify-center gap-2.5 rounded-[14px] bg-accent text-lg font-bold text-white"
 			onclick={() => (showForm = true)}
 		>
-			<Icon name="plus" size={22} stroke={2.5} /> Nahlásit nepřítomnost
+			<Icon name="plus" size={22} stroke={2.5} /> Naplánovat nepřítomnost
 		</button>
 	{:else}
 		<form class="flex flex-col gap-5 rounded-2xl border border-line bg-surface p-4" onsubmit={save}>
