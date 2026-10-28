@@ -4,6 +4,7 @@
 	import { data, type Member } from '#lib/data.svelte.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
+	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
 
 	const shareUrl = $derived(access.linkKey ? access.shareUrl() : null);
 
@@ -236,6 +237,7 @@
 									{/each}
 								</div>
 							</div>
+							<UnavailableSwitch member={m} self={m.id === access.memberId} />
 							<div class="flex items-center justify-between">
 								<button
 									type="button"
@@ -260,6 +262,11 @@
 								style="background: {m.color}">{initials(m.name)}</span
 							>
 							<span class="flex-1 font-medium">{m.name}</span>
+							{#if data.openAbsence(m.id)}
+								<span class="rounded-full bg-warn-bg px-2 py-0.5 text-sm font-semibold text-warn-ink"
+									>nedostupný</span
+								>
+							{/if}
 							{#if m.id === access.memberId}<span class="text-sm text-muted">vy</span>{/if}
 							<Icon name="pencil" size={18} class="text-faint" />
 						</button>

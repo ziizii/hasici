@@ -6,6 +6,7 @@
 		addDays,
 		formatLong,
 		formatRange,
+		OPEN_END,
 		pluralDays,
 		rangeLength,
 		todayKey,
@@ -13,6 +14,7 @@
 	} from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
+	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
 
 	const today = todayKey();
 	const me = $derived(data.member(access.memberId));
@@ -22,7 +24,8 @@
 			.filter((a) => a.memberId === access.memberId)
 			.sort((a, b) => a.from.localeCompare(b.from))
 	);
-	const upcoming = $derived(mine.filter((a) => a.to >= today));
+	// The open-ended one is shown as the switch, not in the list.
+	const upcoming = $derived(mine.filter((a) => a.to >= today && a.to !== OPEN_END));
 	const past = $derived(mine.filter((a) => a.to < today).reverse().slice(0, 10));
 
 	let showForm = $state(false);
@@ -109,6 +112,12 @@
 			</div>
 		{/if}
 	</header>
+
+	{#if me}
+		<div class="rounded-2xl border border-line bg-surface px-4 py-2">
+			<UnavailableSwitch member={me} self />
+		</div>
+	{/if}
 
 	{#if !showForm}
 		<button

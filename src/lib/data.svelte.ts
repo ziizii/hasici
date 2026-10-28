@@ -11,7 +11,7 @@ import {
 	type Unsubscribe
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { addDays, type DateKey } from './dates';
+import { addDays, OPEN_END, todayKey, type DateKey } from './dates';
 import { nextColor } from './colors';
 
 export interface Member {
@@ -48,6 +48,17 @@ export interface DayAvailability {
 
 const collator = new Intl.Collator('cs');
 
+/** Names are "First Last…": sort by everything after the first word, then the first word. */
+function byLastName(a: Member, b: Member): number {
+	const split = (name: string) => {
+		const [first, ...rest] = name.trim().split(/\s+/);
+		return [rest.join(' '), first];
+	};
+	const [lastA, firstA] = split(a.name);
+	const [lastB, firstB] = split(b.name);
+	return collator.compare(lastA, lastB) || collator.compare(firstA, firstB);
+}
+
 class Data {
 	/** Everyone, including archived members. */
 	allMembers = $state<Member[]>([]);
@@ -69,7 +80,7 @@ class Data {
 	/** Dev-only: fill with sample data instead of Firestore. */
 	loadDemo(sample: { members: Member[]; absences: Absence[]; events: Event[] }) {
 		this.#demo = true;
-		this.allMembers = sample.members;
+		this.allMembers = [...sample.members].sort(byLastName);
 		this.absences = sample.absences;
 		this.events = sample.events;
 		this.loaded = { members: true, absences: true, events: true };
@@ -85,7 +96,7 @@ class Data {
 						const x = d.data();
 						return { id: d.id, name: x.name, color: x.color, archived: x.archived === true };
 					})
-					.sort((a, b) => collator.compare(a.name, b.name));
+					.sort(byLastName);
 				this.loaded.members = true;
 			}),
 			onSnapshot(collection(db, 'absences'), (snap) => {
@@ -128,6 +139,11 @@ class Data {
 
 	absenceOn(memberId: string, day: DateKey): Absence | undefined {
 		return this.absences.find((a) => a.memberId === memberId && a.from <= day && a.to >= day);
+	}
+
+	/** The member's "do odvolání" absence, if switched on. */
+	openAbsence(memberId: string): Absence | undefined {
+		return this.absences.find((a) => a.memberId === memberId && a.to === OPEN_END);
 	}
 
 	availability(day: DateKey): DayAvailability {
@@ -254,6 +270,25 @@ class Data {
 					createdAt: serverTimestamp()
 				});
 			}
+		}
+		await batch.commit();
+	}
+
+	/**
+	 * "Nejsem k dispozici do odvolání": an absence from today with no end.
+	 * Switching it off ends it yesterday (or deletes it if it started today).
+	 */
+	async setUnavailable(memberId: string, on: boolean) {
+		const today = todayKey();
+		if (on) {
+			if (!this.openAbsence(memberId)) await this.addAbsence(memberId, today, OPEN_END);
+			return;
+		}
+		const batch = writeBatch(db);
+		for (const a of this.absences.filter((a) => a.memberId === memberId && a.to === OPEN_END)) {
+			const ref = doc(db, 'absences', a.id);
+			if (a.from >= today) batch.delete(ref);
+			else batch.update(ref, { to: addDays(today, -1) });
 		}
 		await batch.commit();
 	}

@@ -26,6 +26,10 @@ direction; older rows are superseded.
   `/jednotka`). There is no separate admin login.
 - **Absences are whole days only**, as an inclusive date range with an
   optional note. Part-day absences were explicitly dropped.
+- **"Nejsem k dispozici" switch** (page `/ja` for yourself, and in the member
+  editor on `/jednotka` for anyone): an absence from today with
+  `to = OPEN_END` (`'9999-12-31'`), shown as "od …". Switching it off ends it
+  yesterday, or deletes it if it started today (`data.setUnavailable`).
 - **Events keep a time** (`Sraz`, start time only) plus place and an
   optional note, "so we know when to go where".
 - **"Nemůžu přijít" on an event is not a separate concept.** It creates a

@@ -3,6 +3,9 @@
 
 export type DateKey = string;
 
+/** `to` of an absence that lasts until it is switched off ("do odvolání"). */
+export const OPEN_END: DateKey = '9999-12-31';
+
 const pad = (n: number) => (n < 10 ? '0' + n : String(n));
 
 export function toKey(d: Date): DateKey {
@@ -90,6 +93,7 @@ export function formatDayMonth(key: DateKey): string {
 }
 
 export function formatRange(from: DateKey, to: DateKey): string {
+	if (to === OPEN_END) return `od ${formatShort(from)}`;
 	return from === to ? formatShort(from) : `${formatShort(from)} – ${formatShort(to)}`;
 }
 
