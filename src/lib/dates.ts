@@ -17,8 +17,16 @@ export function parseKey(key: DateKey): Date {
 	return new Date(y, m - 1, d);
 }
 
+// The unit is in Czechia: "today" is the Prague calendar day wherever the device is.
+const pragueDay = new Intl.DateTimeFormat('en-CA', {
+	timeZone: 'Europe/Prague',
+	year: 'numeric',
+	month: '2-digit',
+	day: '2-digit'
+});
+
 export function todayKey(): DateKey {
-	return toKey(new Date());
+	return pragueDay.format(new Date());
 }
 
 export function addDays(key: DateKey, n: number): DateKey {

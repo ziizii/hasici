@@ -28,7 +28,18 @@
 	// svelte-ignore state_referenced_locally
 	let day = $state(initial?.date ?? date);
 	// svelte-ignore state_referenced_locally
-	let time = $state(initial?.time ?? '');
+	let hour = $state(initial?.time?.slice(0, 2) ?? '');
+	// svelte-ignore state_referenced_locally
+	let minute = $state(initial?.time?.slice(3, 5) ?? '00');
+	const time = $derived(hour ? `${hour}:${minute}` : '');
+
+	// Selects instead of <input type="time">, which may show AM/PM depending on the phone.
+	const pad = (n: number) => String(n).padStart(2, '0');
+	const HOURS = Array.from({ length: 24 }, (_, i) => pad(i));
+	// svelte-ignore state_referenced_locally
+	const MINUTES = [
+		...new Set([...Array.from({ length: 12 }, (_, i) => pad(i * 5)), minute])
+	].sort();
 	// svelte-ignore state_referenced_locally
 	let place = $state(initial?.place ?? data.places[0] ?? '');
 	// svelte-ignore state_referenced_locally
@@ -76,14 +87,28 @@
 		</label>
 	{/if}
 	<div class="grid grid-cols-2 gap-2.5">
-		<label class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
-			Sraz
-			<input
-				type="time"
-				bind:value={time}
-				class="h-12 min-w-0 rounded-xl border border-field bg-surface px-3 text-base text-ink"
-			/>
-		</label>
+		<fieldset class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
+			<legend class="mb-1.5">Sraz</legend>
+			<div class="flex min-w-0 items-center gap-1">
+				<select
+					bind:value={hour}
+					aria-label="Hodina"
+					class="h-12 min-w-0 flex-1 rounded-xl border border-field bg-surface px-2 text-base text-ink"
+				>
+					<option value="">––</option>
+					{#each HOURS as h (h)}<option value={h}>{h}</option>{/each}
+				</select>
+				<span aria-hidden="true" class="text-ink">:</span>
+				<select
+					bind:value={minute}
+					aria-label="Minuta"
+					disabled={!hour}
+					class="h-12 min-w-0 flex-1 rounded-xl border border-field bg-surface px-2 text-base text-ink disabled:opacity-50"
+				>
+					{#each MINUTES as m (m)}<option value={m}>{m}</option>{/each}
+				</select>
+			</div>
+		</fieldset>
 		<label class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
 			Místo
 			<input
