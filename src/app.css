@@ -152,6 +152,14 @@ body {
 	overscroll-behavior-x: none;
 }
 
+/* Even with nothing overflowing, the installed iPhone app lets the whole page (bottom bar
+   too) be dragged a pixel or two sideways, so only vertical panning is allowed. The jump
+   bar is its own scroll container and still scrolls sideways. +layout.svelte adds `zoomed`
+   while the page is pinch-zoomed, so it can be panned then. */
+html:not(.zoomed) {
+	touch-action: pan-y pinch-zoom;
+}
+
 /*
  * Large text support. All sizes in the app are in rem, so they follow the
  * root font size:
