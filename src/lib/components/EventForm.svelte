@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { data, MAX_REPEATS, type Event } from '#lib/data.svelte.js';
-	import { addDays, daysBetween, DOW_ON, formatShort, weekdayIndex, type DateKey } from '#lib/dates.js';
+	import { data, type Event } from '#lib/data.svelte.js';
+	import { DOW_ON, weekdayIndex, type DateKey } from '#lib/dates.js';
 
 	type Draft = Omit<Event, 'id' | 'series'>;
-	/** `until`: repeat weekly up to this day. `following`: apply to later events of the repeat too. */
-	export type SaveOptions = { until?: DateKey; following?: boolean };
+	/** `repeat`: every week, until `until` ('' = until cancelled). `following`: apply to later events of the repeat too. */
+	export type SaveOptions = { repeat?: boolean; until?: DateKey; following?: boolean };
 
 	let {
 		date,
@@ -56,10 +56,7 @@
 	let busy = $state(false);
 
 	let repeat = $state(false);
-	// svelte-ignore state_referenced_locally
-	let until = $state(addDays(date, 7 * 12));
-	const lastDay = $derived(addDays(date, 7 * (MAX_REPEATS - 1)));
-	const count = $derived(until >= date ? Math.min(Math.floor(daysBetween(date, until) / 7) + 1, MAX_REPEATS) : 0);
+	let until = $state('');
 	let following = $state(true);
 
 	const uid = Math.random().toString(36).slice(2, 8);
@@ -71,7 +68,11 @@
 		try {
 			await onsave(
 				{ title, date: showDate ? day : date, time, place, note },
-				{ until: repeatable && repeat ? until : undefined, following: inSeries && following }
+				{
+					repeat: repeatable && repeat,
+					until: repeatable && repeat && until ? until : undefined,
+					following: inSeries && following
+				}
 			);
 			if (!initial) {
 				title = '';
@@ -160,19 +161,13 @@
 		</label>
 		{#if repeat}
 			<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
-				Opakovat do
+				<span>Opakovat do <span class="font-normal text-faint">(prázdné = do odvolání)</span></span>
 				<input
 					type="date"
 					bind:value={until}
-					required
 					min={date}
-					max={lastDay}
 					class="h-12 rounded-xl border border-field bg-surface px-3 text-base text-ink"
 				/>
-				<span class="text-sm font-normal text-muted">
-					{count === 1 ? '1 akce' : count < 5 ? `${count} akce` : `${count} akcí`}, poslední
-					{formatShort(addDays(date, 7 * Math.max(count - 1, 0)))}
-				</span>
 			</label>
 		{/if}
 	{/if}

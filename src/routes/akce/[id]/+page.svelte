@@ -4,7 +4,7 @@
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
-	import { DOW_ON, formatLong, formatShort, weekdayIndex } from '#lib/dates.js';
+	import { addDays, daysBetween, DOW_ON, formatLong, OPEN_END, formatShort, weekdayIndex } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import { toggleMemberDay } from '#lib/toggleDay.js';
@@ -17,8 +17,11 @@
 	const myAbsence = $derived(ev && me ? data.absenceOn(me.id, ev.date) : undefined);
 	const total = $derived(data.members.length);
 
-	const series = $derived(ev?.series ? data.events.filter((x) => x.series === ev.series) : []);
-	const later = $derived(ev ? series.filter((x) => x.date > ev.date).length : 0);
+	const series = $derived(ev ? data.seriesOf(ev) : undefined);
+	/** Later repeats exist, so "this and all later" choices make sense. */
+	const later = $derived(
+		!!series && !!ev?.slot && (series.to === OPEN_END || addDays(ev.slot, 7) <= series.to)
+	);
 
 	let editing = $state(false);
 	let busy = $state(false);
@@ -57,12 +60,16 @@
 
 	async function remove(all: boolean) {
 		if (!ev) return;
-		const what = all ? `akci „${ev.title}“ a všechna další opakování (${later + 1})` : `akci „${ev.title}“`;
-		if (!confirm(`Opravdu smazat ${what}?`)) return;
+		const question = all
+			? `Opravdu smazat akci „${ev.title}“ a všechna další opakování?`
+			: series
+				? `Zrušit akci „${ev.title}“ ${formatShort(ev.date)}? Další opakování zůstanou.`
+				: `Opravdu smazat akci „${ev.title}“?`;
+		if (!confirm(question)) return;
 		try {
 			if (all) await data.deleteFollowing(ev);
-			else await data.deleteEvent(ev.id);
-			toasts.show(all ? 'Akce smazány' : 'Akce smazána');
+			else await data.deleteEvent(ev);
+			toasts.show(all ? 'Akce smazány' : series ? 'Termín zrušen' : 'Akce smazána');
 			goto('/');
 		} catch (e) {
 			console.error(e);
@@ -85,7 +92,7 @@
 		{/if}
 	</header>
 
-	{#if !data.loaded.events}
+	{#if !data.loaded.events || !data.loaded.series}
 		<p class="px-5 py-6 text-muted">Načítám…</p>
 	{:else if !ev}
 		<div class="flex flex-col gap-3 px-5 py-6">
@@ -101,12 +108,12 @@
 				showDate
 				showNote
 				saveLabel="Uložit změny"
-				inSeries={later > 0}
+				inSeries={later}
 				oncancel={() => (editing = false)}
 				onsave={async (d, { following }) => {
 					try {
 						if (following) await data.updateFollowing(ev, d);
-						else await data.updateEvent(ev.id, d);
+						else await data.updateEvent(ev, d);
 						editing = false;
 					} catch (e) {
 						console.error(e);
@@ -128,7 +135,7 @@
 					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
 					onclick={() => remove(true)}
 				>
-					<Icon name="trash" size={18} /> Smazat tuto i všechny další ({later + 1})
+					<Icon name="trash" size={18} /> Smazat tuto i všechny další
 				</button>
 			{/if}
 		</section>
@@ -147,11 +154,13 @@
 						><Icon name="clock" size={18} class="text-muted" />Sraz v {ev.time}</span
 					>
 				{/if}
-				{#if series.length > 1}
+				{#if series}
 					<span class="flex items-center gap-2"
 						><Icon name="refresh" size={18} class="text-muted" />Každý týden {DOW_ON[
-							weekdayIndex(ev.date)
-						]}, do {formatShort(series[series.length - 1].date)}</span
+							weekdayIndex(series.from)
+						]}{series.to === OPEN_END
+							? ''
+							: `, do ${formatShort(addDays(series.from, Math.floor(daysBetween(series.from, series.to) / 7) * 7))}`}</span
 					>
 				{/if}
 				{#if ev.place}
@@ -252,6 +261,16 @@
 						{/each}
 					</section>
 				{/if}
+			{/if}
+
+			{#if series}
+				<button
+					type="button"
+					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
+					onclick={() => remove(false)}
+				>
+					<Icon name="x" size={18} /> Zrušit tento termín
+				</button>
 			{/if}
 		</div>
 	{/if}

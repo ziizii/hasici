@@ -32,11 +32,11 @@
 		}
 	}
 
-	async function create(draft: Parameters<typeof data.addEvent>[0], { until }: SaveOptions) {
+	async function create(draft: Parameters<typeof data.addEvent>[0], { repeat, until }: SaveOptions) {
 		try {
-			if (until) await data.addWeeklyEvents(draft, until);
+			if (repeat) await data.addSeries(draft, until);
 			else await data.addEvent(draft);
-			toasts.show(until ? 'Opakované akce uloženy' : 'Akce uložena');
+			toasts.show(repeat ? 'Opakovaná akce uložena' : 'Akce uložena');
 		} catch (e) {
 			console.error(e);
 			toasts.error();

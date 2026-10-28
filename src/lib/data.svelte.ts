@@ -1,5 +1,6 @@
 import {
 	addDoc,
+	arrayUnion,
 	collection,
 	deleteDoc,
 	doc,
@@ -14,6 +15,7 @@ import {
 import { db } from './firebase';
 import {
 	addDays,
+	daysBetween,
 	formatRange,
 	formatShort,
 	formatWeekdays,
@@ -149,12 +151,40 @@ export interface Event {
 	time: string;
 	place: string;
 	note: string;
-	/** Weekly repeats share the id of their first event; '' or missing for one-off events. */
+	/** Set for repeats: the series id, and the repeat's own day (`date` may differ once edited). */
 	series?: string;
+	slot?: DateKey;
 }
 
-/** Most occurrences one weekly repeat may create (about a year). */
-export const MAX_REPEATS = 53;
+/**
+ * Activity repeated every week from `from` (which sets the weekday) until `to`
+ * (OPEN_END = until cancelled). Repeats are computed, not stored; a repeat edited
+ * on its own is stored as an event with id `<series>_<day>` and its day goes
+ * to `except`, as does a deleted one.
+ */
+export interface Series {
+	id: string;
+	title: string;
+	time: string;
+	place: string;
+	note: string;
+	from: DateKey;
+	to: DateKey;
+	except: DateKey[];
+}
+
+function occurs(s: Series, day: DateKey): boolean {
+	return (
+		day >= s.from && day <= s.to && daysBetween(s.from, day) % 7 === 0 && !s.except.includes(day)
+	);
+}
+
+function occurrence(s: Series, day: DateKey): Event {
+	const { title, time, place, note } = s;
+	return { id: `${s.id}_${day}`, title, date: day, time, place, note, series: s.id, slot: day };
+}
+
+const byDateTime = (a: Event, b: Event) => (a.date + a.time).localeCompare(b.date + b.time);
 
 export interface DayAvailability {
 	available: Member[];
@@ -206,10 +236,23 @@ class Data {
 	members = $derived(this.allMembers.filter((m) => !m.archived));
 	archived = $derived(this.allMembers.filter((m) => m.archived));
 	absences = $state<Absence[]>([]);
-	events = $state<Event[]>([]);
+	/** Events stored one by one (one-off, or a repeat edited on its own). */
+	stored = $state<Event[]>([]);
+	series = $state<Series[]>([]);
+	/** Stored events plus weekly repeats up to a year ahead, by date and time. */
+	events = $derived.by(() => {
+		const end = addDays(todayKey(), 366);
+		const out = [...this.stored];
+		for (const s of this.series) {
+			for (let d = s.from; d <= s.to && d <= end; d = addDays(d, 7)) {
+				if (!s.except.includes(d)) out.push(occurrence(s, d));
+			}
+		}
+		return out.sort(byDateTime);
+	});
 	/** Default event places, set on the Jednotka page. */
 	defaultPlaces = $state<string[]>([]);
-	loaded = $state({ members: false, absences: false, events: false });
+	loaded = $state({ members: false, absences: false, events: false, series: false });
 
 	#unsubs: Unsubscribe[] = [];
 	#saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -220,9 +263,10 @@ class Data {
 			if (!c) return;
 			this.allMembers = c.members;
 			this.absences = c.absences;
-			this.events = c.events;
+			this.stored = c.events;
+			this.series = c.series ?? [];
 			this.defaultPlaces = c.defaultPlaces;
-			this.loaded = { members: true, absences: true, events: true };
+			this.loaded = { members: true, absences: true, events: true, series: true };
 			mark('data z paměti zařízení');
 		} catch {
 			// unreadable cache: wait for Firestore as before
@@ -239,7 +283,8 @@ class Data {
 					JSON.stringify({
 						members: this.allMembers,
 						absences: this.absences,
-						events: this.events,
+						events: this.stored,
+						series: this.series,
 						defaultPlaces: this.defaultPlaces
 					})
 				);
@@ -250,18 +295,21 @@ class Data {
 	}
 
 	get ready() {
-		return this.loaded.members && this.loaded.absences && this.loaded.events;
+		return (
+			this.loaded.members && this.loaded.absences && this.loaded.events && this.loaded.series
+		);
 	}
 
 	#demo = false;
 
 	/** Dev-only: fill with sample data instead of Firestore. */
-	loadDemo(sample: { members: Member[]; absences: Absence[]; events: Event[] }) {
+	loadDemo(sample: { members: Member[]; absences: Absence[]; events: Event[]; series: Series[] }) {
 		this.#demo = true;
 		this.allMembers = [...sample.members].sort(byLastName);
 		this.absences = sample.absences;
-		this.events = sample.events;
-		this.loaded = { members: true, absences: true, events: true };
+		this.stored = sample.events;
+		this.series = sample.series;
+		this.loaded = { members: true, absences: true, events: true, series: true };
 	}
 
 	/**
@@ -343,22 +391,49 @@ class Data {
 			onSnapshot(
 				collection(db, 'events'),
 				(snap) => {
-					this.events = snap.docs
+					this.stored = snap.docs
 						.map((d) => {
 							const x = d.data();
-							return {
+							const ev: Event = {
 								id: d.id,
 								title: x.title,
 								date: x.date,
 								time: x.time ?? '',
 								place: x.place ?? '',
-								note: x.note ?? '',
-								series: x.series ?? ''
+								note: x.note ?? ''
 							};
+							if (x.series && d.id.startsWith(`${x.series}_`)) {
+								ev.series = x.series;
+								ev.slot = d.id.slice(x.series.length + 1);
+							}
+							return ev;
 						})
-						.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+						.sort(byDateTime);
 					this.loaded.events = true;
 					mark('živá data: akce');
+					this.#saveSoon();
+				},
+				onError
+			)
+		);
+		this.#watch((onError) =>
+			onSnapshot(
+				collection(db, 'series'),
+				(snap) => {
+					this.series = snap.docs.map((d) => {
+						const x = d.data();
+						return {
+							id: d.id,
+							title: x.title,
+							time: x.time ?? '',
+							place: x.place ?? '',
+							note: x.note ?? '',
+							from: x.from,
+							to: x.to ?? OPEN_END,
+							except: x.except ?? []
+						};
+					});
+					this.loaded.series = true;
 					this.#saveSoon();
 				},
 				onError
@@ -371,11 +446,26 @@ class Data {
 	}
 
 	event(id: string): Event | undefined {
-		return this.events.find((e) => e.id === id);
+		const stored = this.stored.find((e) => e.id === id);
+		if (stored) return stored;
+		const cut = id.lastIndexOf('_');
+		const s = this.series.find((x) => x.id === id.slice(0, cut));
+		const day = id.slice(cut + 1);
+		return s && occurs(s, day) ? occurrence(s, day) : undefined;
 	}
 
+	/** Works for any day, also beyond the year that `events` covers. */
 	eventsOn(day: DateKey): Event[] {
-		return this.events.filter((e) => e.date === day);
+		return [
+			...this.stored.filter((e) => e.date === day),
+			...this.series.filter((s) => occurs(s, day)).map((s) => occurrence(s, day))
+		].sort(byDateTime);
+	}
+
+	/** The weekly repeat `ev` belongs to, if it is still part of it. */
+	seriesOf(ev: Event): Series | undefined {
+		const s = ev.series ? this.series.find((x) => x.id === ev.series) : undefined;
+		return s && ev.slot && ev.slot >= s.from && ev.slot <= s.to ? s : undefined;
 	}
 
 	absenceOn(memberId: string, day: DateKey): Absence | undefined {
@@ -573,51 +663,79 @@ class Data {
 		return ref.id;
 	}
 
-	/** One event every week on the same weekday, from `e.date` to `until` (inclusive). */
-	async addWeeklyEvents(e: Omit<Event, 'id'>, until: DateKey) {
+	/** Every week from `e.date`, until `to` (inclusive) or until cancelled. */
+	async addSeries(e: Omit<Event, 'id'>, to: DateKey = OPEN_END) {
+		const { date, ...fields } = eventFields(e);
+		await addDoc(collection(db, 'series'), {
+			...fields,
+			from: date,
+			to,
+			except: [],
+			createdAt: serverTimestamp()
+		});
+	}
+
+	/** Changes just this event; a repeat is taken out of its series as its own event. */
+	async updateEvent(ev: Event, e: Omit<Event, 'id'>) {
+		const s = this.seriesOf(ev);
+		if (!s || !ev.slot) return updateDoc(doc(db, 'events', ev.id), eventFields(e));
 		const batch = writeBatch(db);
-		const first = doc(collection(db, 'events'));
-		let day = e.date;
-		for (let i = 0; i < MAX_REPEATS && day <= until; i++, day = addDays(day, 7)) {
-			batch.set(i === 0 ? first : doc(collection(db, 'events')), {
-				...eventFields({ ...e, date: day }),
-				series: first.id,
+		batch.set(doc(db, 'events', ev.id), {
+			...eventFields(e),
+			series: s.id,
+			createdAt: serverTimestamp()
+		});
+		batch.update(doc(db, 'series', s.id), { except: arrayUnion(ev.slot) });
+		await batch.commit();
+	}
+
+	/** Changes this repeat and all later ones: the series is split at this day. */
+	async updateFollowing(ev: Event, e: Omit<Event, 'id'>) {
+		const s = this.seriesOf(ev);
+		if (!s || !ev.slot) return this.updateEvent(ev, e);
+		const { date, ...fields } = eventFields(e);
+		const shift = daysBetween(ev.slot, date);
+		const except = s.except.filter((d) => d >= ev.slot!).map((d) => addDays(d, shift));
+		const batch = writeBatch(db);
+		if (ev.slot === s.from) {
+			batch.update(doc(db, 'series', s.id), { ...fields, from: date, except });
+		} else {
+			batch.update(doc(db, 'series', s.id), { to: addDays(ev.slot, -1) });
+			batch.set(doc(collection(db, 'series')), {
+				...fields,
+				from: date,
+				to: s.to,
+				except,
 				createdAt: serverTimestamp()
 			});
 		}
+		// a repeat edited on its own stays as it is, apart from this one
+		if (this.stored.some((x) => x.id === ev.id)) batch.delete(doc(db, 'events', ev.id));
 		await batch.commit();
 	}
 
-	/** `ev` and the later events of its weekly repeat. */
-	following(ev: Event): Event[] {
-		if (!ev.series) return [ev];
-		return this.events.filter((x) => x.series === ev.series && x.date >= ev.date);
-	}
-
-	async updateEvent(id: string, e: Omit<Event, 'id'>) {
-		await updateDoc(doc(db, 'events', id), eventFields(e));
-	}
-
-	/** Changes title, time, place and note of `ev` and every later repeat; other dates stay. */
-	async updateFollowing(ev: Event, e: Omit<Event, 'id'>) {
+	async deleteEvent(ev: Event) {
+		const s = this.seriesOf(ev);
+		if (!s || !ev.slot) return deleteDoc(doc(db, 'events', ev.id));
 		const batch = writeBatch(db);
-		for (const x of this.following(ev)) {
-			batch.update(
-				doc(db, 'events', x.id),
-				eventFields({ ...e, date: x.id === ev.id ? e.date : x.date })
-			);
+		batch.update(doc(db, 'series', s.id), { except: arrayUnion(ev.slot) });
+		if (this.stored.some((x) => x.id === ev.id)) batch.delete(doc(db, 'events', ev.id));
+		await batch.commit();
+	}
+
+	/** Ends the repeat: this day and all later ones go. */
+	async deleteFollowing(ev: Event) {
+		const s = this.seriesOf(ev);
+		if (!s || !ev.slot) return this.deleteEvent(ev);
+		const batch = writeBatch(db);
+		if (ev.slot <= s.from) batch.delete(doc(db, 'series', s.id));
+		else batch.update(doc(db, 'series', s.id), { to: addDays(ev.slot, -1) });
+		for (const x of this.stored) {
+			if (x.series === s.id && x.slot && x.slot >= ev.slot) {
+				batch.delete(doc(db, 'events', x.id));
+			}
 		}
 		await batch.commit();
-	}
-
-	async deleteFollowing(ev: Event) {
-		const batch = writeBatch(db);
-		for (const x of this.following(ev)) batch.delete(doc(db, 'events', x.id));
-		await batch.commit();
-	}
-
-	async deleteEvent(id: string) {
-		await deleteDoc(doc(db, 'events', id));
 	}
 }
 

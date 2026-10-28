@@ -146,6 +146,10 @@ body {
 	font-family: var(--font-sans);
 	-webkit-tap-highlight-color: transparent;
 	overflow-wrap: anywhere;
+	/* The installed iPhone app lets the page drift sideways; Safari doesn't. `clip`, not
+	   `hidden`, so the sticky month/week rows keep sticking to the viewport. */
+	overflow-x: clip;
+	overscroll-behavior-x: none;
 }
 
 /*

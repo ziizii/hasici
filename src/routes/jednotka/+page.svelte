@@ -57,7 +57,18 @@
 		)
 	);
 
-	const upcomingEvents = $derived(data.events.filter((e) => e.date >= today));
+	// A weekly repeat is listed once, with its next date.
+	const upcomingEvents = $derived.by(() => {
+		const seen = new Set<string>();
+		return data.events.filter((e) => {
+			if (e.date < today) return false;
+			const s = data.seriesOf(e);
+			if (!s) return true;
+			if (seen.has(s.id)) return false;
+			seen.add(s.id);
+			return true;
+		});
+	});
 	let showAllEvents = $state(false);
 
 	async function backAvailable(m: Member) {
@@ -259,7 +270,7 @@
 						<span class="flex min-w-0 flex-1 flex-col">
 							<span class="font-medium">{ev.title}</span>
 							<span class="text-[0.9375rem] text-muted"
-								>{formatShort(ev.date)}{ev.time ? ` · ${ev.time}` : ''}{ev.place
+								>{data.seriesOf(ev) ? `Každý týden, příště ${formatShort(ev.date)}` : formatShort(ev.date)}{ev.time ? ` · ${ev.time}` : ''}{ev.place
 									? ` · ${ev.place}`
 									: ''}</span
 							>

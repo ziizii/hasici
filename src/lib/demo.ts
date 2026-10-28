@@ -2,14 +2,19 @@
 // Lets you work on the UI without a Firebase project. Writes do not persist.
 // ?demo=30 generates a bigger unit to check how the layout copes.
 import { PALETTE } from './colors.js';
-import type { Absence, Event, Member } from './data.svelte.js';
+import type { Absence, Event, Member, Series } from './data.svelte.js';
 import { addDays, OPEN_END, todayKey } from './dates.js';
 
 export function isDemo(url: URL): boolean {
 	return import.meta.env.DEV && url.searchParams.has('demo');
 }
 
-export function demoData(count = 10): { members: Member[]; absences: Absence[]; events: Event[] } {
+export function demoData(count = 10): {
+	members: Member[];
+	absences: Absence[];
+	events: Event[];
+	series: Series[];
+} {
 	const names = [
 		'Josef Beneš',
 		'Jan Černý',
@@ -51,5 +56,17 @@ export function demoData(count = 10): { members: Member[]; absences: Absence[]; 
 		{ id: 'e2', title: 'Kondiční jízdy', date: d(14), time: '18:00', place: 'Hasičská zbrojnice', note: '' },
 		{ id: 'e3', title: 'Školení dýchací techniky', date: d(22), time: '18:30', place: 'Klubovna', note: '' }
 	];
-	return { members, absences, events };
+	const series: Series[] = [
+		{
+			id: 's1',
+			title: 'Údržba techniky',
+			time: '16:00',
+			place: 'Hasičská zbrojnice',
+			note: '',
+			from: d(2),
+			to: OPEN_END,
+			except: []
+		}
+	];
+	return { members, absences, events, series };
 }
