@@ -21,6 +21,8 @@
 	let headerH = $state(0);
 
 	onMount(() => {
+		// A page served from an old browser cache finds out at once, not on the next poll.
+		void updated.check();
 		const url = new URL(location.href);
 		if (isDemo(url)) {
 			demo = true;
@@ -38,7 +40,16 @@
 	$effect(() => {
 		if (!updated.current) return;
 		const go = () => {
-			if (!document.activeElement?.matches('input, textarea, select')) location.reload();
+			if (document.activeElement?.matches('input, textarea, select')) return;
+			// At most one automatic reload a minute, in case hosting briefly serves an old page.
+			try {
+				const last = Number(sessionStorage.getItem('hasici.reloadedAt'));
+				if (Date.now() - last < 60_000) return;
+				sessionStorage.setItem('hasici.reloadedAt', String(Date.now()));
+			} catch {
+				// no sessionStorage: reload anyway
+			}
+			location.reload();
 		};
 		const later = () => setTimeout(go);
 		go();
