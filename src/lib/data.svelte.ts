@@ -711,9 +711,12 @@ class Data {
 	 * A plain weekly repeat moves along with a new date (and so its weekday). Other
 	 * rules (e.g. "the 5th Thursday") stay put; only this day moves, as its own event.
 	 */
-	async updateFollowing(ev: Event, e: Omit<Event, 'id'>) {
+	async updateFollowing(ev: Event, e: Omit<Event, 'id'>): Promise<string> {
 		const s = this.seriesOf(ev);
-		if (!s || !ev.slot) return this.updateEvent(ev, e);
+		if (!s || !ev.slot) {
+			await this.updateEvent(ev, e);
+			return ev.id;
+		}
 		const { date, ...fields } = eventFields(e);
 		const slot = ev.slot;
 		const moved = !!s.repeat && date !== slot;
@@ -748,6 +751,53 @@ class Data {
 			});
 		}
 		await batch.commit();
+		return `${id}_${from}`;
+	}
+
+	/**
+	 * Sets how this and the later repeats repeat, from `e.date` until `until` ('' = until
+	 * cancelled); a one-off starts repeating. `null` stops the repeat: this one stays as a
+	 * one-off and later repeats go. A changed rule replaces later repeats edited on their own.
+	 * Returns the id of the edited event (its first repeat), which may have changed.
+	 */
+	async updateRepeat(ev: Event, e: Omit<Event, 'id'>, repeat: Repeat | null, until = ''): Promise<string> {
+		const s = this.seriesOf(ev);
+		const { date, ...fields } = eventFields(e);
+		const rule = repeat ? normalize(repeat, date) : undefined;
+		const to = until && until >= date ? until : OPEN_END;
+		if (s && repeat && JSON.stringify(rule ?? null) === JSON.stringify(s.repeat ?? null) && to === s.to) {
+			return this.updateFollowing(ev, e);
+		}
+		if ((!s || !ev.slot) && !repeat) {
+			await this.updateEvent(ev, e);
+			return ev.id;
+		}
+		const batch = writeBatch(db);
+		if (s && ev.slot) {
+			if (ev.slot <= s.from) batch.delete(doc(db, 'series', s.id));
+			else batch.update(doc(db, 'series', s.id), { to: addDays(ev.slot, -1) });
+			for (const x of this.stored) {
+				if (x.series === s.id && x.slot && x.slot >= ev.slot) batch.delete(doc(db, 'events', x.id));
+			}
+		}
+		if (this.stored.some((x) => x.id === ev.id)) batch.delete(doc(db, 'events', ev.id));
+		const ref = doc(collection(db, repeat ? 'series' : 'events'));
+		if (repeat) {
+			batch.set(ref, {
+				...fields,
+				from: date,
+				to,
+				except: [],
+				...(rule ? { repeat: rule } : {}),
+				createdAt: serverTimestamp()
+			});
+		} else {
+			batch.set(ref, { ...eventFields(e), createdAt: serverTimestamp() });
+		}
+		await batch.commit();
+		if (!repeat) return ref.id;
+		const first = repeatDays(rule, date, to, date, addDays(date, 3700), 1)[0];
+		return `${ref.id}_${first ?? date}`;
 	}
 
 	async deleteEvent(ev: Event) {

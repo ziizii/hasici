@@ -5,7 +5,7 @@
 	import { initials } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
 	import { formatLong, OPEN_END, formatShort } from '#lib/dates.js';
-	import { describe, lastDay, nextAfter } from '#lib/repeat.js';
+	import { describe, lastDay, nextAfter, WEEKLY } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import { toggleMemberDay } from '#lib/toggleDay.js';
@@ -116,12 +116,18 @@
 				showNote
 				saveLabel="Uložit změny"
 				inSeries={later}
+				editRepeat={series
+					? { repeat: series.repeat ?? WEEKLY, until: series.to === OPEN_END ? '' : series.to }
+					: { repeat: null, until: '' }}
 				oncancel={() => (editing = false)}
-				onsave={async (d, { following }) => {
+				onsave={async (d, { following, repeat, until }) => {
 					try {
-						if (following) await data.updateFollowing(ev, d);
+						let id = ev.id;
+						if (repeat !== undefined) id = await data.updateRepeat(ev, d, repeat, until);
+						else if (following) id = await data.updateFollowing(ev, d);
 						else await data.updateEvent(ev, d);
 						editing = false;
+						if (id !== ev.id) goto(`/akce/${id}`, { replaceState: true });
 					} catch (e) {
 						console.error(e);
 						toasts.error();
