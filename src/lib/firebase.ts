@@ -1,7 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import {
+	browserLocalPersistence,
 	connectAuthEmulator,
-	getAuth,
+	indexedDBLocalPersistence,
+	initializeAuth,
 	onAuthStateChanged,
 	signInAnonymously,
 	type User
@@ -39,7 +41,12 @@ export const app = initializeApp(
 			? { ...firebaseConfig, apiKey: 'missing', appId: 'missing' }
 			: firebaseConfig
 );
-export const auth = getAuth(app);
+// Not getAuth(): that also sets up popup/redirect sign-in, which makes Safari load Google's
+// gapi script and a hidden auth iframe before anything else. iOS tracking protection can
+// stall that iframe for many seconds. Only anonymous sign-in is used, so leave it out.
+export const auth = initializeAuth(app, {
+	persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
 
 // Offline cache so the plan opens instantly on a phone with a weak signal.
 export const db = initializeFirestore(app, {
