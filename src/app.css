@@ -181,3 +181,17 @@ input[type='date'],
 input[type='time'] {
 	min-height: 3.25rem;
 }
+
+/* Tailwind resets buttons to the arrow cursor; everything tappable gets the hand. */
+@layer base {
+	button:not(:disabled),
+	[role='button'],
+	[role='switch'],
+	select:not(:disabled),
+	summary,
+	label:has(> input[type='checkbox']),
+	input[type='checkbox'],
+	input[type='date']::-webkit-calendar-picker-indicator {
+		cursor: pointer;
+	}
+}
