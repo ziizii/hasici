@@ -63,31 +63,55 @@
 		return () => io.disconnect();
 	});
 
-	type Row =
-		| { kind: 'month'; key: string; label: string }
-		| { kind: 'week'; key: string; label: string }
-		| { kind: 'day'; key: DateKey };
+	type Week = { key: string; label: string; days: DateKey[] };
+	type Month = { key: string; label: string; weeks: Week[] };
 
-	const rows = $derived.by(() => {
-		const out: Row[] = [];
+	// Months wrap their weeks and weeks wrap their days, so a sticky heading is pushed up
+	// (under the bar above) when its group scrolls out, instead of the next one sliding over it.
+	const months = $derived.by(() => {
+		const out: Month[] = [];
 		for (let k = start; k <= end; k = addDays(k, 1)) {
 			const d = parseKey(k);
 			if (k === start || d.getDate() === 1) {
-				out.push({ kind: 'month', key: 'm' + k, label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` });
+				out.push({ key: 'm' + k, label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`, weeks: [] });
 			}
+			const weeks = out[out.length - 1].weeks;
 			// A new month repeats the week heading, so a jump to the 1st lines up under both bars.
 			if (k === start || weekdayIndex(k) === 0 || d.getDate() === 1) {
 				const mon = startOfWeek(k);
-				out.push({
-					kind: 'week',
+				weeks.push({
 					key: 'w' + k,
-					label: `Týden ${isoWeek(mon)} · ${formatDayMonth(mon)} – ${formatDayMonth(addDays(mon, 6))}`
+					label: `Týden ${isoWeek(mon)} · ${formatDayMonth(mon)} – ${formatDayMonth(addDays(mon, 6))}`,
+					days: []
 				});
 			}
-			out.push({ kind: 'day', key: k });
+			weeks[weeks.length - 1].days.push(k);
 		}
 		return out;
 	});
+
+	// The month heading casts a shadow while a week heading is part-way under it.
+	let shadowMonth = $state<string | null>(null);
+	let frame = 0;
+	function onscroll() {
+		if (frame) return;
+		frame = requestAnimationFrame(() => {
+			frame = 0;
+			let found: string | null = null;
+			for (const w of document.querySelectorAll<HTMLElement>('[data-week]')) {
+				const r = w.getBoundingClientRect();
+				if (r.top > innerHeight / 2) break;
+				const m = w.closest<HTMLElement>('[data-month]')!;
+				const mb = m.firstElementChild!.getBoundingClientRect().bottom;
+				// Stuck weeks tuck 1px under the month, so only more than that counts.
+				if (r.top < mb - 1.5 && r.bottom > mb + 0.5) {
+					found = m.dataset.month!;
+					break;
+				}
+			}
+			shadowMonth = found;
+		});
+	}
 
 	const jumps = $derived.by(() => {
 		const nextMonday = addDays(startOfWeek(today), 7);
@@ -129,7 +153,99 @@
 	}
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onscroll} />
+
+{#snippet dayRow(key: DateKey)}
+	{@const av = data.availability(key)}
+	{@const evs = data.eventsOn(key)}
+	{@const hol = holiday(key)}
+	{@const wd = weekdayIndex(key)}
+	{@const red = wd >= 5 || !!hol}
+	<!-- The whole row opens the day; the date is the keyboard/screen-reader button and
+	     the member segments are their own buttons. -->
+	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+	<div
+		id="d-{key}"
+		style="scroll-margin-top: var(--stick-day)"
+		class="flex w-full cursor-pointer items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
+			key
+		)}"
+		onclick={() => (selected = key)}
+	>
+		<button
+			type="button"
+			aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}: může {av.available.length} z {data.members
+				.length}. Otevřít den."
+			class="flex min-h-11 w-10 shrink-0 flex-col items-center lg:w-[6.25rem] lg:flex-row lg:gap-2">
+			<span
+				class="text-xs font-bold tracking-[0.06em] lg:order-2 lg:text-sm lg:font-semibold lg:tracking-normal lg:normal-case {red
+					? 'text-accent-dark'
+					: 'text-muted lg:text-ink-2'}"
+			>
+				<span class="lg:hidden">{DOW_SHORT[wd]}</span><span class="hidden lg:inline"
+					>{DOW_LONG[wd]}</span
+				>
+			</span>
+			{#if key === today}
+				<span
+					class="mt-0.5 flex size-[2.125rem] items-center justify-center rounded-full bg-accent font-display text-[1.3125rem] font-bold text-white lg:order-1 lg:mt-0 lg:size-[2.375rem] lg:text-[1.375rem]"
+					>{parseKey(key).getDate()}</span
+				>
+			{:else}
+				<span
+					class="font-display text-[1.625rem] leading-[1.1] font-bold lg:order-1 lg:w-[2.375rem] lg:text-center lg:text-[1.75rem]"
+					>{parseKey(key).getDate()}</span
+				>
+			{/if}
+		</button>
+
+		<span class="flex min-w-0 flex-1 flex-col gap-1.5">
+			<span class="flex items-start gap-2">
+				<span class="flex min-w-0 flex-1 flex-col gap-1.5">
+					{#if key === today || hol}
+						<span class="text-[0.8125rem] font-semibold text-muted"
+							>{[key === today ? 'Dnes' : '', hol ?? ''].filter(Boolean).join(' · ')}</span
+						>
+					{/if}
+					{#each evs as ev (ev.id)}
+						<span
+							class="flex max-w-full items-center gap-2 self-start rounded-lg bg-event px-2.5 py-1 text-event-ink"
+						>
+							{#if ev.time}<span class="shrink-0 text-[0.8125rem] font-bold whitespace-nowrap">{ev.time}</span>{/if}
+							<span class="line-clamp-2 text-sm leading-snug"
+								><span class="font-semibold">{ev.title}</span
+								>{#if ev.place}<span class="font-normal">{` · ${ev.place}`}</span>{/if}</span
+							>
+						</span>
+					{/each}
+				</span>
+				<!-- Phone: the count sits above the bar so the bar gets the full width -->
+				<span
+					class="shrink-0 text-right text-[1.1875rem] leading-tight font-bold whitespace-nowrap lg:hidden {countClass(
+						av.available.length,
+						data.members.length
+					)}"
+				>
+					{av.available.length}<span class="text-xs font-semibold text-faint"
+						>/{data.members.length}</span
+					>
+				</span>
+			</span>
+			<AvailabilityBar availability={av} ontoggle={(m) => toggleMemberDay(m, key)} />
+		</span>
+
+		<span
+			class="hidden w-[4.375rem] shrink-0 text-right text-xl font-bold whitespace-nowrap lg:block {countClass(
+				av.available.length,
+				data.members.length
+			)}"
+		>
+			{av.available.length}<span class="text-[0.8125rem] font-semibold text-faint"
+				>&nbsp;/{data.members.length}</span
+			>
+		</span>
+	</div>
+{/snippet}
 
 <div class="mx-auto flex max-w-[90rem] flex-wrap items-start gap-6 lg:p-6">
 	<!-- Left rail (desktop) -->
@@ -204,118 +320,34 @@
 			</button>
 		</div>
 
-		{#each rows as row, i (row.key)}
-			<!-- Month and week rows draw a 1px line just above themselves, so one sliding over a
-			     stuck one has a visible edge. In flow it lands on the previous row's border, except
-			     under a month heading, where the week row sits flush and draws none. -->
-			{#if row.kind === 'month'}
+		{#each months as m (m.key)}
+			<div data-month={m.key}>
 				<div
 					bind:borderBoxSize={monthBox}
 					style="top: var(--stick-month)"
-					class="sticky z-[6] bg-ground shadow-[0_-1px_0_var(--color-line)] px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold lg:bg-surface lg:px-5 lg:text-[1.625rem]"
+					class="sticky z-[6] bg-ground px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold transition-shadow lg:bg-surface lg:px-5 lg:text-[1.625rem] {shadowMonth ===
+					m.key
+						? 'shadow-[0_0.125rem_0.5rem_rgb(0_0_0/0.12)]'
+						: ''}"
 				>
-					{row.label}
+					{m.label}
 				</div>
-			{:else if row.kind === 'week'}
-				<div
-					bind:borderBoxSize={weekBox}
-					style="top: var(--stick-week)"
-					class="sticky z-[5] border-b border-line bg-ground px-4 pt-2.5 pb-1.5 text-xs font-bold tracking-[0.08em] text-muted uppercase lg:border-line-soft lg:bg-[#FAF9F6] lg:px-5 {rows[i - 1]?.kind === 'month' ? '' : 'shadow-[0_-1px_0_var(--color-line)]'}"
-				>
-					{row.label}
-				</div>
-			{:else}
-				{@const key = row.key}
-				{@const av = data.availability(key)}
-				{@const evs = data.eventsOn(key)}
-				{@const hol = holiday(key)}
-				{@const wd = weekdayIndex(key)}
-				{@const red = wd >= 5 || !!hol}
-				<!-- The whole row opens the day; the date is the keyboard/screen-reader button and
-				     the member segments are their own buttons. -->
-				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-				<div
-					id="d-{key}"
-					style="scroll-margin-top: var(--stick-day)"
-					class="flex w-full cursor-pointer items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
-						key
-					)}"
-					onclick={() => (selected = key)}
-				>
-					<button
-						type="button"
-						aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}: může {av.available.length} z {data.members
-							.length}. Otevřít den."
-						class="flex min-h-11 w-10 shrink-0 flex-col items-center lg:w-[6.25rem] lg:flex-row lg:gap-2">
-						<span
-							class="text-xs font-bold tracking-[0.06em] lg:order-2 lg:text-sm lg:font-semibold lg:tracking-normal lg:normal-case {red
-								? 'text-accent-dark'
-								: 'text-muted lg:text-ink-2'}"
+				{#each m.weeks as w (w.key)}
+					<div>
+						<div
+							data-week
+							bind:borderBoxSize={weekBox}
+							style="top: var(--stick-week)"
+							class="sticky z-[5] border-b border-line bg-ground px-4 pt-2.5 pb-1.5 text-xs font-bold tracking-[0.08em] text-muted uppercase lg:border-line-soft lg:bg-[#FAF9F6] lg:px-5"
 						>
-							<span class="lg:hidden">{DOW_SHORT[wd]}</span><span class="hidden lg:inline"
-								>{DOW_LONG[wd]}</span
-							>
-						</span>
-						{#if key === today}
-							<span
-								class="mt-0.5 flex size-[2.125rem] items-center justify-center rounded-full bg-accent font-display text-[1.3125rem] font-bold text-white lg:order-1 lg:mt-0 lg:size-[2.375rem] lg:text-[1.375rem]"
-								>{parseKey(key).getDate()}</span
-							>
-						{:else}
-							<span
-								class="font-display text-[1.625rem] leading-[1.1] font-bold lg:order-1 lg:w-[2.375rem] lg:text-center lg:text-[1.75rem]"
-								>{parseKey(key).getDate()}</span
-							>
-						{/if}
-					</button>
-
-					<span class="flex min-w-0 flex-1 flex-col gap-1.5">
-						<span class="flex items-start gap-2">
-							<span class="flex min-w-0 flex-1 flex-col gap-1.5">
-								{#if key === today || hol}
-									<span class="text-[0.8125rem] font-semibold text-muted"
-										>{[key === today ? 'Dnes' : '', hol ?? ''].filter(Boolean).join(' · ')}</span
-									>
-								{/if}
-								{#each evs as ev (ev.id)}
-									<span
-										class="flex max-w-full items-center gap-2 self-start rounded-lg bg-event px-2.5 py-1 text-event-ink"
-									>
-										{#if ev.time}<span class="shrink-0 text-[0.8125rem] font-bold whitespace-nowrap">{ev.time}</span>{/if}
-										<span class="line-clamp-2 text-sm leading-snug"
-											><span class="font-semibold">{ev.title}</span
-											>{#if ev.place}<span class="font-normal">{` · ${ev.place}`}</span>{/if}</span
-										>
-									</span>
-								{/each}
-							</span>
-							<!-- Phone: the count sits above the bar so the bar gets the full width -->
-							<span
-								class="shrink-0 text-right text-[1.1875rem] leading-tight font-bold whitespace-nowrap lg:hidden {countClass(
-									av.available.length,
-									data.members.length
-								)}"
-							>
-								{av.available.length}<span class="text-xs font-semibold text-faint"
-									>/{data.members.length}</span
-								>
-							</span>
-						</span>
-						<AvailabilityBar availability={av} ontoggle={(m) => toggleMemberDay(m, key)} />
-					</span>
-
-					<span
-						class="hidden w-[4.375rem] shrink-0 text-right text-xl font-bold whitespace-nowrap lg:block {countClass(
-							av.available.length,
-							data.members.length
-						)}"
-					>
-						{av.available.length}<span class="text-[0.8125rem] font-semibold text-faint"
-							>&nbsp;/{data.members.length}</span
-						>
-					</span>
-				</div>
-			{/if}
+							{w.label}
+						</div>
+						{#each w.days as key (key)}
+							{@render dayRow(key)}
+						{/each}
+					</div>
+				{/each}
+			</div>
 		{/each}
 
 		<div bind:this={sentinel} class="py-6 text-center text-sm text-faint">Načítám další dny…</div>
