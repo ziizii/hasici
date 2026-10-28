@@ -35,10 +35,17 @@ class Access {
 	memberId = $state<string | null>(readStoredMember());
 	/** config/access — only readable once the device has a session. */
 	linkKey = $state<string | null>(null);
+	/** Unit name from config/public (readable before login), e.g. "SDH Lhota". */
+	unitName = $state('');
 
 	#stopAccessDoc: (() => void) | null = null;
 
 	async init(url: URL) {
+		onSnapshot(
+			doc(db, 'config', 'public'),
+			(snap) => (this.unitName = (snap.data()?.name as string) ?? ''),
+			(e) => console.error(e)
+		);
 		try {
 			const user = await ensureUser();
 			this.uid = user.uid;
@@ -106,6 +113,10 @@ class Access {
 		const ok = await this.#createSession(await hashPassword(password));
 		if (ok) this.#ready();
 		return ok;
+	}
+
+	async setUnitName(name: string) {
+		await updateDoc(doc(db, 'config', 'public'), { name: name.trim() });
 	}
 
 	async changePassword(password: string) {

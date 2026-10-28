@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { access } from '#lib/access.svelte.js';
 	import Icon from './Icon.svelte';
 
 	let { large = false }: { large?: boolean } = $props();
@@ -13,7 +14,9 @@
 		<Icon name="flame" size={large ? 36 : 24} />
 	</div>
 	<div class="flex flex-col">
-		<span class="text-xs font-semibold tracking-[0.08em] text-muted uppercase">SDH</span>
+		{#if access.unitName}
+			<span class="text-xs font-semibold tracking-[0.08em] text-muted uppercase">{access.unitName}</span>
+		{/if}
 		<span class="font-display leading-none font-bold {large ? 'text-[2rem]' : 'text-[1.375rem]'}"
 			>Dostupnost jednotky</span
 		>

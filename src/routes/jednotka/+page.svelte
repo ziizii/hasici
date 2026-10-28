@@ -2,6 +2,7 @@
 	import { access } from '#lib/access.svelte.js';
 	import { initials, PALETTE } from '#lib/colors.js';
 	import { data, type Member } from '#lib/data.svelte.js';
+	import { formatRange, formatShort, OPEN_END, todayKey } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
@@ -35,6 +36,39 @@
 			console.error(e);
 			toasts.error();
 		}
+	}
+
+	// --- who's away ---
+	const today = todayKey();
+	const unavailable = $derived(
+		data.members.flatMap((m) => {
+			const a = data.openAbsence(m.id);
+			return a ? [{ member: m, absence: a }] : [];
+		})
+	);
+	const upcoming = $derived(
+		data.absences
+			.filter((a) => a.to >= today && a.to !== OPEN_END)
+			.flatMap((a) => {
+				const member = data.member(a.memberId);
+				return member ? [{ member, absence: a }] : [];
+			})
+			.sort((x, y) => x.absence.from.localeCompare(y.absence.from))
+	);
+
+	async function backAvailable(m: Member) {
+		await data.setUnavailable(m.id, false).catch(() => toasts.error());
+	}
+
+	// --- unit name ---
+	let unitName = $state(access.unitName);
+	$effect(() => {
+		unitName = access.unitName;
+	});
+
+	async function saveUnitName() {
+		if (unitName.trim() === access.unitName) return;
+		await access.setUnitName(unitName).catch(() => toasts.error());
 	}
 
 	// --- password ---
@@ -146,6 +180,68 @@
 
 <div class="mx-auto flex max-w-xl flex-col gap-4 px-5 pt-7 pb-8">
 	<h1 class="font-display text-[2rem] leading-none font-bold">Jednotka</h1>
+
+	<label class="flex flex-col gap-1.5 rounded-2xl border border-line bg-surface p-4 font-bold">
+		Název jednotky
+		<input
+			bind:value={unitName}
+			maxlength="60"
+			placeholder="např. SDH Lhota"
+			onblur={saveUnitName}
+			onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+			class="h-12 rounded-xl border border-field px-3 text-base font-normal text-ink"
+		/>
+	</label>
+
+	<!-- Who's away -->
+	<section class="flex flex-col rounded-2xl border border-line bg-surface p-4">
+		<h2 class="mb-2 text-[1.0625rem] font-bold">Nedostupní ({unavailable.length})</h2>
+		{#if unavailable.length === 0}
+			<p class="text-[0.9375rem] text-muted">Nikdo není nedostupný do odvolání.</p>
+		{/if}
+		<ul class="flex flex-col">
+			{#each unavailable as { member: m, absence: a } (m.id)}
+				<li class="flex min-h-[3.25rem] flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-soft py-1">
+					<span
+						class="flex size-8 items-center justify-center rounded-lg text-xs font-bold text-white"
+						style="background: {m.color}">{initials(m.name)}</span
+					>
+					<span class="flex min-w-0 flex-1 flex-col">
+						<span class="font-medium">{m.name}</span>
+						<span class="text-[0.9375rem] text-muted">od {formatShort(a.from)}{a.note ? ` · ${a.note}` : ''}</span>
+					</span>
+					<button
+						type="button"
+						class="min-h-11 rounded-[10px] border border-field px-3 font-bold"
+						onclick={() => backAvailable(m)}>Je zpět</button
+					>
+				</li>
+			{/each}
+		</ul>
+
+		<h2 class="mt-4 mb-2 text-[1.0625rem] font-bold">Nadcházející nepřítomnosti ({upcoming.length})</h2>
+		{#if upcoming.length === 0}
+			<p class="text-[0.9375rem] text-muted">Nikdo nemá zapsanou nepřítomnost.</p>
+		{/if}
+		<ul class="flex flex-col">
+			{#each upcoming as { member: m, absence: a } (a.id)}
+				<li class="flex min-h-[3.25rem] items-center gap-3 border-t border-line-soft py-1.5">
+					<span
+						class="flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+						style="background: {m.color}">{initials(m.name)}</span
+					>
+					<span class="flex min-w-0 flex-1 flex-col">
+						<span class="font-medium">{m.name}</span>
+						<span class="text-[0.9375rem] text-muted"
+							>{a.from <= today ? `do ${formatShort(a.to)}` : formatRange(a.from, a.to)}{a.note
+								? ` · ${a.note}`
+								: ''}</span
+						>
+					</span>
+				</li>
+			{/each}
+		</ul>
+	</section>
 
 	<!-- Access -->
 	<section class="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">

@@ -49,7 +49,12 @@ service cloud.firestore {
         && existsAfter(accessPath())
         && request.resource.data.keys().hasOnly(['initialized'])
         && request.resource.data.initialized == true;
-      allow update, delete: if false;
+      // The unit name ("SDH …") lives here so the login screen can show it.
+      allow update: if hasSession()
+        && request.resource.data.keys().hasOnly(['initialized', 'name'])
+        && request.resource.data.initialized == true
+        && isText(request.resource.data.name, 0, 60);
+      allow delete: if false;
     }
 
     match /config/access {

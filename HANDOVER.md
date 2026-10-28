@@ -96,7 +96,7 @@ don't (`#lib/components/Icon.svelte`).
 
 | Path | Fields | Notes |
 | --- | --- | --- |
-| `config/public` | `initialized: true` | Readable by anyone; tells the app if first-run setup happened |
+| `config/public` | `initialized: true`, `name` | Readable by anyone; tells the app if first-run setup happened. `name` is the unit name shown in the brand (edited on `/jednotka`) |
 | `config/access` | `linkKey`, `passwordHash`, `updatedAt` | Readable only with a session |
 | `config/places` | `list` (string[], ≤ 50) | Default event places, edited on `/jednotka`; offered first in the event form |
 | `sessions/{uid}` | `key`, `createdAt` | Created when `key` equals `linkKey` or `passwordHash` |
