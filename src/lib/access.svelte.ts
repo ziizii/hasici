@@ -1,9 +1,11 @@
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, ensureUser } from './firebase';
 
 export type GateState = 'loading' | 'setup' | 'locked' | 'ready' | 'error';
 
 const MEMBER_KEY = 'hasici.memberId';
+/** uid whose session was confirmed on this device, so later visits can skip the wait. */
+const SESSION_KEY = 'hasici.sessionUid';
 const LINK_PARAM = 'k';
 
 /** SHA-256 of the password (salted with a fixed app prefix), as hex. */
@@ -19,11 +21,20 @@ export function randomKey(length = 24): string {
 	return [...bytes].map((b) => alphabet[b % alphabet.length]).join('');
 }
 
-function readStoredMember(): string | null {
+function readStored(key: string): string | null {
 	try {
-		return localStorage.getItem(MEMBER_KEY);
+		return localStorage.getItem(key);
 	} catch {
 		return null;
+	}
+}
+
+function writeStored(key: string, value: string | null) {
+	try {
+		if (value) localStorage.setItem(key, value);
+		else localStorage.removeItem(key);
+	} catch {
+		// private mode etc.; the device just won't remember
 	}
 }
 
@@ -32,7 +43,7 @@ class Access {
 	error = $state<string | null>(null);
 	uid = $state<string | null>(null);
 	/** Which member this device acts as (remembered in localStorage). */
-	memberId = $state<string | null>(readStoredMember());
+	memberId = $state<string | null>(readStored(MEMBER_KEY));
 	/** config/access — only readable once the device has a session. */
 	linkKey = $state<string | null>(null);
 	/** Unit name from config/public (readable before login), e.g. "SDH Lhota". */
@@ -49,6 +60,14 @@ class Access {
 		try {
 			const user = await ensureUser();
 			this.uid = user.uid;
+
+			// Known device: open straight from the offline cache and check the session
+			// in the background, instead of waiting for the server on every visit.
+			if (readStored(SESSION_KEY) === user.uid) {
+				this.#ready(url);
+				this.#recheckSession(user.uid);
+				return;
+			}
 
 			const session = await getDoc(doc(db, 'sessions', user.uid));
 			if (session.exists()) return this.#ready(url);
@@ -81,7 +100,20 @@ class Access {
 		}
 	}
 
+	async #recheckSession(uid: string) {
+		try {
+			const session = await getDocFromServer(doc(db, 'sessions', uid));
+			if (session.exists()) return;
+			// Session was removed (e.g. from the console): lock this device again.
+			writeStored(SESSION_KEY, null);
+			location.reload();
+		} catch {
+			// Offline or slow network: keep going with the cached data.
+		}
+	}
+
 	#ready(url?: URL) {
+		writeStored(SESSION_KEY, this.uid);
 		if (url?.searchParams.has(LINK_PARAM)) {
 			url.searchParams.delete(LINK_PARAM);
 			history.replaceState(history.state, '', url.pathname + url.search + url.hash);
@@ -140,12 +172,7 @@ class Access {
 
 	setMember(id: string | null) {
 		this.memberId = id;
-		try {
-			if (id) localStorage.setItem(MEMBER_KEY, id);
-			else localStorage.removeItem(MEMBER_KEY);
-		} catch {
-			/* private mode: keep it in memory only */
-		}
+		writeStored(MEMBER_KEY, id);
 	}
 }
 
