@@ -3,7 +3,7 @@
 // ?demo=30 generates a bigger unit to check how the layout copes.
 import { PALETTE } from './colors.js';
 import type { Absence, Event, Member } from './data.svelte.js';
-import { addDays, todayKey } from './dates.js';
+import { addDays, OPEN_END, todayKey } from './dates.js';
 
 export function isDemo(url: URL): boolean {
 	return import.meta.env.DEV && url.searchParams.has('demo');
@@ -29,14 +29,15 @@ export function demoData(count = 10): { members: Member[]; absences: Absence[]; 
 	const t = todayKey();
 	const d = (n: number) => addDays(t, n);
 	const absences: Absence[] = [
-		{ id: 'a1', memberId: 'm8', from: d(0), to: d(3), note: 'Dovolená' },
-		{ id: 'a2', memberId: 'm5', from: d(2), to: d(4), note: 'Mimo obec' },
-		{ id: 'a3', memberId: 'm1', from: d(3), to: d(3), note: '' },
-		{ id: 'a4', memberId: 'm3', from: d(7), to: d(7), note: 'Práce / směna' },
-		{ id: 'a5', memberId: 'm7', from: d(10), to: d(11), note: 'Dovolená – hory' },
-		{ id: 'a6', memberId: 'm4', from: d(10), to: d(10), note: '' },
-		{ id: 'a7', memberId: 'm6', from: d(10), to: d(10), note: 'Práce' },
-		{ id: 'a8', memberId: 'm9', from: d(12), to: d(16), note: 'Služební cesta' }
+		{ id: 'a1', memberId: 'm8', from: d(0), to: d(3), note: 'Dovolená', weekdays: [] },
+		{ id: 'a2', memberId: 'm5', from: d(2), to: d(4), note: 'Mimo obec', weekdays: [] },
+		{ id: 'a3', memberId: 'm1', from: d(3), to: d(3), note: '', weekdays: [] },
+		{ id: 'a4', memberId: 'm3', from: d(7), to: d(7), note: 'Práce / směna', weekdays: [] },
+		{ id: 'a5', memberId: 'm7', from: d(10), to: d(11), note: 'Dovolená – hory', weekdays: [] },
+		{ id: 'a6', memberId: 'm4', from: d(10), to: d(10), note: '', weekdays: [] },
+		{ id: 'a7', memberId: 'm6', from: d(10), to: d(10), note: 'Práce', weekdays: [] },
+		{ id: 'a8', memberId: 'm9', from: d(12), to: d(16), note: 'Služební cesta', weekdays: [] },
+		{ id: 'a9', memberId: 'm2', from: d(0), to: OPEN_END, note: 'Práce', weekdays: [1] }
 	];
 	const events: Event[] = [
 		{

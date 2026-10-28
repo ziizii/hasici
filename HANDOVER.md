@@ -30,6 +30,9 @@ direction; older rows are superseded.
   editor on `/jednotka` for anyone): an absence from today with
   `to = OPEN_END` (`'9999-12-31'`), shown as "od …". Switching it off ends it
   yesterday, or deletes it if it started today (`data.setUnavailable`).
+- **Repeating absences** ("every Tuesday", "weekends") are normal absences
+  with `weekdays`; without an end date they last until deleted. Use
+  `covers(a, day)` instead of comparing `from`/`to` directly.
 - **Events keep a time** (`Sraz`, start time only) plus place and an
   optional note, "so we know when to go where".
 - **"Nemůžu přijít" on an event is not a separate concept.** It creates a
@@ -101,7 +104,7 @@ don't (`#lib/components/Icon.svelte`).
 | `config/places` | `list` (string[], ≤ 50) | Default event places, edited on `/jednotka`; offered first in the event form |
 | `sessions/{uid}` | `key`, `createdAt` | Created when `key` equals `linkKey` or `passwordHash` |
 | `members/{id}` | `name`, `color`, `archived`, `createdAt` | |
-| `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `createdAt` | Whole days |
+| `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat weekly within the range; `to = 9999-12-31` = no end |
 | `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `createdAt` | |
 
 - **Password hash:** `passwordHash` is SHA-256 of `"hasici:" + password`,

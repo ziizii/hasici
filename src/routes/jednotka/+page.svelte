@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
 	import { initials, PALETTE } from '#lib/colors.js';
-	import { data, type Member } from '#lib/data.svelte.js';
-	import { formatRange, formatShort, OPEN_END, todayKey } from '#lib/dates.js';
+	import { absenceWhen, data, isSwitch, type Member } from '#lib/data.svelte.js';
+	import { formatShort, todayKey } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
@@ -48,7 +48,7 @@
 	);
 	const upcoming = $derived(
 		data.absences
-			.filter((a) => a.to >= today && a.to !== OPEN_END)
+			.filter((a) => a.to >= today && !isSwitch(a))
 			.flatMap((a) => {
 				const member = data.member(a.memberId);
 				return member ? [{ member, absence: a }] : [];
@@ -233,9 +233,7 @@
 					<span class="flex min-w-0 flex-1 flex-col">
 						<span class="font-medium">{m.name}</span>
 						<span class="text-[0.9375rem] text-muted"
-							>{a.from <= today ? `do ${formatShort(a.to)}` : formatRange(a.from, a.to)}{a.note
-								? ` · ${a.note}`
-								: ''}</span
+							>{absenceWhen(a, today)}{a.note ? ` · ${a.note}` : ''}</span
 						>
 					</span>
 				</li>

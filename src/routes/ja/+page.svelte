@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
-	import { data, type Absence } from '#lib/data.svelte.js';
+	import { covers, data, isSwitch, type Absence } from '#lib/data.svelte.js';
 	import {
 		addDays,
 		formatLong,
+		DOW_ABBR,
 		formatRange,
+		formatShort,
+		formatWeekdays,
 		OPEN_END,
 		pluralDays,
 		rangeLength,
@@ -25,7 +28,7 @@
 			.sort((a, b) => a.from.localeCompare(b.from))
 	);
 	// The open-ended one is shown as the switch, not in the list.
-	const upcoming = $derived(mine.filter((a) => a.to >= today && a.to !== OPEN_END));
+	const upcoming = $derived(mine.filter((a) => a.to >= today && !isSwitch(a)));
 	const past = $derived(mine.filter((a) => a.to < today).reverse().slice(0, 10));
 
 	let showForm = $state(false);
@@ -37,7 +40,13 @@
 	let from = $state(today);
 	let to = $state('');
 	let note = $state('');
+	/** Repeating weekly on these days (0 = Mon); empty = every day in the range. */
+	let weekdays = $state<number[]>([]);
 	let busy = $state(false);
+
+	function toggleWeekday(d: number) {
+		weekdays = weekdays.includes(d) ? weekdays.filter((x) => x !== d) : [...weekdays, d].sort();
+	}
 	const reasons = ['Dovolená', 'Práce / směna', 'Mimo obec', 'Nemoc'];
 
 	function pickQuick(q: Quick) {
@@ -51,11 +60,14 @@
 		}
 	}
 
-	const end = $derived(to && to >= from ? to : from);
+	// Repeating without an end date lasts until it is deleted.
+	const end = $derived(to && to >= from ? to : weekdays.length ? OPEN_END : from);
 	const summary = $derived(
-		end === from
-			? formatLong(from)
-			: `${formatLong(from)} až ${formatLong(end)} (${pluralDays(rangeLength(from, end))})`
+		weekdays.length
+			? `${formatWeekdays(weekdays)}, ${end === OPEN_END ? `od ${formatShort(from)} do odvolání` : formatRange(from, end)}`
+			: end === from
+				? formatLong(from)
+				: `${formatLong(from)} až ${formatLong(end)} (${pluralDays(rangeLength(from, end))})`
 	);
 
 	async function save(e: SubmitEvent) {
@@ -63,10 +75,11 @@
 		if (!access.memberId || !from) return;
 		busy = true;
 		try {
-			await data.addAbsence(access.memberId, from, end, note);
+			await data.addAbsence(access.memberId, from, end, note, weekdays);
 			showForm = false;
 			note = '';
 			to = '';
+			weekdays = [];
 			quick = 'custom';
 			toasts.show('Nepřítomnost uložena');
 		} catch (err) {
@@ -91,7 +104,7 @@
 	}
 
 	function clashes(a: Absence) {
-		return data.events.filter((e) => e.date >= a.from && e.date <= a.to);
+		return data.events.filter((e) => e.date >= today && covers(a, e.date)).slice(0, 3);
 	}
 </script>
 
@@ -165,7 +178,11 @@
 						/>
 					</label>
 					<label class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
-						<span>Do <span class="font-normal text-faint">(nepovinné)</span></span>
+						<span
+							>Do <span class="font-normal text-faint"
+								>({weekdays.length ? 'prázdné = do odvolání' : 'nepovinné'})</span
+							></span
+						>
 						<input
 							type="date"
 							bind:value={to}
@@ -174,6 +191,24 @@
 							class="h-[3.25rem] min-w-0 rounded-xl border border-field bg-surface px-3 text-base text-ink"
 						/>
 					</label>
+				</div>
+			</fieldset>
+
+			<fieldset class="flex flex-col gap-2.5">
+				<legend class="mb-2.5 font-bold">
+					Opakovat každý týden <span class="font-normal text-faint">(nepovinné)</span>
+				</legend>
+				<div class="flex flex-wrap gap-2">
+					{#each DOW_ABBR as label, d (d)}
+						<button
+							type="button"
+							aria-pressed={weekdays.includes(d)}
+							class="min-h-11 min-w-11 rounded-full px-3 font-semibold {weekdays.includes(d)
+								? 'bg-ink text-white'
+								: 'border border-field bg-surface'}"
+							onclick={() => toggleWeekday(d)}>{label}</button
+						>
+					{/each}
 				</div>
 			</fieldset>
 
@@ -229,8 +264,15 @@
 			{@const evs = clashes(a)}
 			<li class="flex gap-2 rounded-[14px] border border-line bg-surface py-3.5 pr-2 pl-4">
 				<div class="flex flex-1 flex-col gap-1">
-					<span class="text-lg font-bold">{formatRange(a.from, a.to)}</span>
-					<span class="text-[0.9375rem] text-muted">{pluralDays(rangeLength(a.from, a.to))}</span>
+					{#if a.weekdays.length}
+						<span class="text-lg font-bold">{formatWeekdays(a.weekdays)}</span>
+						<span class="text-[0.9375rem] text-muted"
+							>{a.to === OPEN_END ? `od ${formatShort(a.from)} do odvolání` : formatRange(a.from, a.to)}</span
+						>
+					{:else}
+						<span class="text-lg font-bold">{formatRange(a.from, a.to)}</span>
+						<span class="text-[0.9375rem] text-muted">{pluralDays(rangeLength(a.from, a.to))}</span>
+					{/if}
 					{#if a.note}
 						<span>{a.note}</span>
 					{/if}

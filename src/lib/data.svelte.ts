@@ -12,7 +12,16 @@ import {
 	type Unsubscribe
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { addDays, OPEN_END, todayKey, type DateKey } from './dates';
+import {
+	addDays,
+	formatRange,
+	formatShort,
+	formatWeekdays,
+	OPEN_END,
+	todayKey,
+	weekdayIndex,
+	type DateKey
+} from './dates';
 import { nextColor } from './colors';
 
 export interface Member {
@@ -30,6 +39,42 @@ export interface Absence {
 	from: DateKey;
 	to: DateKey;
 	note: string;
+	/** Repeating: only these weekdays (0 = Mon … 6 = Sun) within the range. Empty = every day. */
+	weekdays: number[];
+}
+
+export function covers(a: Absence, day: DateKey): boolean {
+	return a.from <= day && a.to >= day && (!a.weekdays.length || a.weekdays.includes(weekdayIndex(day)));
+}
+
+/** The "Nejsem k dispozici" switch: every day, no end. */
+export function isSwitch(a: Absence): boolean {
+	return a.to === OPEN_END && !a.weekdays.length;
+}
+
+/** "do 30. 10.", "od Út 3. 11.", "Út každý týden, do odvolání" … for lists. */
+export function absenceWhen(a: Absence, today: DateKey): string {
+	const range =
+		a.to === OPEN_END
+			? a.from <= today
+				? 'do odvolání'
+				: `od ${formatShort(a.from)}`
+			: a.from <= today && a.from !== a.to
+				? `do ${formatShort(a.to)}`
+				: formatRange(a.from, a.to);
+	return a.weekdays.length ? `${formatWeekdays(a.weekdays)}, ${range}` : range;
+}
+
+/** Firestore fields; `weekdays` only when repeating, so plain absences stay as before. */
+function absenceFields(a: Omit<Absence, 'id'>) {
+	return {
+		memberId: a.memberId,
+		from: a.from,
+		to: a.to,
+		note: a.note,
+		...(a.weekdays.length ? { weekdays: [...a.weekdays].sort() } : {}),
+		createdAt: serverTimestamp()
+	};
 }
 
 export interface Event {
@@ -133,7 +178,14 @@ class Data {
 				(snap) => {
 					this.absences = snap.docs.map((d) => {
 						const x = d.data();
-						return { id: d.id, memberId: x.memberId, from: x.from, to: x.to, note: x.note ?? '' };
+						return {
+							id: d.id,
+							memberId: x.memberId,
+							from: x.from,
+							to: x.to,
+							note: x.note ?? '',
+							weekdays: Array.isArray(x.weekdays) ? x.weekdays : []
+						};
 					});
 					this.loaded.absences = true;
 				},
@@ -187,12 +239,12 @@ class Data {
 	}
 
 	absenceOn(memberId: string, day: DateKey): Absence | undefined {
-		return this.absences.find((a) => a.memberId === memberId && a.from <= day && a.to >= day);
+		return this.absences.find((a) => a.memberId === memberId && covers(a, day));
 	}
 
 	/** The member's "do odvolání" absence, if switched on. */
 	openAbsence(memberId: string): Absence | undefined {
-		return this.absences.find((a) => a.memberId === memberId && a.to === OPEN_END);
+		return this.absences.find((a) => a.memberId === memberId && isSwitch(a));
 	}
 
 	availability(day: DateKey): DayAvailability {
@@ -262,15 +314,18 @@ class Data {
 
 	// --- absences ---------------------------------------------------------
 
-	async addAbsence(memberId: string, from: DateKey, to: DateKey, note = ''): Promise<string> {
+	async addAbsence(
+		memberId: string,
+		from: DateKey,
+		to: DateKey,
+		note = '',
+		weekdays: number[] = []
+	): Promise<string> {
 		if (to < from) [from, to] = [to, from];
-		const ref = await addDoc(collection(db, 'absences'), {
-			memberId,
-			from,
-			to,
-			note: note.trim(),
-			createdAt: serverTimestamp()
-		});
+		const ref = await addDoc(
+			collection(db, 'absences'),
+			absenceFields({ memberId, from, to, note: note.trim(), weekdays })
+		);
 		return ref.id;
 	}
 
@@ -284,13 +339,7 @@ class Data {
 
 	/** Puts back a deleted absence under the same id (undo). */
 	async restoreAbsence(a: Absence) {
-		await setDoc(doc(db, 'absences', a.id), {
-			memberId: a.memberId,
-			from: a.from,
-			to: a.to,
-			note: a.note,
-			createdAt: serverTimestamp()
-		});
+		await setDoc(doc(db, 'absences', a.id), absenceFields(a));
 	}
 
 	/** "Nemůžu přijít": a regular one-day absence. */
@@ -306,22 +355,14 @@ class Data {
 	 */
 	async markAvailable(memberId: string, day: DateKey) {
 		const batch = writeBatch(db);
-		for (const a of this.absences.filter(
-			(a) => a.memberId === memberId && a.from <= day && a.to >= day
-		)) {
+		for (const a of this.absences.filter((a) => a.memberId === memberId && covers(a, day))) {
 			const ref = doc(db, 'absences', a.id);
 			if (a.from === day && a.to === day) batch.delete(ref);
 			else if (a.from === day) batch.update(ref, { from: addDays(day, 1) });
 			else if (a.to === day) batch.update(ref, { to: addDays(day, -1) });
 			else {
 				batch.update(ref, { to: addDays(day, -1) });
-				batch.set(doc(collection(db, 'absences')), {
-					memberId,
-					from: addDays(day, 1),
-					to: a.to,
-					note: a.note,
-					createdAt: serverTimestamp()
-				});
+				batch.set(doc(collection(db, 'absences')), absenceFields({ ...a, from: addDays(day, 1) }));
 			}
 		}
 		await batch.commit();
@@ -338,7 +379,7 @@ class Data {
 			return;
 		}
 		const batch = writeBatch(db);
-		for (const a of this.absences.filter((a) => a.memberId === memberId && a.to === OPEN_END)) {
+		for (const a of this.absences.filter((a) => a.memberId === memberId && isSwitch(a))) {
 			const ref = doc(db, 'absences', a.id);
 			if (a.from >= today) batch.delete(ref);
 			else batch.update(ref, { to: addDays(today, -1) });
