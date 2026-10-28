@@ -61,7 +61,8 @@
 	let until = $state('');
 	/** Bumped to reset the repeat picker after saving. */
 	let saved = $state(0);
-	let following = $state(true);
+	// Just this date by default: moving one meeting must not move all later ones.
+	let following = $state(false);
 
 	const uid = Math.random().toString(36).slice(2, 8);
 
@@ -92,6 +93,19 @@
 </script>
 
 <form class="flex flex-col gap-3" onsubmit={submit}>
+	{#if inSeries}
+		<fieldset class="flex flex-col">
+			<legend class="mb-1 text-[0.9375rem] font-semibold text-ink-2">Co změnit</legend>
+			<label class="flex min-h-11 items-center gap-3 text-base">
+				<input type="radio" bind:group={following} value={false} class="size-6 shrink-0 accent-accent" />
+				Jen tento termín
+			</label>
+			<label class="flex min-h-11 items-center gap-3 text-base">
+				<input type="radio" bind:group={following} value={true} class="size-6 shrink-0 accent-accent" />
+				Tento i všechny další
+			</label>
+		</fieldset>
+	{/if}
 	<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
 		Název
 		<input
@@ -164,12 +178,6 @@
 		{#key saved}
 			<RepeatPicker {date} bind:value={repeat} bind:until />
 		{/key}
-	{/if}
-	{#if inSeries}
-		<label class="flex min-h-11 items-center gap-3 text-base font-semibold">
-			<input type="checkbox" bind:checked={following} class="size-6 shrink-0 accent-accent" />
-			Změnit i všechny další opakování
-		</label>
 	{/if}
 	<div class="flex gap-2">
 		{#if oncancel}

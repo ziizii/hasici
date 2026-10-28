@@ -43,6 +43,9 @@ direction; older rows are superseded.
   editor: every n days / weeks on weekdays / months on days or the nth
   weekday / years in months), with an optional end date and a preview of the
   next dates. Months without the chosen day (31st, 5th Thursday) are skipped.
+- **One date of a repeat** can be moved or changed on its own (event page:
+  "Změnit jen tento termín", or Upravit with "Co změnit: Jen tento termín",
+  the default). It is stored as its own event and shows "přesunutý z …".
 - **Events keep a time** (`Sraz`, start time only) plus place and an
   optional note, "so we know when to go where".
 - **"Nemůžu přijít" on an event is not a separate concept.** It creates a

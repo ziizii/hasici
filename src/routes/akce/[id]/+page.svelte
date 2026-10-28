@@ -165,6 +165,11 @@
 					<span class="flex items-center gap-2"
 						><Icon name="refresh" size={18} class="shrink-0 text-muted" />{repeatText}</span
 					>
+					{#if ev.slot && ev.slot !== ev.date}
+						<span class="pl-[1.625rem] text-[0.9375rem] font-semibold text-warn-ink"
+							>Tento termín je přesunutý z {formatShort(ev.slot)}</span
+						>
+					{/if}
 				{/if}
 				{#if ev.place}
 					<span class="flex items-center gap-2"><Icon name="pin" size={18} class="text-muted" />{ev.place}</span>
@@ -267,6 +272,13 @@
 			{/if}
 
 			{#if series}
+				<button
+					type="button"
+					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent"
+					onclick={() => (editing = true)}
+				>
+					<Icon name="calendar" size={18} /> Změnit jen tento termín
+				</button>
 				<button
 					type="button"
 					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
