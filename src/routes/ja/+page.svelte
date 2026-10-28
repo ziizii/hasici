@@ -1,7 +1,14 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
-	import { covers, data, isSwitch, occurrences, type Absence } from '#lib/data.svelte.js';
+	import {
+		covers,
+		data,
+		groupAbsences,
+		isSwitch,
+		occurrences,
+		type Absence
+	} from '#lib/data.svelte.js';
 	import {
 		addDays,
 		formatLong,
@@ -28,7 +35,8 @@
 			.sort((a, b) => a.from.localeCompare(b.from))
 	);
 	// The open-ended one is shown as the switch, not in the list.
-	const upcoming = $derived(mine.filter((a) => a.to >= today && !isSwitch(a)));
+	// Back-to-back days (e.g. tapped one by one on the timeline) show as one range.
+	const upcoming = $derived(groupAbsences(mine.filter((a) => a.to >= today && !isSwitch(a))));
 	const past = $derived(mine.filter((a) => a.to < today).reverse().slice(0, 10));
 
 	let showForm = $state(false);
@@ -90,12 +98,14 @@
 		}
 	}
 
-	async function remove(a: Absence) {
+	/** Deletes a row, i.e. every absence merged into it. */
+	async function remove(parts: Absence[]) {
 		try {
-			await data.deleteAbsence(a.id);
+			await Promise.all(parts.map((a) => data.deleteAbsence(a.id)));
 			toasts.show('Nepřítomnost smazána', {
 				actionLabel: 'Vrátit zpět',
-				action: () => data.restoreAbsence(a).catch(() => toasts.error())
+				action: () =>
+					Promise.all(parts.map((a) => data.restoreAbsence(a))).catch(() => toasts.error())
 			});
 		} catch (err) {
 			console.error(err);
@@ -264,7 +274,7 @@
 	{/if}
 
 	<ul class="flex flex-col gap-2.5">
-		{#each upcoming as a (a.id)}
+		{#each upcoming as { absence: a, parts } (a.id)}
 			{@const evs = clashes(a)}
 			<li class="flex gap-2 rounded-[14px] border border-line bg-surface py-3.5 pr-2 pl-4">
 				<div class="flex flex-1 flex-col gap-1">
@@ -313,7 +323,7 @@
 					type="button"
 					aria-label="Smazat nepřítomnost {formatRange(a.from, a.to)}"
 					class="flex size-11 shrink-0 items-center justify-center rounded-[10px] text-muted"
-					onclick={() => remove(a)}
+					onclick={() => remove(parts)}
 				>
 					<Icon name="trash" size={22} />
 				</button>

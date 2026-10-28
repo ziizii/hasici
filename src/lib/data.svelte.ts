@@ -73,6 +73,38 @@ export function isSwitch(a: Absence): boolean {
 	return a.to === OPEN_END && !a.weekdays.length;
 }
 
+/** A row in an absence list: consecutive plain absences of one member shown as one range. */
+export interface AbsenceGroup {
+	/** The merged view (id of the first part). */
+	absence: Absence;
+	parts: Absence[];
+}
+
+/** Merges overlapping or back-to-back dated absences per member (1., 2., 3. -> 1.–3.). */
+export function groupAbsences(list: Absence[]): AbsenceGroup[] {
+	const plain = (a: Absence) => !a.weekdays.length && a.to !== OPEN_END && !a.except.length;
+	const sorted = [...list].sort((x, y) => x.from.localeCompare(y.from));
+	const out: AbsenceGroup[] = [];
+	const open = new Map<string, AbsenceGroup>(); // member -> group still extendable
+	for (const a of sorted) {
+		if (!plain(a)) {
+			out.push({ absence: a, parts: [a] });
+			continue;
+		}
+		const g = open.get(a.memberId);
+		if (g && a.from <= addDays(g.absence.to, 1)) {
+			const notes = [...new Set([g.absence.note, a.note].filter(Boolean))].join(', ');
+			g.absence = { ...g.absence, to: a.to > g.absence.to ? a.to : g.absence.to, note: notes };
+			g.parts.push(a);
+		} else {
+			const ng = { absence: a, parts: [a] };
+			open.set(a.memberId, ng);
+			out.push(ng);
+		}
+	}
+	return out;
+}
+
 /** "do 30. 10.", "od Út 3. 11.", "Út každý týden, do odvolání" … for lists. */
 export function absenceWhen(a: Absence, today: DateKey): string {
 	const range =

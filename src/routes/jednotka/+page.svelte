@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
 	import { initials, PALETTE } from '#lib/colors.js';
-	import { absenceWhen, data, isSwitch, type Member } from '#lib/data.svelte.js';
+	import { absenceWhen, data, groupAbsences, isSwitch, type Member } from '#lib/data.svelte.js';
 	import { formatShort, todayKey } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
@@ -47,13 +47,12 @@
 		})
 	);
 	const upcoming = $derived(
-		data.absences
-			.filter((a) => a.to >= today && !isSwitch(a))
-			.flatMap((a) => {
-				const member = data.member(a.memberId);
-				return member ? [{ member, absence: a }] : [];
-			})
-			.sort((x, y) => x.absence.from.localeCompare(y.absence.from))
+		groupAbsences(data.absences.filter((a) => a.to >= today && !isSwitch(a))).flatMap(
+			({ absence }) => {
+				const member = data.member(absence.memberId);
+				return member ? [{ member, absence }] : [];
+			}
+		)
 	);
 
 	const upcomingEvents = $derived(data.events.filter((e) => e.date >= today));
