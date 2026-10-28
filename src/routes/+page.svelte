@@ -204,12 +204,15 @@
 			</button>
 		</div>
 
-		{#each rows as row (row.key)}
+		{#each rows as row, i (row.key)}
+			<!-- Month and week rows draw a 1px line just above themselves, so one sliding over a
+			     stuck one has a visible edge. In flow it lands on the previous row's border, except
+			     under a month heading, where the week row sits flush and draws none. -->
 			{#if row.kind === 'month'}
 				<div
 					bind:borderBoxSize={monthBox}
 					style="top: var(--stick-month)"
-					class="sticky z-[6] bg-ground px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold lg:bg-surface lg:px-5 lg:text-[1.625rem]"
+					class="sticky z-[6] bg-ground shadow-[0_-1px_0_var(--color-line)] px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold lg:bg-surface lg:px-5 lg:text-[1.625rem]"
 				>
 					{row.label}
 				</div>
@@ -217,7 +220,7 @@
 				<div
 					bind:borderBoxSize={weekBox}
 					style="top: var(--stick-week)"
-					class="sticky z-[5] border-b border-line bg-ground px-4 pt-2.5 pb-1.5 text-xs font-bold tracking-[0.08em] text-muted uppercase lg:border-line-soft lg:bg-[#FAF9F6] lg:px-5"
+					class="sticky z-[5] border-b border-line bg-ground px-4 pt-2.5 pb-1.5 text-xs font-bold tracking-[0.08em] text-muted uppercase lg:border-line-soft lg:bg-[#FAF9F6] lg:px-5 {rows[i - 1]?.kind === 'month' ? '' : 'shadow-[0_-1px_0_var(--color-line)]'}"
 				>
 					{row.label}
 				</div>
