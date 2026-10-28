@@ -287,11 +287,12 @@
 			<h1 class="font-display text-[2rem] leading-none font-bold">Plán</h1>
 			<span class="text-[0.9375rem] text-muted">Klepnutím na den naplánujete akci.</span>
 		</div>
+		<!-- overscroll-x-contain: a swipe past the last button must not carry on into the page. -->
 		<nav
 			aria-label="Přeskočit na"
 			bind:borderBoxSize={navBox}
 			style="top: var(--header-h, 0px)"
-			class="sticky z-10 flex gap-2 overflow-x-auto border-b border-line bg-surface px-4 py-2 lg:hidden"
+			class="sticky z-10 flex gap-2 overflow-x-auto overscroll-x-contain border-b border-line bg-surface px-4 py-2 lg:hidden"
 		>
 			{#each jumps as j, i (j.key)}
 				<button
