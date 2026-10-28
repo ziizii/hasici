@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { data, type Member } from '#lib/data.svelte.js';
+	import { data } from '#lib/data.svelte.js';
 	import {
 		addDays,
 		DOW_LONG,
 		DOW_SHORT,
 		formatDayMonth,
-		formatShort,
 		holiday,
 		isoWeek,
 		isWeekend,
@@ -20,7 +19,7 @@
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import DayPanel from '#lib/components/DayPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
-	import { toasts } from '#lib/toast.svelte.js';
+	import { toggleMemberDay } from '#lib/toggleDay.js';
 
 	const today = todayKey();
 
@@ -113,31 +112,6 @@
 		if (key === selected) return 'bg-surface ring-2 ring-ink ring-inset';
 		if (key === today) return 'bg-surface';
 		return isWeekend(key) || holiday(key) ? 'bg-weekend lg:bg-ground' : 'bg-ground lg:bg-surface';
-	}
-
-	/** Tapping a member in a day's bar flips their availability for that day. */
-	async function toggleMember(m: Member, day: DateKey) {
-		const absence = data.absenceOn(m.id, day);
-		const when = formatShort(day);
-		const undoFailed = () => toasts.error();
-		try {
-			if (absence) {
-				await data.markAvailable(m.id, day);
-				toasts.show(`${m.name} může ${when}`, {
-					actionLabel: 'Vrátit zpět',
-					action: () => data.markAway(m.id, day, absence.note).catch(undoFailed)
-				});
-			} else {
-				await data.markAway(m.id, day);
-				toasts.show(`${m.name} nemůže ${when}`, {
-					actionLabel: 'Vrátit zpět',
-					action: () => data.markAvailable(m.id, day).catch(undoFailed)
-				});
-			}
-		} catch (e) {
-			console.error(e);
-			toasts.error();
-		}
 	}
 
 	function onkeydown(e: KeyboardEvent) {
@@ -311,7 +285,7 @@
 								>
 							</span>
 						</span>
-						<AvailabilityBar availability={av} ontoggle={(m) => toggleMember(m, key)} />
+						<AvailabilityBar availability={av} ontoggle={(m) => toggleMemberDay(m, key)} />
 					</span>
 
 					<span

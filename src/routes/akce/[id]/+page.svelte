@@ -7,6 +7,7 @@
 	import { formatLong } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
+	import { toggleMemberDay } from '#lib/toggleDay.js';
 	import EventForm from '#lib/components/EventForm.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 
@@ -197,7 +198,7 @@
 			{#if avail}
 				<div class="flex flex-col gap-2.5 rounded-2xl border border-line bg-surface p-4">
 					<span class="font-bold">{avail.available.length} z {total} přijde</span>
-					<AvailabilityBar availability={avail} />
+					<AvailabilityBar availability={avail} ontoggle={(m) => toggleMemberDay(m, ev.date)} />
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						{#each avail.available as m (m.id)}
 							<span class="rounded-lg px-2 py-1 text-sm font-semibold text-white" style="background: {m.color}"

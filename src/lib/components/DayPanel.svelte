@@ -3,6 +3,7 @@
 	import { data } from '#lib/data.svelte.js';
 	import { formatLong, holiday, type DateKey } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
+	import { toggleMemberDay } from '#lib/toggleDay.js';
 	import AvailabilityBar from './AvailabilityBar.svelte';
 	import EventForm from './EventForm.svelte';
 	import Icon from './Icon.svelte';
@@ -60,7 +61,7 @@
 
 	<section class="flex flex-col gap-2">
 		<span class="text-[1.0625rem] font-bold">{avail.available.length} z {total} může</span>
-		<AvailabilityBar availability={avail} size="lg" />
+		<AvailabilityBar availability={avail} size="lg" ontoggle={(m) => toggleMemberDay(m, day)} />
 		{#if avail.away.length}
 			<p class="text-[0.9375rem] leading-snug text-ink-2">
 				<strong class="font-bold text-warn">Nemůže:</strong>
