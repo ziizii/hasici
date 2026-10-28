@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { data } from '#lib/data.svelte.js';
+	import { data, type Member } from '#lib/data.svelte.js';
 	import {
 		addDays,
 		DOW_LONG,
 		DOW_SHORT,
 		formatDayMonth,
+		formatShort,
 		holiday,
 		isoWeek,
 		isWeekend,
@@ -19,6 +20,7 @@
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import DayPanel from '#lib/components/DayPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
+	import { toasts } from '#lib/toast.svelte.js';
 
 	const today = todayKey();
 
@@ -106,7 +108,32 @@
 	function rowBg(key: DateKey) {
 		if (key === selected) return 'bg-surface ring-2 ring-ink ring-inset';
 		if (key === today) return 'bg-surface';
-		return isWeekend(key) ? 'bg-weekend lg:bg-ground' : 'bg-ground lg:bg-surface';
+		return isWeekend(key) || holiday(key) ? 'bg-weekend lg:bg-ground' : 'bg-ground lg:bg-surface';
+	}
+
+	/** Tapping a member in a day's bar flips their availability for that day. */
+	async function toggleMember(m: Member, day: DateKey) {
+		const absence = data.absenceOn(m.id, day);
+		const when = formatShort(day);
+		const undoFailed = () => toasts.error();
+		try {
+			if (absence) {
+				await data.markAvailable(m.id, day);
+				toasts.show(`${m.name} může ${when}`, {
+					actionLabel: 'Vrátit zpět',
+					action: () => data.markAway(m.id, day, absence.note).catch(undoFailed)
+				});
+			} else {
+				await data.markAway(m.id, day);
+				toasts.show(`${m.name} nemůže ${when}`, {
+					actionLabel: 'Vrátit zpět',
+					action: () => data.markAvailable(m.id, day).catch(undoFailed)
+				});
+			}
+		} catch (e) {
+			console.error(e);
+			toasts.error();
+		}
 	}
 
 	function onkeydown(e: KeyboardEvent) {
@@ -204,17 +231,21 @@
 				{@const hol = holiday(key)}
 				{@const wd = weekdayIndex(key)}
 				{@const red = wd >= 5 || !!hol}
-				<button
-					type="button"
+				<!-- The whole row opens the day; the date is the keyboard/screen-reader button and
+				     the member segments are their own buttons. -->
+				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+				<div
 					id="d-{key}"
-					class="flex w-full scroll-mt-16 items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:scroll-mt-24 lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
+					class="flex w-full cursor-pointer scroll-mt-16 items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:scroll-mt-24 lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
 						key
 					)}"
-					aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}: může {av.available.length} z {data.members
-						.length}. Otevřít den."
 					onclick={() => (selected = key)}
 				>
-					<span class="flex w-10 shrink-0 flex-col items-center lg:w-[6.25rem] lg:flex-row lg:gap-2">
+					<button
+						type="button"
+						aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}: může {av.available.length} z {data.members
+							.length}. Otevřít den."
+						class="flex min-h-11 w-10 shrink-0 flex-col items-center lg:w-[6.25rem] lg:flex-row lg:gap-2">
 						<span
 							class="text-xs font-bold tracking-[0.06em] lg:order-2 lg:text-sm lg:font-semibold lg:tracking-normal lg:normal-case {red
 								? 'text-accent-dark'
@@ -235,7 +266,7 @@
 								>{parseKey(key).getDate()}</span
 							>
 						{/if}
-					</span>
+					</button>
 
 					<span class="flex min-w-0 flex-1 flex-col gap-1.5">
 						<span class="flex items-start gap-2">
@@ -266,7 +297,7 @@
 								>
 							</span>
 						</span>
-						<AvailabilityBar availability={av} />
+						<AvailabilityBar availability={av} ontoggle={(m) => toggleMember(m, key)} />
 					</span>
 
 					<span
@@ -279,7 +310,7 @@
 							>&nbsp;/{data.members.length}</span
 						>
 					</span>
-				</button>
+				</div>
 			{/if}
 		{/each}
 
