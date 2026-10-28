@@ -157,6 +157,21 @@ export interface DayAvailability {
 
 const collator = new Intl.Collator('cs');
 
+/**
+ * Last synced data, so a known device shows the plan at once. Firebase Auth re-checks
+ * the user over the network on every start and Firestore can't read even its own cache
+ * before that, which on a slow connection meant seconds of "Načítám…".
+ */
+const CACHE_KEY = 'hasici.cache.v1';
+
+export function clearCachedData() {
+	try {
+		localStorage.removeItem(CACHE_KEY);
+	} catch {
+		// nothing cached
+	}
+}
+
 /** Names are "First Last…": sort by everything after the first word, then the first word. */
 function byLastName(a: Member, b: Member): number {
 	const split = (name: string) => {
@@ -181,6 +196,41 @@ class Data {
 	loaded = $state({ members: false, absences: false, events: false });
 
 	#unsubs: Unsubscribe[] = [];
+	#saveTimer: ReturnType<typeof setTimeout> | undefined;
+
+	#loadCached() {
+		try {
+			const c = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null');
+			if (!c) return;
+			this.allMembers = c.members;
+			this.absences = c.absences;
+			this.events = c.events;
+			this.defaultPlaces = c.defaultPlaces;
+			this.loaded = { members: true, absences: true, events: true };
+		} catch {
+			// unreadable cache: wait for Firestore as before
+		}
+	}
+
+	/** Called after every live update; writes are batched. */
+	#saveSoon() {
+		clearTimeout(this.#saveTimer);
+		this.#saveTimer = setTimeout(() => {
+			try {
+				localStorage.setItem(
+					CACHE_KEY,
+					JSON.stringify({
+						members: this.allMembers,
+						absences: this.absences,
+						events: this.events,
+						defaultPlaces: this.defaultPlaces
+					})
+				);
+			} catch {
+				// storage full or unavailable: just no fast start next time
+			}
+		}, 500);
+	}
 
 	get ready() {
 		return this.loaded.members && this.loaded.absences && this.loaded.events;
@@ -220,6 +270,7 @@ class Data {
 	/** Realtime subscriptions. The whole unit is small, so everything is synced. */
 	start() {
 		if (this.#demo || this.#unsubs.length) return;
+		this.#loadCached();
 		this.#watch((onError) =>
 			onSnapshot(
 				collection(db, 'members'),
@@ -231,6 +282,7 @@ class Data {
 						})
 						.sort(byLastName);
 					this.loaded.members = true;
+					this.#saveSoon();
 				},
 				onError
 			)
@@ -252,6 +304,7 @@ class Data {
 						};
 					});
 					this.loaded.absences = true;
+					this.#saveSoon();
 				},
 				onError
 			)
@@ -262,6 +315,7 @@ class Data {
 				(snap) => {
 					const list = snap.data()?.list;
 					this.defaultPlaces = Array.isArray(list) ? list : [];
+					this.#saveSoon();
 				},
 				onError
 			)
@@ -284,6 +338,7 @@ class Data {
 						})
 						.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 					this.loaded.events = true;
+					this.#saveSoon();
 				},
 				onError
 			)
@@ -311,11 +366,30 @@ class Data {
 		return this.absences.find((a) => a.memberId === memberId && isSwitch(a));
 	}
 
+	/**
+	 * Day toggles not yet saved ("memberId|day" -> away). Shown at once, because
+	 * Firestore only reflects local writes after it has signed in.
+	 */
+	pending = $state<Record<string, boolean>>({});
+
+	setPending(memberId: string, day: DateKey, away: boolean | null) {
+		const key = `${memberId}|${day}`;
+		const { [key]: _, ...rest } = this.pending;
+		this.pending = away === null ? rest : { ...rest, [key]: away };
+	}
+
 	availability(day: DateKey): DayAvailability {
 		const available: Member[] = [];
 		const away: DayAvailability['away'] = [];
 		for (const member of this.members) {
-			const absence = this.absenceOn(member.id, day);
+			const pending = this.pending[`${member.id}|${day}`];
+			const absence =
+				pending === false
+					? undefined
+					: (this.absenceOn(member.id, day) ??
+						(pending
+							? { id: '', memberId: member.id, from: day, to: day, note: '', weekdays: [], except: [] }
+							: undefined));
 			if (absence) away.push({ member, absence });
 			else available.push(member);
 		}

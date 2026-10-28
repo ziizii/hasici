@@ -1,4 +1,5 @@
 import { doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { clearCachedData } from './data.svelte';
 import { db, ensureUser } from './firebase';
 
 export type GateState = 'loading' | 'setup' | 'locked' | 'ready' | 'error';
@@ -6,6 +7,7 @@ export type GateState = 'loading' | 'setup' | 'locked' | 'ready' | 'error';
 const MEMBER_KEY = 'hasici.memberId';
 /** uid whose session was confirmed on this device, so later visits can skip the wait. */
 const SESSION_KEY = 'hasici.sessionUid';
+const UNIT_NAME_KEY = 'hasici.unitName';
 const LINK_PARAM = 'k';
 
 /** SHA-256 of the password (salted with a fixed app prefix), as hex. */
@@ -47,27 +49,34 @@ class Access {
 	/** config/access — only readable once the device has a session. */
 	linkKey = $state<string | null>(null);
 	/** Unit name from config/public (readable before login), e.g. "SDH Lhota". */
-	unitName = $state('');
+	unitName = $state(readStored(UNIT_NAME_KEY) ?? '');
 
 	#stopAccessDoc: (() => void) | null = null;
 
 	async init(url: URL) {
 		onSnapshot(
 			doc(db, 'config', 'public'),
-			(snap) => (this.unitName = (snap.data()?.name as string) ?? ''),
+			(snap) => {
+				this.unitName = (snap.data()?.name as string) ?? '';
+				writeStored(UNIT_NAME_KEY, this.unitName);
+			},
 			(e) => console.error(e)
 		);
+		// Known device: open at once from the cached data and sign in / check the session
+		// in the background (Firebase Auth goes to the network on every start).
+		const known = readStored(SESSION_KEY);
+		if (known) {
+			this.uid = known;
+			this.#ready(url);
+			ensureUser()
+				.then((user) => (user.uid === known ? this.#recheckSession(known) : this.#lockAgain()))
+				.catch((e) => console.error(e));
+			return;
+		}
+
 		try {
 			const user = await ensureUser();
 			this.uid = user.uid;
-
-			// Known device: open straight from the offline cache and check the session
-			// in the background, instead of waiting for the server on every visit.
-			if (readStored(SESSION_KEY) === user.uid) {
-				this.#ready(url);
-				this.#recheckSession(user.uid);
-				return;
-			}
 
 			const session = await getDoc(doc(db, 'sessions', user.uid));
 			if (session.exists()) return this.#ready(url);
@@ -103,13 +112,17 @@ class Access {
 	async #recheckSession(uid: string) {
 		try {
 			const session = await getDocFromServer(doc(db, 'sessions', uid));
-			if (session.exists()) return;
 			// Session was removed (e.g. from the console): lock this device again.
-			writeStored(SESSION_KEY, null);
-			location.reload();
+			if (!session.exists()) this.#lockAgain();
 		} catch {
 			// Offline or slow network: keep going with the cached data.
 		}
+	}
+
+	#lockAgain() {
+		writeStored(SESSION_KEY, null);
+		clearCachedData();
+		location.reload();
 	}
 
 	#ready(url?: URL) {

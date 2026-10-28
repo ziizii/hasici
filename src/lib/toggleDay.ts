@@ -7,6 +7,7 @@ export async function toggleMemberDay(m: Member, day: DateKey) {
 	const absence = data.absenceOn(m.id, day);
 	const when = formatShort(day);
 	const undoFailed = () => toasts.error();
+	data.setPending(m.id, day, !absence);
 	try {
 		if (absence) {
 			await data.markAvailable(m.id, day);
@@ -24,5 +25,7 @@ export async function toggleMemberDay(m: Member, day: DateKey) {
 	} catch (e) {
 		console.error(e);
 		toasts.error();
+	} finally {
+		data.setPending(m.id, day, null);
 	}
 }

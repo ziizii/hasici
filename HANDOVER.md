@@ -122,6 +122,12 @@ don't (`#lib/components/Icon.svelte`).
   from the console.
 - **Data loading:** the whole unit is small, so the app subscribes to whole
   collections. If it grows, add date-range queries for absences and events.
+- **Fast start:** Firebase Auth re-validates the user over the network on every
+  start, and Firestore can't read its cache before that. So a known device
+  (`hasici.sessionUid` in localStorage) skips the wait: it renders from a
+  localStorage copy of the data (`hasici.cache.v1`, written after each live
+  update) and signs in in the background. Bump the cache key if the cached
+  shapes change. Day toggles show at once via `data.pending`.
 
 ## Status
 
