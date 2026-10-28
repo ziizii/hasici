@@ -6,6 +6,7 @@
 		KIND_NAMES,
 		MONTHS_ABBR,
 		NTH_NAMES,
+		normalize,
 		quickRepeats,
 		repeatDays,
 		unit,
@@ -13,33 +14,48 @@
 		type Repeat
 	} from '#lib/repeat.js';
 
-	/** `value`: the chosen rule, null = no repeat. `until`: '' = until cancelled. `extra`: more choices. */
+	/**
+	 * `value`: the chosen rule, null = no repeat. `until`: '' = until cancelled. `extra`: more choices.
+	 * `initial`: the rule to start from when editing (null = no repeat).
+	 */
 	let {
 		date,
 		value = $bindable(null),
 		until = $bindable(''),
-		extra = []
-	}: { date: DateKey; value?: Repeat | null; until?: string; extra?: Repeat[] } = $props();
+		extra = [],
+		initial = null
+	}: {
+		date: DateKey;
+		value?: Repeat | null;
+		until?: string;
+		extra?: Repeat[];
+		initial?: Repeat | null;
+	} = $props();
 
 	const quick = $derived([...quickRepeats(date), ...extra]);
 
-	let choice = $state<'none' | 'custom' | number>('none');
+	// svelte-ignore state_referenced_locally
+	const start = { date, initial, quick };
+	const same = (a: Repeat, b: Repeat) =>
+		JSON.stringify(normalize(a, start.date) ?? null) === JSON.stringify(normalize(b, start.date) ?? null);
+	const quickIndex = start.initial ? start.quick.findIndex((q) => same(q, start.initial!)) : -1;
 
-	// The custom rule, starting from the event's day like Apple's editor.
-	let freq = $state<Freq>('week');
-	let every = $state(1);
-	// svelte-ignore state_referenced_locally
-	let weekdays = $state([weekdayIndex(date)]);
-	let monthNth = $state(false);
-	// svelte-ignore state_referenced_locally
-	let days = $state([parseKey(date).getDate()]);
-	// svelte-ignore state_referenced_locally
-	let nth = $state(Math.ceil(parseKey(date).getDate() / 7));
-	// svelte-ignore state_referenced_locally
-	let kind = $state(weekdayIndex(date));
-	// svelte-ignore state_referenced_locally
-	let months = $state([parseKey(date).getMonth() + 1]);
-	let yearNth = $state(false);
+	let choice = $state<'none' | 'custom' | number>(
+		!start.initial ? 'none' : quickIndex >= 0 ? quickIndex : 'custom'
+	);
+
+	// The custom rule, starting from the event's day like Apple's editor (or the rule being edited).
+	const d0 = parseKey(start.date);
+	const r0: Partial<Repeat> = start.initial ?? {};
+	let freq = $state<Freq>(r0.freq ?? 'week');
+	let every = $state(r0.every ?? 1);
+	let weekdays = $state(r0.weekdays ?? [weekdayIndex(start.date)]);
+	let monthNth = $state(r0.freq === 'month' && !!r0.nth);
+	let days = $state(r0.days ?? [d0.getDate()]);
+	let nth = $state(r0.nth ?? Math.ceil(d0.getDate() / 7));
+	let kind = $state(r0.kind ?? weekdayIndex(start.date));
+	let months = $state(r0.months ?? [d0.getMonth() + 1]);
+	let yearNth = $state(r0.freq === 'year' && !!r0.nth);
 
 	const custom = $derived.by((): Repeat => {
 		const n = Math.max(1, Math.min(99, Math.round(every) || 1));

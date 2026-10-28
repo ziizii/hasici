@@ -5,8 +5,11 @@
 	import RepeatPicker from './RepeatPicker.svelte';
 
 	type Draft = Omit<Event, 'id' | 'series'>;
-	/** `repeat`: how it repeats, until `until` (none = until cancelled). `following`: apply to later events of the repeat too. */
-	export type SaveOptions = { repeat?: Repeat; until?: DateKey; following?: boolean };
+	/**
+	 * `repeat`: how it repeats, until `until` (none = until cancelled); when editing, null = stop
+	 * repeating and undefined = leave the repeat as it is. `following`: apply to later events of the repeat too.
+	 */
+	export type SaveOptions = { repeat?: Repeat | null; until?: DateKey; following?: boolean };
 
 	let {
 		date,
@@ -16,6 +19,7 @@
 		saveLabel = 'Uložit akci',
 		repeatable = false,
 		inSeries = false,
+		editRepeat,
 		onsave,
 		oncancel
 	}: {
@@ -26,8 +30,10 @@
 		saveLabel?: string;
 		/** Offer repeating (new events). */
 		repeatable?: boolean;
-		/** The edited event is part of a weekly repeat. */
+		/** The edited event is part of a repeat. */
 		inSeries?: boolean;
+		/** Editing: the current repeat (null = none), offered for change. */
+		editRepeat?: { repeat: Repeat | null; until: DateKey };
 		onsave: (draft: Draft, opts: SaveOptions) => Promise<void> | void;
 		oncancel?: () => void;
 	} = $props();
@@ -57,25 +63,30 @@
 	let note = $state(initial?.note ?? '');
 	let busy = $state(false);
 
-	let repeat = $state<Repeat | null>(null);
-	let until = $state('');
+	// svelte-ignore state_referenced_locally
+	let repeat = $state<Repeat | null>(editRepeat?.repeat ?? null);
+	// svelte-ignore state_referenced_locally
+	let until = $state(editRepeat?.until ?? '');
 	/** Bumped to reset the repeat picker after saving. */
 	let saved = $state(0);
 	// Just this date by default: moving one meeting must not move all later ones.
 	let following = $state(false);
 
+	/** The repeat can be set: new events, a one-off being edited, or "this and all later". */
+	const showRepeat = $derived(repeatable || (!!editRepeat && (!inSeries || following)));
+
 	const uid = Math.random().toString(36).slice(2, 8);
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!title.trim() || (repeat && isEmpty(repeat))) return;
+		if (!title.trim() || (showRepeat && repeat && isEmpty(repeat))) return;
 		busy = true;
 		try {
 			await onsave(
 				{ title, date: showDate ? day : date, time, place, note },
 				{
-					repeat: (repeatable && repeat) || undefined,
-					until: repeatable && repeat && until ? until : undefined,
+					repeat: !showRepeat ? undefined : repeatable ? repeat || undefined : repeat,
+					until: showRepeat && repeat && until ? until : undefined,
 					following: inSeries && following
 				}
 			);
@@ -174,9 +185,14 @@
 			></textarea>
 		</label>
 	{/if}
-	{#if repeatable}
+	{#if showRepeat}
 		{#key saved}
-			<RepeatPicker {date} bind:value={repeat} bind:until />
+			<RepeatPicker
+				date={showDate && day ? day : date}
+				initial={editRepeat?.repeat ?? null}
+				bind:value={repeat}
+				bind:until
+			/>
 		{/key}
 	{/if}
 	<div class="flex gap-2">

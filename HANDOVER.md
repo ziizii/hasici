@@ -47,6 +47,12 @@ direction; older rows are superseded.
 - **One date of a repeat** can be moved or changed on its own (event page:
   "Změnit jen tento termín", or Upravit with "Co změnit: Jen tento termín",
   the default). It is stored as its own event and shows "přesunutý z …".
+- **Editing the repeat:** with "Tento i všechny další" (or on a one-off
+  event) the edit form shows the same `RepeatPicker`, preset to the current
+  rule (`data.updateRepeat`). A changed rule or end ends the old series the day
+  before and starts a new one from this date; later dates edited on their own
+  are dropped. "Neopakovat" keeps this date as a one-off and drops later ones.
+  A one-off can be turned into a repeat. The page follows the event's new id.
 - **Events keep a time** (`Sraz`, start time only) plus place and an
   optional note, "so we know when to go where".
 - **"Nemůžu přijít" on an event is not a separate concept.** It creates a
