@@ -55,6 +55,10 @@ direction; older rows are superseded.
   - A vertical timeline, one row per day, with infinite scroll forward and a
     "Zobrazit dřívější dny" button for the past.
   - Jump buttons: Dnes, Příští týden, Za 2 týdny, next 4 months.
+  - Filter above the jump buttons: Vše / Víkendy / Akce, one choice at a
+    time (two toggles would leave "both" ambiguous). Víkendy includes public
+    holidays. Jumps go to the next shown day. With Akce, scrolling loads a
+    year ahead, then a "Hledat akce dál" button takes over.
   - Each day shows a segmented bar. Members who can come are coloured with
     their initials, absent members are grey, and the count ("7/10") is coloured
     by ratio.

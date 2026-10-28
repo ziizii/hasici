@@ -50,9 +50,32 @@
 		return () => mq.removeEventListener('change', on);
 	});
 
-	// Infinite scroll forward.
+	// Which days the timeline shows. One choice at a time: two independent toggles would
+	// leave people guessing whether "both" means AND or OR.
+	type Filter = 'all' | 'weekends' | 'events';
+	const filters: { value: Filter; label: string }[] = [
+		{ value: 'all', label: 'Vše' },
+		{ value: 'weekends', label: 'Víkendy' },
+		{ value: 'events', label: 'Akce' }
+	];
+	let filter = $state<Filter>('all');
+
+	function shown(key: DateKey) {
+		if (filter === 'weekends') return isWeekend(key) || !!holiday(key);
+		if (filter === 'events') return data.eventsOn(key).length > 0;
+		return true;
+	}
+
+	// Events can be sparse, so with that filter on, scrolling alone loads only a year ahead;
+	// past that a button asks for more instead of loading empty months forever.
+	let limit = $state(addDays(today, 365));
+	const autoload = $derived(filter !== 'events' || end < limit);
+
+	// Infinite scroll forward. Re-observing after each load fires again if the sentinel is
+	// still in view (a filter can leave a loaded month with nothing to show).
 	$effect(() => {
-		if (!sentinel) return;
+		if (!sentinel || !autoload) return;
+		void end;
 		const io = new IntersectionObserver(
 			(entries) => {
 				if (entries[0].isIntersecting) end = addDays(end, 31);
@@ -63,29 +86,40 @@
 		return () => io.disconnect();
 	});
 
-	type Week = { key: string; label: string; days: DateKey[] };
-	type Month = { key: string; label: string; weeks: Week[] };
+	type Week = { key: string; mon: DateKey; label: string; days: DateKey[] };
+	type Month = { key: string; ym: string; label: string; weeks: Week[] };
 
 	// Months wrap their weeks and weeks wrap their days, so a sticky heading is pushed up
 	// (under the bar above) when its group scrolls out, instead of the next one sliding over it.
+	// Months and weeks with no shown day are left out.
 	const months = $derived.by(() => {
 		const out: Month[] = [];
 		for (let k = start; k <= end; k = addDays(k, 1)) {
+			if (!shown(k)) continue;
 			const d = parseKey(k);
-			if (k === start || d.getDate() === 1) {
-				out.push({ key: 'm' + k, label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`, weeks: [] });
+			let month = out.at(-1);
+			if (month?.ym !== k.slice(0, 7)) {
+				month = {
+					key: 'm' + k,
+					ym: k.slice(0, 7),
+					label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+					weeks: []
+				};
+				out.push(month);
 			}
-			const weeks = out[out.length - 1].weeks;
 			// A new month repeats the week heading, so a jump to the 1st lines up under both bars.
-			if (k === start || weekdayIndex(k) === 0 || d.getDate() === 1) {
-				const mon = startOfWeek(k);
-				weeks.push({
+			const mon = startOfWeek(k);
+			let week = month.weeks.at(-1);
+			if (week?.mon !== mon) {
+				week = {
 					key: 'w' + k,
+					mon,
 					label: `Týden ${isoWeek(mon)} · ${formatDayMonth(mon)} – ${formatDayMonth(addDays(mon, 6))}`,
 					days: []
-				});
+				};
+				month.weeks.push(week);
 			}
-			weeks[weeks.length - 1].days.push(k);
+			week.days.push(k);
 		}
 		return out;
 	});
@@ -135,7 +169,12 @@
 		if (key < start) start = key;
 		if (key > addDays(end, -21)) end = addDays(key, 45);
 		await tick();
-		document.getElementById('d-' + key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		// The day itself may be filtered out: go to the next shown one.
+		const target = months
+			.flatMap((m) => m.weeks.flatMap((w) => w.days))
+			.find((k) => k >= key);
+		const el = target ? document.getElementById('d-' + target) : sentinel;
+		el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
 	function countClass(n: number, total: number) {
@@ -252,6 +291,22 @@
 <div class="mx-auto flex max-w-[90rem] flex-wrap items-start gap-6 lg:p-6">
 	<!-- Left rail (desktop) -->
 	<aside class="hidden w-56 shrink-0 flex-col gap-5 lg:sticky lg:top-[5.5rem] lg:flex">
+		<section class="flex flex-col">
+			<span class="mb-2 text-xs font-bold tracking-[0.08em] text-muted uppercase">Zobrazit</span>
+			<div role="group" aria-label="Zobrazit dny" class="flex flex-col gap-1">
+				{#each filters as f (f.value)}
+					<button
+						type="button"
+						aria-pressed={filter === f.value}
+						class="flex min-h-11 items-center rounded-[10px] px-3 text-left text-[0.9375rem] font-semibold {filter ===
+						f.value
+							? 'bg-ink text-white'
+							: 'hover:bg-surface'}"
+						onclick={() => (filter = f.value)}>{f.label}</button
+					>
+				{/each}
+			</div>
+		</section>
 		<nav aria-label="Přeskočit na" class="flex flex-col gap-1">
 			<span class="mb-1 text-xs font-bold tracking-[0.08em] text-muted uppercase">Přeskočit na</span>
 			{#each jumps as j, i (j.key)}
@@ -286,6 +341,19 @@
 		<div class="flex flex-col gap-1 bg-surface px-4 pt-5 pb-3 lg:hidden">
 			<h1 class="font-display text-[2rem] leading-none font-bold">Plán</h1>
 			<span class="text-[0.9375rem] text-muted">Klepnutím na den naplánujete akci.</span>
+			<div role="group" aria-label="Zobrazit dny" class="mt-3 flex gap-1 rounded-full border border-field bg-ground p-1">
+				{#each filters as f (f.value)}
+					<button
+						type="button"
+						aria-pressed={filter === f.value}
+						class="inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-[0.9375rem] font-semibold whitespace-nowrap {filter ===
+						f.value
+							? 'bg-ink text-white'
+							: 'text-ink-2 hover:bg-surface'}"
+						onclick={() => (filter = f.value)}>{f.label}</button
+					>
+				{/each}
+			</div>
 		</div>
 		<!-- overscroll-x-contain: a swipe past the last button must not carry on into the page. -->
 		<nav
@@ -353,7 +421,18 @@
 			</div>
 		{/each}
 
-		<div bind:this={sentinel} class="py-6 text-center text-sm text-faint">Načítám další dny…</div>
+		<div bind:this={sentinel} class="flex flex-col items-center gap-2 py-6 text-center text-sm text-faint">
+			{#if autoload}
+				Načítám další dny…
+			{:else}
+				{#if !months.length}<span>Na rok dopředu žádné akce.</span>{/if}
+				<button
+					type="button"
+					class="flex min-h-11 items-center gap-1.5 rounded-full border border-field bg-ground px-4 text-[0.9375rem] font-semibold text-ink-2"
+					onclick={() => (limit = addDays(end, 365))}>Hledat akce dál</button
+				>
+			{/if}
+		</div>
 	</section>
 
 	<!-- Right panel (desktop) -->
