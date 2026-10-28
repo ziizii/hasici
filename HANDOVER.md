@@ -37,6 +37,12 @@ direction; older rows are superseded.
   segment tap, "Přece jen přijdu", chips on `/ja`) adds it to `except` instead of
   splitting; marking the day away again removes it. Plain dated absences
   are still split.
+- **Repeating events:** the new-event form offers radios: Neopakovat, every
+  week on that weekday, the nth weekday of the month (plus "poslední" when it
+  is the last one), the same day each month, and Vlastní (Apple-Reminders-like
+  editor: every n days / weeks on weekdays / months on days or the nth
+  weekday / years in months), with an optional end date and a preview of the
+  next dates. Months without the chosen day (31st, 5th Thursday) are skipped.
 - **Events keep a time** (`Sraz`, start time only) plus place and an
   optional note, "so we know when to go where".
 - **"Nemůžu přijít" on an event is not a separate concept.** It creates a
@@ -94,6 +100,7 @@ src/
     access.svelte.ts         Gate: session/link/password/setup, member choice, link rotation
     data.svelte.ts           Realtime store (members, absences, events) and all writes
     dates.ts                 'YYYY-MM-DD' helpers, Czech names, ISO weeks, CZ holidays
+    repeat.ts                Event repeat rules (daily … yearly, nth weekday), Czech wording
     colors.ts                Palette, nextColor(), initials()
     toast.svelte.ts          Snackbar with optional undo action
     demo.ts                  Dev-only sample data for /?demo
@@ -101,6 +108,7 @@ src/
       AvailabilityBar.svelte Segmented availability bar (auto-wrapping grid)
       DayPanel.svelte        Day detail + new event form
       EventForm.svelte       Create/edit event
+      RepeatPicker.svelte    "Opakování" radios + custom rule editor (like Apple's "Custom")
       MemberPicker.svelte    "Kdo jste?" screen (adds the first member on an empty unit)
       PasswordScreen.svelte  First-run setup / unlock
       Brand.svelte, Icon.svelte
@@ -128,8 +136,8 @@ don't (`#lib/components/Icon.svelte`).
 | `sessions/{uid}` | `key`, `createdAt` | Created when `key` equals `linkKey` or `passwordHash` |
 | `members/{id}` | `name`, `color`, `archived`, `createdAt` | |
 | `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?`, `except?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat weekly within the range; `to = 9999-12-31` = no end; `except` = skipped days |
-| `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `series?`, `createdAt` | One-off events. A weekly repeat edited on its own is stored here with id `<seriesId>_<day>` and `series` set |
-| `series/{id}` | `title`, `time`, `place`, `note`, `from`, `to` (`9999-12-31` = until cancelled), `except`, `createdAt` | Weekly repeat (weekday of `from`); occurrences are computed in `data.events`/`eventsOn`. `except` = cancelled or individually edited days. "This and later" edits split the series |
+| `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `series?`, `createdAt` | One-off events. A repeat edited on its own is stored here with id `<seriesId>_<day>` and `series` set |
+| `series/{id}` | `title`, `time`, `place`, `note`, `from`, `to` (`9999-12-31` = until cancelled), `except`, `repeat?`, `createdAt` | Repeating event; occurrences are computed in `data.events`/`eventsOn`. Without `repeat`: every week on `from`'s weekday. `repeat` (`lib/repeat.ts`): `{freq: day/week/month/year, every, weekdays?, days?, nth?, kind?, months?}`. `except` = cancelled or individually edited days. "This and later" edits split the series; a plain weekly one moves with a new date, other rules keep their days and only the edited day moves |
 
 - **Password hash:** `passwordHash` is SHA-256 of `"hasici:" + password`,
   computed in the browser. It is effectively a shared secret, like the link key.

@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { data, type Event } from '#lib/data.svelte.js';
-	import { DOW_ON, weekdayIndex, type DateKey } from '#lib/dates.js';
+	import { type DateKey } from '#lib/dates.js';
+	import { isEmpty, type Repeat } from '#lib/repeat.js';
+	import RepeatPicker from './RepeatPicker.svelte';
 
 	type Draft = Omit<Event, 'id' | 'series'>;
-	/** `repeat`: every week, until `until` ('' = until cancelled). `following`: apply to later events of the repeat too. */
-	export type SaveOptions = { repeat?: boolean; until?: DateKey; following?: boolean };
+	/** `repeat`: how it repeats, until `until` (none = until cancelled). `following`: apply to later events of the repeat too. */
+	export type SaveOptions = { repeat?: Repeat; until?: DateKey; following?: boolean };
 
 	let {
 		date,
@@ -22,7 +24,7 @@
 		showDate?: boolean;
 		showNote?: boolean;
 		saveLabel?: string;
-		/** Offer "repeat every week" (new events). */
+		/** Offer repeating (new events). */
 		repeatable?: boolean;
 		/** The edited event is part of a weekly repeat. */
 		inSeries?: boolean;
@@ -55,21 +57,23 @@
 	let note = $state(initial?.note ?? '');
 	let busy = $state(false);
 
-	let repeat = $state(false);
+	let repeat = $state<Repeat | null>(null);
 	let until = $state('');
+	/** Bumped to reset the repeat picker after saving. */
+	let saved = $state(0);
 	let following = $state(true);
 
 	const uid = Math.random().toString(36).slice(2, 8);
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!title.trim()) return;
+		if (!title.trim() || (repeat && isEmpty(repeat))) return;
 		busy = true;
 		try {
 			await onsave(
 				{ title, date: showDate ? day : date, time, place, note },
 				{
-					repeat: repeatable && repeat,
+					repeat: (repeatable && repeat) || undefined,
 					until: repeatable && repeat && until ? until : undefined,
 					following: inSeries && following
 				}
@@ -77,7 +81,9 @@
 			if (!initial) {
 				title = '';
 				note = '';
-				repeat = false;
+				repeat = null;
+				until = '';
+				saved++;
 			}
 		} finally {
 			busy = false;
@@ -155,21 +161,9 @@
 		</label>
 	{/if}
 	{#if repeatable}
-		<label class="flex min-h-11 items-center gap-3 text-base font-semibold">
-			<input type="checkbox" bind:checked={repeat} class="size-6 shrink-0 accent-accent" />
-			Opakovat každý týden {DOW_ON[weekdayIndex(date)]}
-		</label>
-		{#if repeat}
-			<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
-				<span>Opakovat do <span class="font-normal text-faint">(prázdné = do odvolání)</span></span>
-				<input
-					type="date"
-					bind:value={until}
-					min={date}
-					class="h-12 rounded-xl border border-field bg-surface px-3 text-base text-ink"
-				/>
-			</label>
-		{/if}
+		{#key saved}
+			<RepeatPicker {date} bind:value={repeat} bind:until />
+		{/key}
 	{/if}
 	{#if inSeries}
 		<label class="flex min-h-11 items-center gap-3 text-base font-semibold">

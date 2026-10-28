@@ -25,6 +25,7 @@ import {
 	type DateKey
 } from './dates';
 import { nextColor } from './colors';
+import { matches, normalize, repeatDays, WEEKLY, type Repeat } from './repeat';
 import { mark } from './perf';
 
 export interface Member {
@@ -157,8 +158,8 @@ export interface Event {
 }
 
 /**
- * Activity repeated every week from `from` (which sets the weekday) until `to`
- * (OPEN_END = until cancelled). Repeats are computed, not stored; a repeat edited
+ * Activity repeated from `from` until `to` (OPEN_END = until cancelled), by `repeat`
+ * or, without it, every week on `from`'s weekday. Repeats are computed, not stored; a repeat edited
  * on its own is stored as an event with id `<series>_<day>` and its day goes
  * to `except`, as does a deleted one.
  */
@@ -171,11 +172,15 @@ export interface Series {
 	from: DateKey;
 	to: DateKey;
 	except: DateKey[];
+	repeat?: Repeat;
 }
 
 function occurs(s: Series, day: DateKey): boolean {
 	return (
-		day >= s.from && day <= s.to && daysBetween(s.from, day) % 7 === 0 && !s.except.includes(day)
+		day >= s.from &&
+		day <= s.to &&
+		matches(s.repeat ?? WEEKLY, s.from, day) &&
+		!s.except.includes(day)
 	);
 }
 
@@ -239,12 +244,12 @@ class Data {
 	/** Events stored one by one (one-off, or a repeat edited on its own). */
 	stored = $state<Event[]>([]);
 	series = $state<Series[]>([]);
-	/** Stored events plus weekly repeats up to a year ahead, by date and time. */
+	/** Stored events plus repeats up to a year ahead, by date and time. */
 	events = $derived.by(() => {
 		const end = addDays(todayKey(), 366);
 		const out = [...this.stored];
 		for (const s of this.series) {
-			for (let d = s.from; d <= s.to && d <= end; d = addDays(d, 7)) {
+			for (const d of repeatDays(s.repeat, s.from, s.to, s.from, end)) {
 				if (!s.except.includes(d)) out.push(occurrence(s, d));
 			}
 		}
@@ -430,7 +435,8 @@ class Data {
 							note: x.note ?? '',
 							from: x.from,
 							to: x.to ?? OPEN_END,
-							except: x.except ?? []
+							except: x.except ?? [],
+							...(x.repeat ? { repeat: x.repeat as Repeat } : {})
 						};
 					});
 					this.loaded.series = true;
@@ -663,14 +669,16 @@ class Data {
 		return ref.id;
 	}
 
-	/** Every week from `e.date`, until `to` (inclusive) or until cancelled. */
-	async addSeries(e: Omit<Event, 'id'>, to: DateKey = OPEN_END) {
+	/** Repeats from `e.date` by `repeat` (default every week), until `to` (inclusive) or until cancelled. */
+	async addSeries(e: Omit<Event, 'id'>, to: DateKey = OPEN_END, repeat?: Repeat) {
 		const { date, ...fields } = eventFields(e);
+		const rule = repeat && normalize(repeat, date);
 		await addDoc(collection(db, 'series'), {
 			...fields,
 			from: date,
 			to,
 			except: [],
+			...(rule ? { repeat: rule } : {}),
 			createdAt: serverTimestamp()
 		});
 	}
@@ -689,28 +697,47 @@ class Data {
 		await batch.commit();
 	}
 
-	/** Changes this repeat and all later ones: the series is split at this day. */
+	/**
+	 * Changes this repeat and all later ones: the series is split at this day.
+	 * A plain weekly repeat moves along with a new date (and so its weekday). Other
+	 * rules (e.g. "the 5th Thursday") stay put; only this day moves, as its own event.
+	 */
 	async updateFollowing(ev: Event, e: Omit<Event, 'id'>) {
 		const s = this.seriesOf(ev);
 		if (!s || !ev.slot) return this.updateEvent(ev, e);
 		const { date, ...fields } = eventFields(e);
-		const shift = daysBetween(ev.slot, date);
-		const except = s.except.filter((d) => d >= ev.slot!).map((d) => addDays(d, shift));
+		const slot = ev.slot;
+		const moved = !!s.repeat && date !== slot;
+		const shift = s.repeat ? 0 : daysBetween(slot, date);
+		const from = s.repeat ? slot : date;
+		const except = s.except.filter((d) => d >= slot).map((d) => addDays(d, shift));
+		if (moved) except.push(slot);
 		const batch = writeBatch(db);
-		if (ev.slot === s.from) {
-			batch.update(doc(db, 'series', s.id), { ...fields, from: date, except });
+		let id = s.id;
+		if (slot === s.from) {
+			batch.update(doc(db, 'series', s.id), { ...fields, from, except });
 		} else {
-			batch.update(doc(db, 'series', s.id), { to: addDays(ev.slot, -1) });
-			batch.set(doc(collection(db, 'series')), {
+			batch.update(doc(db, 'series', s.id), { to: addDays(slot, -1) });
+			const ref = doc(collection(db, 'series'));
+			id = ref.id;
+			batch.set(ref, {
 				...fields,
-				from: date,
+				from,
 				to: s.to,
 				except,
+				...(s.repeat ? { repeat: s.repeat } : {}),
 				createdAt: serverTimestamp()
 			});
 		}
 		// a repeat edited on its own stays as it is, apart from this one
 		if (this.stored.some((x) => x.id === ev.id)) batch.delete(doc(db, 'events', ev.id));
+		if (moved) {
+			batch.set(doc(db, 'events', `${id}_${slot}`), {
+				...eventFields(e),
+				series: id,
+				createdAt: serverTimestamp()
+			});
+		}
 		await batch.commit();
 	}
 

@@ -66,6 +66,17 @@ export function demoData(count = 10): {
 			from: d(2),
 			to: OPEN_END,
 			except: []
+		},
+		{
+			id: 's2',
+			title: 'Schůze výboru',
+			time: '19:00',
+			place: 'Klubovna',
+			note: '',
+			from: d(0),
+			to: OPEN_END,
+			except: [],
+			repeat: { freq: 'month', every: 1, nth: 1, kind: 4 }
 		}
 	];
 	return { members, absences, events, series };
