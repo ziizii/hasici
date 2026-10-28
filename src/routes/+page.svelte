@@ -13,6 +13,7 @@
 		parseKey,
 		startOfWeek,
 		todayKey,
+		toKey,
 		weekdayIndex,
 		type DateKey
 	} from '#lib/dates.js';
@@ -132,6 +133,7 @@
 		if (frame) return;
 		frame = requestAnimationFrame(() => {
 			frame = 0;
+			if (!jumping) findTopDay();
 			let found: string | null = null;
 			for (const w of document.querySelectorAll<HTMLElement>('[data-week]')) {
 				const r = w.getBoundingClientRect();
@@ -148,20 +150,78 @@
 		});
 	}
 
+	// Each jump covers a range: the week buttons their week, the months their month.
 	const jumps = $derived.by(() => {
 		const nextMonday = addDays(startOfWeek(today), 7);
 		const list = [
-			{ label: 'Dnes', key: today },
-			{ label: 'Příští týden', key: nextMonday },
-			{ label: 'Za 2 týdny', key: addDays(nextMonday, 7) }
+			{ label: 'Dnes', key: today, until: nextMonday },
+			{ label: 'Příští týden', key: nextMonday, until: addDays(nextMonday, 7) },
+			{ label: 'Za 2 týdny', key: addDays(nextMonday, 7), until: addDays(nextMonday, 14) }
 		];
 		const t = parseKey(today);
 		for (let i = 1; i <= 4; i++) {
 			const m = new Date(t.getFullYear(), t.getMonth() + i, 1);
 			const label = MONTHS[m.getMonth()] + (m.getFullYear() !== t.getFullYear() ? ` ${m.getFullYear()}` : '');
-			list.push({ label, key: `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01` });
+			const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+			list.push({ label, key: toKey(m), until: toKey(next) });
 		}
 		return list;
+	});
+
+	// The day at the top of the timeline (just under the sticky headings). Rows are in date
+	// order, so a binary search finds the first one still showing below the headings.
+	let topDay = $state<DateKey>(today);
+	function findTopDay() {
+		const rows = document.querySelectorAll<HTMLElement>('[id^="d-"]');
+		if (!rows.length) return;
+		const line = parseFloat(getComputedStyle(rows[0]).scrollMarginTop) || 0;
+		let lo = 0;
+		let hi = rows.length - 1;
+		while (lo < hi) {
+			const mid = (lo + hi) >> 1;
+			if (rows[mid].getBoundingClientRect().bottom > line + 1) hi = mid;
+			else lo = mid + 1;
+		}
+		topDay = rows[lo].id.slice(2);
+	}
+
+	// While a jump scrolls smoothly, its button stays lit instead of flicking through the
+	// ones it passes.
+	let jumping = $state<DateKey | null>(null);
+	let jumpTimer = 0;
+	function endJump() {
+		clearTimeout(jumpTimer);
+		jumping = null;
+		findTopDay();
+	}
+
+	// Of the jumps whose range holds the top day, the one starting latest (a click on
+	// "Listopad" lights "Listopad", not "Dnes", even when the 1st is in this week).
+	const activeJump = $derived.by(() => {
+		if (jumping) return jumping;
+		let best: DateKey | null = null;
+		for (const j of jumps) if (j.key <= topDay && topDay < j.until && (!best || j.key > best)) best = j.key;
+		return best;
+	});
+
+	// Keep the lit button in view in the phone's sideways-scrolling bar.
+	let jumpBar = $state<HTMLElement>();
+	$effect(() => {
+		const key = activeJump;
+		if (!jumpBar || !key) return;
+		const btn = jumpBar.querySelector<HTMLElement>(`[data-jump="${key}"]`);
+		if (!btn) return;
+		const pad = 16;
+		const left = btn.offsetLeft - pad;
+		const right = btn.offsetLeft + btn.offsetWidth + pad - jumpBar.clientWidth;
+		if (jumpBar.scrollLeft > left) jumpBar.scrollTo({ left, behavior: 'smooth' });
+		else if (jumpBar.scrollLeft < right) jumpBar.scrollTo({ left: right, behavior: 'smooth' });
+	});
+
+	// Loading more days or changing the filter moves rows without a scroll event.
+	$effect(() => {
+		void months;
+		tick().then(findTopDay);
 	});
 
 	async function jump(key: DateKey) {
@@ -173,6 +233,10 @@
 			.flatMap((m) => m.weeks.flatMap((w) => w.days))
 			.find((k) => k >= key);
 		const el = target ? document.getElementById('d-' + target) : sentinel;
+		jumping = key;
+		clearTimeout(jumpTimer);
+		// Browsers without `scrollend` (or a scroll that doesn't move) end the jump on a timer.
+		jumpTimer = window.setTimeout(endJump, 1200);
 		el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
@@ -193,7 +257,7 @@
 	}
 </script>
 
-<svelte:window {onkeydown} {onscroll} />
+<svelte:window {onkeydown} {onscroll} onscrollend={() => jumping && endJump()} />
 
 {#snippet dayRow(key: DateKey)}
 	{@const av = data.availability(key)}
@@ -308,10 +372,12 @@
 		</section>
 		<nav aria-label="Přeskočit na" class="flex flex-col gap-1">
 			<span class="mb-1 text-xs font-bold tracking-[0.08em] text-muted uppercase">Přeskočit na</span>
-			{#each jumps as j, i (j.key)}
+			{#each jumps as j (j.key)}
 				<button
 					type="button"
-					class="flex min-h-10 items-center rounded-[10px] px-3 text-left text-[0.9375rem] font-semibold {i === 0
+					aria-current={activeJump === j.key || undefined}
+					class="flex min-h-10 items-center rounded-[10px] px-3 text-left text-[0.9375rem] font-semibold {activeJump ===
+					j.key
 						? 'bg-ink text-white'
 						: 'hover:bg-surface'}"
 					onclick={() => jump(j.key)}>{j.label}</button
@@ -357,17 +423,20 @@
 		<!-- overscroll-x-contain: a swipe past the last button must not carry on into the page. -->
 		<nav
 			aria-label="Přeskočit na"
+			bind:this={jumpBar}
 			bind:borderBoxSize={navBox}
 			style="top: var(--header-h, 0px)"
 			class="sticky z-10 flex gap-2 overflow-x-auto overscroll-x-contain border-b border-line bg-surface px-4 py-2 lg:hidden"
 		>
-			{#each jumps as j, i (j.key)}
+			{#each jumps as j (j.key)}
 				<button
 					type="button"
-					class="inline-flex min-h-10 shrink-0 items-center rounded-full px-3.5 text-[0.9375rem] font-semibold whitespace-nowrap {i ===
-					0
-						? 'bg-ink text-white'
-						: 'border border-field bg-ground'}"
+					data-jump={j.key}
+					aria-current={activeJump === j.key || undefined}
+					class="inline-flex min-h-10 shrink-0 items-center rounded-full border px-3.5 text-[0.9375rem] font-semibold whitespace-nowrap {activeJump ===
+					j.key
+						? 'border-ink bg-ink text-white'
+						: 'border-field bg-ground'}"
 					onclick={() => jump(j.key)}>{j.label}</button
 				>
 			{/each}
