@@ -34,15 +34,15 @@ export function demoData(count = 10): {
 	const t = todayKey();
 	const d = (n: number) => addDays(t, n);
 	const absences: Absence[] = [
-		{ id: 'a1', memberId: 'm8', from: d(0), to: d(3), note: 'Dovolená', weekdays: [], except: [] },
-		{ id: 'a2', memberId: 'm5', from: d(2), to: d(4), note: 'Mimo obec', weekdays: [], except: [] },
-		{ id: 'a3', memberId: 'm1', from: d(3), to: d(3), note: '', weekdays: [], except: [] },
-		{ id: 'a4', memberId: 'm3', from: d(7), to: d(7), note: 'Práce / směna', weekdays: [], except: [] },
-		{ id: 'a5', memberId: 'm7', from: d(10), to: d(11), note: 'Dovolená – hory', weekdays: [], except: [] },
-		{ id: 'a6', memberId: 'm4', from: d(10), to: d(10), note: '', weekdays: [], except: [] },
-		{ id: 'a7', memberId: 'm6', from: d(10), to: d(10), note: 'Práce', weekdays: [], except: [] },
-		{ id: 'a8', memberId: 'm9', from: d(12), to: d(16), note: 'Služební cesta', weekdays: [], except: [] },
-		{ id: 'a9', memberId: 'm2', from: d(0), to: OPEN_END, note: 'Práce', weekdays: [1], except: [] }
+		{ id: 'a1', memberId: 'm8', from: d(0), to: d(3), note: 'Dovolená', except: [] },
+		{ id: 'a2', memberId: 'm5', from: d(2), to: d(4), note: 'Mimo obec', except: [] },
+		{ id: 'a3', memberId: 'm1', from: d(3), to: d(3), note: '', except: [] },
+		{ id: 'a4', memberId: 'm3', from: d(7), to: d(7), note: 'Práce / směna', except: [] },
+		{ id: 'a5', memberId: 'm7', from: d(10), to: d(11), note: 'Dovolená – hory', except: [] },
+		{ id: 'a6', memberId: 'm4', from: d(10), to: d(10), note: '', except: [] },
+		{ id: 'a7', memberId: 'm6', from: d(10), to: d(10), note: 'Práce', except: [] },
+		{ id: 'a8', memberId: 'm9', from: d(12), to: d(16), note: 'Služební cesta', except: [] },
+		{ id: 'a9', memberId: 'm2', from: d(0), to: OPEN_END, note: 'Práce', except: [], repeat: { freq: 'week', every: 1, weekdays: [1] } }
 	];
 	const events: Event[] = [
 		{
@@ -66,6 +66,17 @@ export function demoData(count = 10): {
 			from: d(2),
 			to: OPEN_END,
 			except: []
+		},
+		{
+			id: 's2',
+			title: 'Schůze výboru',
+			time: '19:00',
+			place: 'Klubovna',
+			note: '',
+			from: d(0),
+			to: OPEN_END,
+			except: [],
+			repeat: { freq: 'month', every: 1, nth: 1, kind: 4 }
 		}
 	];
 	return { members, absences, events, series };

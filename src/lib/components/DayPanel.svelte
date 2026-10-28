@@ -34,7 +34,7 @@
 
 	async function create(draft: Parameters<typeof data.addEvent>[0], { repeat, until }: SaveOptions) {
 		try {
-			if (repeat) await data.addSeries(draft, until);
+			if (repeat) await data.addSeries(draft, until, repeat);
 			else await data.addEvent(draft);
 			toasts.show(repeat ? 'Opakovaná akce uložena' : 'Akce uložena');
 		} catch (e) {

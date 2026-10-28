@@ -4,7 +4,8 @@
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
-	import { addDays, daysBetween, DOW_ON, formatLong, OPEN_END, formatShort, weekdayIndex } from '#lib/dates.js';
+	import { formatLong, OPEN_END, formatShort } from '#lib/dates.js';
+	import { describe, lastDay, nextAfter } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import { toggleMemberDay } from '#lib/toggleDay.js';
@@ -20,8 +21,14 @@
 	const series = $derived(ev ? data.seriesOf(ev) : undefined);
 	/** Later repeats exist, so "this and all later" choices make sense. */
 	const later = $derived(
-		!!series && !!ev?.slot && (series.to === OPEN_END || addDays(ev.slot, 7) <= series.to)
+		!!series && !!ev?.slot && !!nextAfter(series.repeat, series.from, series.to, ev.slot)
 	);
+	const repeatText = $derived.by(() => {
+		if (!series) return '';
+		const text = describe(series.repeat, series.from).replace(/^./, (c) => c.toUpperCase());
+		const last = series.to === OPEN_END ? undefined : lastDay(series.repeat, series.from, series.to);
+		return last ? `${text}, do ${formatShort(last)}` : text;
+	});
 
 	let editing = $state(false);
 	let busy = $state(false);
@@ -156,12 +163,13 @@
 				{/if}
 				{#if series}
 					<span class="flex items-center gap-2"
-						><Icon name="refresh" size={18} class="text-muted" />Každý týden {DOW_ON[
-							weekdayIndex(series.from)
-						]}{series.to === OPEN_END
-							? ''
-							: `, do ${formatShort(addDays(series.from, Math.floor(daysBetween(series.from, series.to) / 7) * 7))}`}</span
+						><Icon name="refresh" size={18} class="shrink-0 text-muted" />{repeatText}</span
 					>
+					{#if ev.slot && ev.slot !== ev.date}
+						<span class="pl-[1.625rem] text-[0.9375rem] font-semibold text-warn-ink"
+							>Tento termín je přesunutý z {formatShort(ev.slot)}</span
+						>
+					{/if}
 				{/if}
 				{#if ev.place}
 					<span class="flex items-center gap-2"><Icon name="pin" size={18} class="text-muted" />{ev.place}</span>
@@ -264,6 +272,13 @@
 			{/if}
 
 			{#if series}
+				<button
+					type="button"
+					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent"
+					onclick={() => (editing = true)}
+				>
+					<Icon name="calendar" size={18} /> Změnit jen tento termín
+				</button>
 				<button
 					type="button"
 					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
