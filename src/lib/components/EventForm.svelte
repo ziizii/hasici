@@ -28,7 +28,8 @@
 	// svelte-ignore state_referenced_locally
 	let day = $state(initial?.date ?? date);
 	// svelte-ignore state_referenced_locally
-	let hour = $state(initial?.time?.slice(0, 2) ?? '');
+	// New events default to 09:00; '––' clears the time.
+	let hour = $state(initial ? (initial.time?.slice(0, 2) ?? '') : '09');
 	// svelte-ignore state_referenced_locally
 	let minute = $state(initial?.time?.slice(3, 5) ?? '00');
 	const time = $derived(hour ? `${hour}:${minute}` : '');

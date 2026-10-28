@@ -8,6 +8,7 @@ import {
 	setDoc,
 	updateDoc,
 	writeBatch,
+	type FirestoreError,
 	type Unsubscribe
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -88,46 +89,88 @@ class Data {
 		this.loaded = { members: true, absences: true, events: true };
 	}
 
+	/**
+	 * onSnapshot stops for good after an error (e.g. the page loaded before new rules
+	 * were deployed), so re-subscribe after a short wait instead of going stale.
+	 */
+	#watch(subscribe: (onError: (e: FirestoreError) => void) => Unsubscribe) {
+		let unsub: Unsubscribe = () => {};
+		let retry: ReturnType<typeof setTimeout> | undefined;
+		const run = () => {
+			unsub = subscribe((e) => {
+				console.error(e);
+				retry = setTimeout(run, 5000);
+			});
+		};
+		run();
+		this.#unsubs.push(() => {
+			clearTimeout(retry);
+			unsub();
+		});
+	}
+
 	/** Realtime subscriptions. The whole unit is small, so everything is synced. */
 	start() {
 		if (this.#demo || this.#unsubs.length) return;
-		this.#unsubs.push(
-			onSnapshot(collection(db, 'members'), (snap) => {
-				this.allMembers = snap.docs
-					.map((d) => {
+		this.#watch((onError) =>
+			onSnapshot(
+				collection(db, 'members'),
+				(snap) => {
+					this.allMembers = snap.docs
+						.map((d) => {
+							const x = d.data();
+							return { id: d.id, name: x.name, color: x.color, archived: x.archived === true };
+						})
+						.sort(byLastName);
+					this.loaded.members = true;
+				},
+				onError
+			)
+		);
+		this.#watch((onError) =>
+			onSnapshot(
+				collection(db, 'absences'),
+				(snap) => {
+					this.absences = snap.docs.map((d) => {
 						const x = d.data();
-						return { id: d.id, name: x.name, color: x.color, archived: x.archived === true };
-					})
-					.sort(byLastName);
-				this.loaded.members = true;
-			}),
-			onSnapshot(collection(db, 'absences'), (snap) => {
-				this.absences = snap.docs.map((d) => {
-					const x = d.data();
-					return { id: d.id, memberId: x.memberId, from: x.from, to: x.to, note: x.note ?? '' };
-				});
-				this.loaded.absences = true;
-			}),
-			onSnapshot(doc(db, 'config', 'places'), (snap) => {
-				const list = snap.data()?.list;
-				this.defaultPlaces = Array.isArray(list) ? list : [];
-			}),
-			onSnapshot(collection(db, 'events'), (snap) => {
-				this.events = snap.docs
-					.map((d) => {
-						const x = d.data();
-						return {
-							id: d.id,
-							title: x.title,
-							date: x.date,
-							time: x.time ?? '',
-							place: x.place ?? '',
-							note: x.note ?? ''
-						};
-					})
-					.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-				this.loaded.events = true;
-			})
+						return { id: d.id, memberId: x.memberId, from: x.from, to: x.to, note: x.note ?? '' };
+					});
+					this.loaded.absences = true;
+				},
+				onError
+			)
+		);
+		this.#watch((onError) =>
+			onSnapshot(
+				doc(db, 'config', 'places'),
+				(snap) => {
+					const list = snap.data()?.list;
+					this.defaultPlaces = Array.isArray(list) ? list : [];
+				},
+				onError
+			)
+		);
+		this.#watch((onError) =>
+			onSnapshot(
+				collection(db, 'events'),
+				(snap) => {
+					this.events = snap.docs
+						.map((d) => {
+							const x = d.data();
+							return {
+								id: d.id,
+								title: x.title,
+								date: x.date,
+								time: x.time ?? '',
+								place: x.place ?? '',
+								note: x.note ?? ''
+							};
+						})
+						.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+					this.loaded.events = true;
+				},
+				onError
+			)
 		);
 	}
 
