@@ -70,7 +70,8 @@
 			if (k === start || d.getDate() === 1) {
 				out.push({ kind: 'month', key: 'm' + k, label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` });
 			}
-			if (k === start || weekdayIndex(k) === 0) {
+			// A new month repeats the week heading, so a jump to the 1st lines up under both bars.
+			if (k === start || weekdayIndex(k) === 0 || d.getDate() === 1) {
 				const mon = startOfWeek(k);
 				out.push({
 					kind: 'week',
