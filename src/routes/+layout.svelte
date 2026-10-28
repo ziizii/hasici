@@ -21,7 +21,8 @@
 
 	let demo = $state(false);
 	/** Desktop header height (0 when hidden); pages stick things below it via --header-h. */
-	let headerH = $state(0);
+	let headerBox = $state<ResizeObserverSize[]>();
+	const headerH = $derived(headerBox?.[0]?.blockSize ?? 0);
 
 	onMount(() => {
 		document.getElementById('boot')?.remove();
@@ -137,7 +138,7 @@
 	<div class="flex min-h-dvh flex-col" style="--header-h: {headerH}px">
 		<!-- Desktop header -->
 		<header
-			bind:offsetHeight={headerH}
+			bind:borderBoxSize={headerBox}
 			class="sticky top-0 z-20 hidden border-b border-line bg-surface md:block"
 		>
 			<div class="mx-auto flex max-w-[90rem] items-center gap-7 px-6 py-3">

@@ -32,10 +32,14 @@
 	let selected = $state<DateKey | null>(null);
 	let desktop = $state(false);
 	let sentinel = $state<HTMLElement>();
-	// Heights of the sticky bars (they grow with the phone's text size).
-	let navH = $state(0);
-	let monthH = $state(0);
-	let weekH = $state(0);
+	// Heights of the sticky bars (they grow with the phone's text size). Border-box sizes,
+	// not offsetHeight: rem-based heights are fractional and rounding leaves a gap.
+	let navBox = $state<ResizeObserverSize[]>();
+	let monthBox = $state<ResizeObserverSize[]>();
+	let weekBox = $state<ResizeObserverSize[]>();
+	const navH = $derived(navBox?.[0]?.blockSize ?? 0);
+	const monthH = $derived(monthBox?.[0]?.blockSize ?? 0);
+	const weekH = $derived(weekBox?.[0]?.blockSize ?? 0);
 
 	$effect(() => {
 		const mq = matchMedia('(min-width: 1024px)');
@@ -166,7 +170,7 @@
 		</div>
 		<nav
 			aria-label="Přeskočit na"
-			bind:offsetHeight={navH}
+			bind:borderBoxSize={navBox}
 			style="top: var(--header-h, 0px)"
 			class="sticky z-10 flex gap-2 overflow-x-auto border-b border-line bg-surface px-4 py-2 lg:hidden"
 		>
@@ -202,7 +206,7 @@
 		{#each rows as row (row.key)}
 			{#if row.kind === 'month'}
 				<div
-					bind:offsetHeight={monthH}
+					bind:borderBoxSize={monthBox}
 					style="top: var(--stick-month)"
 					class="sticky z-[6] bg-ground px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold lg:bg-surface lg:px-5 lg:text-[1.625rem]"
 				>
@@ -210,7 +214,7 @@
 				</div>
 			{:else if row.kind === 'week'}
 				<div
-					bind:offsetHeight={weekH}
+					bind:borderBoxSize={weekBox}
 					style="top: var(--stick-week)"
 					class="sticky z-[5] border-b border-line bg-ground px-4 pt-2.5 pb-1.5 text-xs font-bold tracking-[0.08em] text-muted uppercase lg:border-line-soft lg:bg-[#FAF9F6] lg:px-5"
 				>
