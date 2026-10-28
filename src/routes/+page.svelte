@@ -268,8 +268,11 @@
 									<span
 										class="flex max-w-full items-center gap-2 self-start rounded-lg bg-event px-2.5 py-1 text-event-ink"
 									>
-										{#if ev.time}<span class="text-[0.8125rem] font-bold">{ev.time}</span>{/if}
-										<span class="line-clamp-2 text-sm leading-snug font-semibold">{ev.title}</span>
+										{#if ev.time}<span class="shrink-0 text-[0.8125rem] font-bold whitespace-nowrap">{ev.time}</span>{/if}
+										<span class="line-clamp-2 text-sm leading-snug"
+											><span class="font-semibold">{ev.title}</span
+											>{#if ev.place}<span class="font-normal">{` · ${ev.place}`}</span>{/if}</span
+										>
 									</span>
 								{/each}
 							</span>
