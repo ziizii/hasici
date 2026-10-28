@@ -61,6 +61,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Default event places, edited on the Jednotka page.
+    match /config/places {
+      allow read: if hasSession();
+      allow create, update: if hasSession()
+        && request.resource.data.keys().hasOnly(['list'])
+        && request.resource.data.list is list
+        && request.resource.data.list.size() <= 50;
+      allow delete: if false;
+    }
+
     match /sessions/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow create: if signedIn()

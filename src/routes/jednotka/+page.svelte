@@ -59,6 +59,29 @@
 		}
 	}
 
+	// --- places ---
+	let newPlace = $state('');
+
+	async function addPlace(e: SubmitEvent) {
+		e.preventDefault();
+		const p = newPlace.trim();
+		if (!p) return;
+		if (data.defaultPlaces.includes(p)) return void (newPlace = '');
+		try {
+			await data.setDefaultPlaces([...data.defaultPlaces, p]);
+			newPlace = '';
+		} catch (err) {
+			console.error(err);
+			toasts.error();
+		}
+	}
+
+	async function removePlace(p: string) {
+		await data
+			.setDefaultPlaces(data.defaultPlaces.filter((x) => x !== p))
+			.catch(() => toasts.error());
+	}
+
 	// --- members ---
 	let newName = $state('');
 	let editing = $state<string | null>(null);
@@ -322,6 +345,42 @@
 				</ul>
 			{/if}
 		{/if}
+	</section>
+
+	<!-- Places -->
+	<section class="flex flex-col rounded-2xl border border-line bg-surface p-4">
+		<h2 class="text-[1.0625rem] font-bold">Místa akcí</h2>
+		<p class="mb-2 text-[0.9375rem] leading-snug text-muted">Nabídnou se při zakládání akce, první je předvyplněné.</p>
+		<ul class="flex flex-col">
+			{#each data.defaultPlaces as p (p)}
+				<li class="flex min-h-[3.25rem] items-center gap-3 border-t border-line-soft">
+					<Icon name="pin" size={18} class="text-faint" />
+					<span class="min-w-0 flex-1 font-medium">{p}</span>
+					<button
+						type="button"
+						aria-label="Odebrat {p}"
+						class="flex size-11 items-center justify-center text-muted"
+						onclick={() => removePlace(p)}><Icon name="x" size={20} /></button
+					>
+				</li>
+			{/each}
+		</ul>
+		<form class="flex gap-2 border-t border-line-soft pt-3" onsubmit={addPlace}>
+			<label class="flex-1">
+				<span class="sr-only">Nové místo</span>
+				<input
+					bind:value={newPlace}
+					maxlength="120"
+					placeholder="např. Zbrojnice"
+					class="h-12 w-full rounded-xl border border-field px-3 text-base"
+				/>
+			</label>
+			<button
+				type="submit"
+				class="flex min-h-12 items-center gap-1.5 rounded-xl bg-accent px-4 font-bold text-white"
+				><Icon name="plus" size={18} stroke={2.5} /> Přidat</button
+			>
+		</form>
 	</section>
 
 	<button

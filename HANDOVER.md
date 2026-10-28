@@ -98,6 +98,7 @@ don't (`#lib/components/Icon.svelte`).
 | --- | --- | --- |
 | `config/public` | `initialized: true` | Readable by anyone; tells the app if first-run setup happened |
 | `config/access` | `linkKey`, `passwordHash`, `updatedAt` | Readable only with a session |
+| `config/places` | `list` (string[], ≤ 50) | Default event places, edited on `/jednotka`; offered first in the event form |
 | `sessions/{uid}` | `key`, `createdAt` | Created when `key` equals `linkKey` or `passwordHash` |
 | `members/{id}` | `name`, `color`, `archived`, `createdAt` | |
 | `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `createdAt` | Whole days |

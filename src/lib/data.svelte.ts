@@ -67,6 +67,8 @@ class Data {
 	archived = $derived(this.allMembers.filter((m) => m.archived));
 	absences = $state<Absence[]>([]);
 	events = $state<Event[]>([]);
+	/** Default event places, set on the Jednotka page. */
+	defaultPlaces = $state<string[]>([]);
 	loaded = $state({ members: false, absences: false, events: false });
 
 	#unsubs: Unsubscribe[] = [];
@@ -105,6 +107,10 @@ class Data {
 					return { id: d.id, memberId: x.memberId, from: x.from, to: x.to, note: x.note ?? '' };
 				});
 				this.loaded.absences = true;
+			}),
+			onSnapshot(doc(db, 'config', 'places'), (snap) => {
+				const list = snap.data()?.list;
+				this.defaultPlaces = Array.isArray(list) ? list : [];
 			}),
 			onSnapshot(collection(db, 'events'), (snap) => {
 				this.events = snap.docs
@@ -157,14 +163,18 @@ class Data {
 		return { available, away };
 	}
 
-	/** Places used before, most recent first, for the event form suggestions. */
+	/** Default places first, then places used before (most recent first), for the event form. */
 	get places(): string[] {
-		const seen = new Set<string>();
+		const seen = new Set<string>(this.defaultPlaces);
 		for (let i = this.events.length - 1; i >= 0; i--) {
 			const p = this.events[i].place.trim();
 			if (p) seen.add(p);
 		}
 		return [...seen];
+	}
+
+	async setDefaultPlaces(list: string[]) {
+		await setDoc(doc(db, 'config', 'places'), { list });
 	}
 
 	// --- members ----------------------------------------------------------
