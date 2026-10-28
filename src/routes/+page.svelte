@@ -33,7 +33,8 @@
 	let desktop = $state(false);
 	let sentinel = $state<HTMLElement>();
 	// Heights of the sticky bars (they grow with the phone's text size). Border-box sizes,
-	// not offsetHeight: rem-based heights are fractional and rounding leaves a gap.
+	// not offsetHeight: rem-based heights are fractional and rounding leaves a gap. Each bar
+	// still tucks 1px under the one above (lower z-index), so subpixel snapping can't open a seam.
 	let navBox = $state<ResizeObserverSize[]>();
 	let monthBox = $state<ResizeObserverSize[]>();
 	let weekBox = $state<ResizeObserverSize[]>();
@@ -160,7 +161,7 @@
 	<!-- Timeline -->
 	<section
 		aria-label="Časová osa"
-		style="--stick-month: calc(var(--header-h, 0px) + {navH}px); --stick-week: calc(var(--stick-month) + {monthH}px); --stick-day: calc(var(--stick-week) + {weekH}px)"
+		style="--stick-month: calc(var(--header-h, 0px) + {navH}px - 1px); --stick-week: calc(var(--stick-month) + {monthH}px - 1px); --stick-day: calc(var(--stick-week) + {weekH}px)"
 		class="min-w-0 flex-[999_1_560px] lg:overflow-clip lg:rounded-2xl lg:border lg:border-line lg:bg-surface"
 	>
 		<!-- Phone header: only the jump buttons stay pinned, so big text still leaves room -->
