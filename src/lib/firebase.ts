@@ -1,0 +1,69 @@
+import { initializeApp } from 'firebase/app';
+import {
+	connectAuthEmulator,
+	getAuth,
+	onAuthStateChanged,
+	signInAnonymously,
+	type User
+} from 'firebase/auth';
+import {
+	connectFirestoreEmulator,
+	initializeFirestore,
+	memoryLocalCache,
+	persistentLocalCache,
+	persistentMultipleTabManager
+} from 'firebase/firestore';
+
+const env = import.meta.env;
+
+export const firebaseConfig = {
+	apiKey: env.VITE_FIREBASE_API_KEY,
+	authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || 'hasici-bo.firebaseapp.com',
+	projectId: env.VITE_FIREBASE_PROJECT_ID || 'hasici-bo',
+	appId: env.VITE_FIREBASE_APP_ID,
+	messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+	storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET
+};
+
+/** `VITE_USE_EMULATORS=1 npm run dev` talks to `firebase emulators:start`. */
+export const useEmulators = env.VITE_USE_EMULATORS === '1';
+
+export const configMissing = !useEmulators && (!firebaseConfig.apiKey || !firebaseConfig.appId);
+
+// Placeholder keys keep the SDK from throwing when the real config is missing
+// (the app then shows a setup message, or runs the dev-only ?demo mode).
+export const app = initializeApp(
+	useEmulators
+		? { ...firebaseConfig, projectId: 'demo-hasici', apiKey: 'demo-key', appId: 'demo-app' }
+		: configMissing
+			? { ...firebaseConfig, apiKey: 'missing', appId: 'missing' }
+			: firebaseConfig
+);
+export const auth = getAuth(app);
+
+// Offline cache so the plan opens instantly on a phone with a weak signal.
+export const db = initializeFirestore(app, {
+	localCache: useEmulators
+		? memoryLocalCache()
+		: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
+if (useEmulators) {
+	connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+	connectFirestoreEmulator(db, '127.0.0.1', 8080);
+}
+
+/** Resolves with the signed-in (anonymous) user, signing in if needed. */
+export function ensureUser(): Promise<User> {
+	return new Promise((resolve, reject) => {
+		const stop = onAuthStateChanged(
+			auth,
+			(user) => {
+				stop();
+				if (user) resolve(user);
+				else signInAnonymously(auth).then((c) => resolve(c.user), reject);
+			},
+			reject
+		);
+	});
+}

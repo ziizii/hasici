@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+@theme {
+	--font-sans: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+	--font-display: 'Barlow Condensed', 'Barlow', ui-sans-serif, sans-serif;
+
+	--color-ground: #f4f2ee;
+	--color-weekend: #ece8e1;
+	--color-surface: #ffffff;
+	--color-ink: #1b1b1a;
+	--color-ink-2: #3d3a35;
+	--color-muted: #5e5b55;
+	--color-faint: #6f6a62;
+	--color-line: #e2ddd4;
+	--color-line-soft: #eeeae3;
+	--color-field: #d6d1c8;
+	--color-off: #e7e2da;
+
+	--color-accent: #b3261a;
+	--color-accent-dark: #8f1e13;
+	--color-event: #fbe4e1;
+	--color-event-ink: #5c140d;
+
+	--color-good: #1e6b45;
+	--color-good-bg: #e3f0e8;
+	--color-warn: #8f4207;
+	--color-warn-ink: #7a3f06;
+	--color-warn-bg: #fbebd9;
+}
+
+html,
+body {
+	background: var(--color-ground);
+	color: var(--color-ink);
+	font-family: var(--font-sans);
+	-webkit-tap-highlight-color: transparent;
+	overflow-wrap: anywhere;
+}
+
+/*
+ * Large text support. All sizes in the app are in rem, so they follow the
+ * root font size:
+ *  - Android Chrome: <meta name="text-scale" content="scale"> in app.html maps
+ *    the system font size onto the root font size.
+ *  - iOS Safari: -apple-system-body follows the Dynamic Type setting
+ *    (17px by default). Only on touch screens, macOS would make it 13px.
+ */
+@media (pointer: coarse) {
+	@supports (font: -apple-system-body) {
+		html {
+			font: -apple-system-body;
+			font-family: var(--font-sans);
+		}
+	}
+}
+
+input,
+textarea,
+select,
+button {
+	font: inherit;
+}
+
+/* Hide native date picker icon chrome differences a bit */
+input[type='date'],
+input[type='time'] {
+	min-height: 3.25rem;
+}
