@@ -17,6 +17,8 @@
 	let { children }: { children: Snippet } = $props();
 
 	let demo = $state(false);
+	/** Desktop header height (0 when hidden); pages stick things below it via --header-h. */
+	let headerH = $state(0);
 
 	onMount(() => {
 		const url = new URL(location.href);
@@ -77,9 +79,12 @@
 {:else if needsPick}
 	<MemberPicker />
 {:else}
-	<div class="flex min-h-dvh flex-col">
+	<div class="flex min-h-dvh flex-col" style="--header-h: {headerH}px">
 		<!-- Desktop header -->
-		<header class="sticky top-0 z-20 hidden border-b border-line bg-surface md:block">
+		<header
+			bind:offsetHeight={headerH}
+			class="sticky top-0 z-20 hidden border-b border-line bg-surface md:block"
+		>
 			<div class="mx-auto flex max-w-[90rem] items-center gap-7 px-6 py-3">
 				<Brand />
 				<nav aria-label="Hlavní navigace" class="flex flex-1 gap-1">

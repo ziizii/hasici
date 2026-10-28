@@ -29,6 +29,10 @@
 	let selected = $state<DateKey | null>(null);
 	let desktop = $state(false);
 	let sentinel = $state<HTMLElement>();
+	// Heights of the sticky bars (they grow with the phone's text size).
+	let navH = $state(0);
+	let monthH = $state(0);
+	let weekH = $state(0);
 
 	$effect(() => {
 		const mq = matchMedia('(min-width: 1024px)');
@@ -173,7 +177,8 @@
 	<!-- Timeline -->
 	<section
 		aria-label="Časová osa"
-		class="min-w-0 flex-[999_1_560px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-line lg:bg-surface"
+		style="--stick-month: calc(var(--header-h, 0px) + {navH}px); --stick-week: calc(var(--stick-month) + {monthH}px); --stick-day: calc(var(--stick-week) + {weekH}px)"
+		class="min-w-0 flex-[999_1_560px] lg:overflow-clip lg:rounded-2xl lg:border lg:border-line lg:bg-surface"
 	>
 		<!-- Phone header: only the jump buttons stay pinned, so big text still leaves room -->
 		<div class="flex flex-col gap-1 bg-surface px-4 pt-5 pb-3 lg:hidden">
@@ -182,7 +187,9 @@
 		</div>
 		<nav
 			aria-label="Přeskočit na"
-			class="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-line bg-surface px-4 py-2 lg:hidden"
+			bind:offsetHeight={navH}
+			style="top: var(--header-h, 0px)"
+			class="sticky z-10 flex gap-2 overflow-x-auto border-b border-line bg-surface px-4 py-2 lg:hidden"
 		>
 			{#each jumps as j, i (j.key)}
 				<button
@@ -215,12 +222,18 @@
 
 		{#each rows as row (row.key)}
 			{#if row.kind === 'month'}
-				<div class="px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold lg:px-5 lg:text-[1.625rem]">
+				<div
+					bind:offsetHeight={monthH}
+					style="top: var(--stick-month)"
+					class="sticky z-[6] bg-ground px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold lg:bg-surface lg:px-5 lg:text-[1.625rem]"
+				>
 					{row.label}
 				</div>
 			{:else if row.kind === 'week'}
 				<div
-					class="border-b border-line px-4 pt-2.5 pb-1.5 text-xs font-bold tracking-[0.08em] text-muted uppercase lg:border-line-soft lg:bg-[#FAF9F6] lg:px-5"
+					bind:offsetHeight={weekH}
+					style="top: var(--stick-week)"
+					class="sticky z-[5] border-b border-line bg-ground px-4 pt-2.5 pb-1.5 text-xs font-bold tracking-[0.08em] text-muted uppercase lg:border-line-soft lg:bg-[#FAF9F6] lg:px-5"
 				>
 					{row.label}
 				</div>
@@ -236,7 +249,8 @@
 				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 				<div
 					id="d-{key}"
-					class="flex w-full cursor-pointer scroll-mt-16 items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:scroll-mt-24 lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
+					style="scroll-margin-top: var(--stick-day)"
+					class="flex w-full cursor-pointer items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
 						key
 					)}"
 					onclick={() => (selected = key)}
