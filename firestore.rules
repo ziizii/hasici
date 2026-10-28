@@ -98,7 +98,9 @@ service cloud.firestore {
     match /absences/{id} {
       allow read, delete: if hasSession();
       allow create, update: if hasSession()
-        && request.resource.data.keys().hasOnly(['memberId', 'from', 'to', 'note', 'weekdays', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['memberId', 'from', 'to', 'note', 'weekdays', 'except', 'createdAt'])
+        && (!('except' in request.resource.data)
+          || (request.resource.data.except is list && request.resource.data.except.size() <= 100))
         && (!('weekdays' in request.resource.data)
           || (request.resource.data.weekdays is list && request.resource.data.weekdays.size() <= 7))
         && isText(request.resource.data.memberId, 1, 64)

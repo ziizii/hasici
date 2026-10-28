@@ -41,10 +41,31 @@ export interface Absence {
 	note: string;
 	/** Repeating: only these weekdays (0 = Mon … 6 = Sun) within the range. Empty = every day. */
 	weekdays: number[];
+	/** Days skipped in a repeating / open-ended absence ("this Tuesday I can come"). */
+	except: DateKey[];
+}
+
+/** Absences with exceptions instead of being split when a single day is freed. */
+export function hasExceptions(a: Absence): boolean {
+	return a.weekdays.length > 0 || a.to === OPEN_END;
+}
+
+/** True when the absence would cover the day if it weren't an exception. */
+function inPattern(a: Absence, day: DateKey): boolean {
+	return a.from <= day && a.to >= day && (!a.weekdays.length || a.weekdays.includes(weekdayIndex(day)));
 }
 
 export function covers(a: Absence, day: DateKey): boolean {
-	return a.from <= day && a.to >= day && (!a.weekdays.length || a.weekdays.includes(weekdayIndex(day)));
+	return inPattern(a, day) && !a.except.includes(day);
+}
+
+/** The next `n` days the pattern falls on from `day` on (exceptions included). */
+export function occurrences(a: Absence, day: DateKey, n: number): DateKey[] {
+	const out: DateKey[] = [];
+	for (let k = a.from > day ? a.from : day; out.length < n && k <= a.to; k = addDays(k, 1)) {
+		if (inPattern(a, k)) out.push(k);
+	}
+	return out;
 }
 
 /** The "Nejsem k dispozici" switch: every day, no end. */
@@ -62,7 +83,16 @@ export function absenceWhen(a: Absence, today: DateKey): string {
 			: a.from <= today && a.from !== a.to
 				? `do ${formatShort(a.to)}`
 				: formatRange(a.from, a.to);
-	return a.weekdays.length ? `${formatWeekdays(a.weekdays)}, ${range}` : range;
+	const skipped = a.except.filter((d) => d >= today);
+	const except = skipped.length ? ` (kromě ${skipped.slice(0, 2).map(formatShort).join(', ')}${skipped.length > 2 ? ' …' : ''})` : '';
+	return (a.weekdays.length ? `${formatWeekdays(a.weekdays)}, ${range}` : range) + except;
+}
+
+/** The exception list with `day` added or removed; past days are dropped to keep it short. */
+function withException(a: Absence, day: DateKey, on: boolean): DateKey[] {
+	const today = todayKey();
+	const rest = a.except.filter((d) => d !== day && d >= today);
+	return (on ? [...rest, day] : rest).sort();
 }
 
 /** Firestore fields; `weekdays` only when repeating, so plain absences stay as before. */
@@ -73,6 +103,7 @@ function absenceFields(a: Omit<Absence, 'id'>) {
 		to: a.to,
 		note: a.note,
 		...(a.weekdays.length ? { weekdays: [...a.weekdays].sort() } : {}),
+		...(a.except.length ? { except: [...a.except].sort() } : {}),
 		createdAt: serverTimestamp()
 	};
 }
@@ -184,7 +215,8 @@ class Data {
 							from: x.from,
 							to: x.to,
 							note: x.note ?? '',
-							weekdays: Array.isArray(x.weekdays) ? x.weekdays : []
+							weekdays: Array.isArray(x.weekdays) ? x.weekdays : [],
+							except: Array.isArray(x.except) ? x.except : []
 						};
 					});
 					this.loaded.absences = true;
@@ -324,7 +356,7 @@ class Data {
 		if (to < from) [from, to] = [to, from];
 		const ref = await addDoc(
 			collection(db, 'absences'),
-			absenceFields({ memberId, from, to, note: note.trim(), weekdays })
+			absenceFields({ memberId, from, to, note: note.trim(), weekdays, except: [] })
 		);
 		return ref.id;
 	}
@@ -346,6 +378,14 @@ class Data {
 	async markAway(memberId: string, day: DateKey, note = ''): Promise<string> {
 		const existing = this.absenceOn(memberId, day);
 		if (existing) return existing.id;
+		// The day was an exception of a schedule: put it back instead of adding a new absence.
+		const skipped = this.absences.find(
+			(a) => a.memberId === memberId && a.except.includes(day) && inPattern(a, day)
+		);
+		if (skipped) {
+			await this.setException(skipped, day, false);
+			return skipped.id;
+		}
 		return this.addAbsence(memberId, day, day, note);
 	}
 
@@ -357,6 +397,10 @@ class Data {
 		const batch = writeBatch(db);
 		for (const a of this.absences.filter((a) => a.memberId === memberId && covers(a, day))) {
 			const ref = doc(db, 'absences', a.id);
+			if (hasExceptions(a) && a.from !== day) {
+				batch.update(ref, { except: withException(a, day, true) });
+				continue;
+			}
 			if (a.from === day && a.to === day) batch.delete(ref);
 			else if (a.from === day) batch.update(ref, { from: addDays(day, 1) });
 			else if (a.to === day) batch.update(ref, { to: addDays(day, -1) });
@@ -385,6 +429,11 @@ class Data {
 			else batch.update(ref, { to: addDays(today, -1) });
 		}
 		await batch.commit();
+	}
+
+	/** Skip (`on`) or restore one day of a repeating / open-ended absence. */
+	async setException(a: Absence, day: DateKey, on: boolean) {
+		await updateDoc(doc(db, 'absences', a.id), { except: withException(a, day, on) });
 	}
 
 	// --- events -----------------------------------------------------------

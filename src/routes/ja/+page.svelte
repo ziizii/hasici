@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
-	import { covers, data, isSwitch, type Absence } from '#lib/data.svelte.js';
+	import { covers, data, isSwitch, occurrences, type Absence } from '#lib/data.svelte.js';
 	import {
 		addDays,
 		formatLong,
@@ -101,6 +101,10 @@
 			console.error(err);
 			toasts.error();
 		}
+	}
+
+	async function toggleException(a: Absence, day: string) {
+		await data.setException(a, day, !a.except.includes(day)).catch(() => toasts.error());
 	}
 
 	function clashes(a: Absence) {
@@ -272,6 +276,26 @@
 					{:else}
 						<span class="text-lg font-bold">{formatRange(a.from, a.to)}</span>
 						<span class="text-[0.9375rem] text-muted">{pluralDays(rangeLength(a.from, a.to))}</span>
+					{/if}
+					{#if a.weekdays.length}
+						<span class="mt-1.5 text-[0.9375rem] text-ink-2">Výjimka? Klepněte na den, kdy můžete:</span>
+						<span class="flex flex-wrap gap-1.5">
+							{#each occurrences(a, today, 6) as day (day)}
+								{@const free = a.except.includes(day)}
+								<button
+									type="button"
+									aria-pressed={free}
+									aria-label="{formatShort(day)}: {free ? 'můžu' : 'nemůžu'}"
+									class="flex min-h-11 items-center gap-1 rounded-full px-3 text-[0.9375rem] font-semibold {free
+										? 'bg-good-bg text-good'
+										: 'border border-field bg-surface text-ink-2'}"
+									onclick={() => toggleException(a, day)}
+								>
+									{#if free}<Icon name="check" size={16} stroke={2.6} />{/if}
+									{formatShort(day)}
+								</button>
+							{/each}
+						</span>
 					{/if}
 					{#if a.note}
 						<span>{a.note}</span>
