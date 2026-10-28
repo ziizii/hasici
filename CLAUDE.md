@@ -10,4 +10,7 @@ model, code map and open tasks.
 - Absences are whole days. "Nemůžu přijít" = create a one-day absence; don't
   add a separate opt-out structure.
 - Before finishing: `npm run check` and `npm run build`.
-- UI without Firebase: `npm run dev`, open `/?demo` (or `/?demo=30`).
+- Local dev: `make dev` (app + Firebase emulators, data kept in
+  `.emulator-data/`, `make reset-emu` wipes it). `make dev-prod` uses the
+  real project from `.env`. UI without Firebase: `make demo` (`/?demo`, or
+  `/?demo=30`). `make` lists all targets.

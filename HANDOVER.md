@@ -115,9 +115,12 @@ UI was checked in `?demo` mode at phone and desktop sizes, at normal and
 
 Not yet done / next steps:
 
-1. Fill `.env` with the web app config of `hasici-bo` (`firebase apps:sdkconfig web`).
-2. Enable Anonymous auth and create Firestore in the console.
-3. Deploy (`npm run build && firebase deploy --only firestore:rules,hosting`).
+1. ~~Fill `.env`~~ (done).
+2. ~~Create Firestore~~ (done); check Anonymous auth is enabled in the console.
+3. Deploys run from GitHub Actions: every PR gets a preview channel
+   (`.github/workflows/preview.yml`), merges to `main` deploy rules + hosting
+   (`deploy.yml`). One-time setup: `make setup-ci`. Previews share the real
+   Firestore data. Manual deploy: `make deploy`.
 4. **Test the security rules against real Firebase or the emulator.** The
    emulator could not be downloaded in the original build environment, so
    the rules are untested. Focus on:
