@@ -45,9 +45,13 @@
 	onMount(() => {
 		const vv = visualViewport;
 		if (!vv) return;
+		let zoomed = false;
 		const onResize = () => {
-			const zoomed = vv.scale > 1.01;
+			const now = vv.scale > 1.01;
+			if (now === zoomed) return;
+			zoomed = now;
 			document.documentElement.classList.toggle('zoomed', zoomed);
+			// Back at normal size: undo any sideways offset left from panning while zoomed.
 			if (!zoomed && scrollX !== 0) scrollTo(0, scrollY);
 		};
 		onResize();
@@ -150,9 +154,7 @@
 {:else if needsPick}
 	<MemberPicker />
 {:else}
-	<!-- Clips sideways overflow here as well as on html/body: the installed iPhone app
-	     ignores the root's overflow for panning. -->
-	<div class="flex min-h-dvh flex-col overflow-x-clip" style="--header-h: {headerH}px">
+	<div class="flex min-h-dvh flex-col" style="--header-h: {headerH}px">
 		<!-- Desktop header -->
 		<header
 			bind:borderBoxSize={headerBox}
