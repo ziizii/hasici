@@ -56,15 +56,19 @@ if (useEmulators) {
 	connectFirestoreEmulator(db, '127.0.0.1', Number(env.VITE_EMULATOR_FIRESTORE_PORT || 8080));
 }
 
-/** Resolves with the signed-in (anonymous) user, signing in if needed. */
-export function ensureUser(): Promise<User> {
+/**
+ * Resolves with the signed-in (anonymous) user, signing in if needed; `created` tells
+ * whether a new user was just made (`onCreate` runs before that network call).
+ */
+export function ensureUser(onCreate?: () => void): Promise<{ user: User; created: boolean }> {
 	return new Promise((resolve, reject) => {
 		const stop = onAuthStateChanged(
 			auth,
 			(user) => {
 				stop();
-				if (user) resolve(user);
-				else signInAnonymously(auth).then((c) => resolve(c.user), reject);
+				if (user) return resolve({ user, created: false });
+				onCreate?.();
+				signInAnonymously(auth).then((c) => resolve({ user: c.user, created: true }), reject);
 			},
 			reject
 		);

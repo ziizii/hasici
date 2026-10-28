@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { version } from '$app/env';
+	import { perfReport } from '#lib/perf.js';
 	import { access } from '#lib/access.svelte.js';
 	import { initials, PALETTE } from '#lib/colors.js';
 	import { absenceWhen, data, groupAbsences, isSwitch, type Member } from '#lib/data.svelte.js';
@@ -530,5 +531,15 @@
 		<Icon name="user" size={18} /> Změnit, kdo jsem na tomto zařízení
 	</button>
 
-	<p class="text-center text-sm text-faint">Verze {version.slice(0, 7)}</p>
+	<details class="text-center text-sm text-faint">
+		<summary class="min-h-11 cursor-pointer content-center">Verze {version.slice(0, 7)}</summary>
+		<p class="mb-1">
+			Časy načtení (ms){navigator.serviceWorker?.controller ? ' · z offline kopie' : ''}
+		</p>
+		<ul class="mx-auto inline-grid grid-cols-[auto_auto] gap-x-4 text-left">
+			{#each perfReport() as [name, ms] (name)}
+				<li class="contents"><span>{name}</span><span class="text-right">{ms}</span></li>
+			{/each}
+		</ul>
+	</details>
 </div>

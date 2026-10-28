@@ -24,7 +24,9 @@ export default defineConfig({
 			},
 			// Single page app: Firebase Hosting serves 200.html for every route.
 			adapter: adapter({ fallback: '200.html' }),
-			version: { name: gitVersion(), pollInterval: 60_000 }
+			version: { name: gitVersion(), pollInterval: 60_000 },
+			// One JS file instead of chunks fetched in 3 rounds (layout -> page -> deps).
+			output: { bundleStrategy: 'single' }
 		})
 	]
 });

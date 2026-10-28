@@ -1,6 +1,7 @@
 import { doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { clearCachedData } from './data.svelte';
 import { db, ensureUser } from './firebase';
+import { mark } from './perf';
 
 export type GateState = 'loading' | 'setup' | 'locked' | 'ready' | 'error';
 
@@ -43,6 +44,8 @@ function writeStored(key: string, value: string | null) {
 class Access {
 	state = $state<GateState>('loading');
 	error = $state<string | null>(null);
+	/** What the loading screen is waiting for, so people see something is happening. */
+	step = $state('Načítám aplikaci…');
 	uid = $state<string | null>(null);
 	/** Which member this device acts as (remembered in localStorage). */
 	memberId = $state<string | null>(readStored(MEMBER_KEY));
@@ -54,13 +57,19 @@ class Access {
 	#stopAccessDoc: (() => void) | null = null;
 
 	async init(url: URL) {
+		// Started first and readable without a session; its first answer also tells
+		// whether the unit is set up, so the gate doesn't ask the server again.
+		let setUp: (exists: boolean) => void = () => {};
+		let failed: (e: unknown) => void = () => {};
+		const unitExists = new Promise<boolean>((resolve, reject) => ((setUp = resolve), (failed = reject)));
 		onSnapshot(
 			doc(db, 'config', 'public'),
 			(snap) => {
 				this.unitName = (snap.data()?.name as string) ?? '';
 				writeStored(UNIT_NAME_KEY, this.unitName);
+				if (!snap.metadata.fromCache) setUp(snap.exists());
 			},
-			(e) => console.error(e)
+			(e) => (console.error(e), failed(e))
 		);
 		// Known device: open at once from the cached data and sign in / check the session
 		// in the background (Firebase Auth goes to the network on every start).
@@ -69,23 +78,42 @@ class Access {
 			this.uid = known;
 			this.#ready(url);
 			ensureUser()
+				.then(({ user }) => (mark('Firebase přihlášen'), user))
 				.then((user) => (user.uid === known ? this.#recheckSession(known) : this.#lockAgain()))
 				.catch((e) => console.error(e));
 			return;
 		}
 
 		try {
-			const user = await ensureUser();
+			this.step = 'Přihlašuji se…';
+			const { user, created } = await ensureUser(
+				() => (this.step = 'Vytvářím přístup pro toto zařízení…')
+			);
+			mark('Firebase přihlášen');
 			this.uid = user.uid;
 
-			const session = await getDoc(doc(db, 'sessions', user.uid));
-			if (session.exists()) return this.#ready(url);
+			// A brand-new device can't have a session yet: skip that round trip.
+			if (!created) {
+				this.step = 'Ověřuji přístup…';
+				const session = await getDoc(doc(db, 'sessions', user.uid));
+				if (session.exists()) return this.#ready(url);
+			}
 
 			const fromLink = url.searchParams.get(LINK_PARAM);
-			if (fromLink && (await this.#createSession(fromLink))) return this.#ready(url);
+			if (fromLink) {
+				this.step = 'Otevírám odkaz jednotky…';
+				if (await this.#createSession(fromLink)) return this.#ready(url);
+			}
 
-			const pub = await getDoc(doc(db, 'config', 'public'));
-			this.state = pub.exists() ? 'locked' : 'setup';
+			this.step = 'Zjišťuji stav jednotky…';
+			// Fall back to asking directly if the listener has no server answer yet.
+			const askDirectly = new Promise<boolean>((resolve, reject) =>
+				setTimeout(
+					() => getDoc(doc(db, 'config', 'public')).then((s) => resolve(s.exists()), reject),
+					4000
+				)
+			);
+			this.state = (await Promise.race([unitExists, askDirectly])) ? 'locked' : 'setup';
 		} catch (e) {
 			console.error(e);
 			this.error = 'Nepodařilo se připojit. Zkontrolujte připojení a obnovte stránku.';

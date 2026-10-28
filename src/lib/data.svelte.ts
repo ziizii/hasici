@@ -23,6 +23,7 @@ import {
 	type DateKey
 } from './dates';
 import { nextColor } from './colors';
+import { mark } from './perf';
 
 export interface Member {
 	id: string;
@@ -207,6 +208,7 @@ class Data {
 			this.events = c.events;
 			this.defaultPlaces = c.defaultPlaces;
 			this.loaded = { members: true, absences: true, events: true };
+			mark('data z paměti zařízení');
 		} catch {
 			// unreadable cache: wait for Firestore as before
 		}
@@ -282,6 +284,7 @@ class Data {
 						})
 						.sort(byLastName);
 					this.loaded.members = true;
+					mark('živá data: členové');
 					this.#saveSoon();
 				},
 				onError
@@ -304,6 +307,7 @@ class Data {
 						};
 					});
 					this.loaded.absences = true;
+					mark('živá data: nepřítomnosti');
 					this.#saveSoon();
 				},
 				onError
@@ -338,6 +342,7 @@ class Data {
 						})
 						.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 					this.loaded.events = true;
+					mark('živá data: akce');
 					this.#saveSoon();
 				},
 				onError

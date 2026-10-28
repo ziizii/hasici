@@ -13,6 +13,9 @@
 	import PasswordScreen from '#lib/components/PasswordScreen.svelte';
 	import favicon from '#lib/assets/favicon.svg';
 	import { demoData, isDemo } from '#lib/demo.js';
+	import { mark } from '#lib/perf.js';
+
+	mark('aplikace spuštěna');
 
 	let { children }: { children: Snippet } = $props();
 
@@ -21,6 +24,7 @@
 	let headerH = $state(0);
 
 	onMount(() => {
+		document.getElementById('boot')?.remove();
 		// A page served from an old browser cache finds out at once, not on the next poll.
 		void updated.check();
 		const url = new URL(location.href);
@@ -92,6 +96,13 @@
 	}
 </script>
 
+{#snippet loading(text: string)}
+	<div class="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center text-muted">
+		<span class="size-8 animate-spin rounded-full border-[0.1875rem] border-line border-t-accent"></span>
+		<span class="text-[1.0625rem]" aria-live="polite">{text}</span>
+	</div>
+{/snippet}
+
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
@@ -105,7 +116,7 @@
 		</p>
 	</div>
 {:else if access.state === 'loading'}
-	<div class="flex min-h-dvh items-center justify-center text-muted">Načítám…</div>
+	{@render loading(access.step)}
 {:else if access.state === 'error'}
 	<div class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 p-6 text-center">
 		<p class="text-lg font-semibold">{access.error}</p>
@@ -119,7 +130,7 @@
 {:else if access.state === 'locked'}
 	<PasswordScreen mode="unlock" />
 {:else if !data.loaded.members}
-	<div class="flex min-h-dvh items-center justify-center text-muted">Načítám…</div>
+	{@render loading('Načítám členy jednotky…')}
 {:else if needsPick}
 	<MemberPicker />
 {:else}

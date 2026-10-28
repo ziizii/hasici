@@ -20,6 +20,10 @@
 	import DayPanel from '#lib/components/DayPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import { toggleMemberDay } from '#lib/toggleDay.js';
+	import { mark } from '#lib/perf.js';
+	import { onMount } from 'svelte';
+
+	onMount(() => mark('plán zobrazen'));
 
 	const today = todayKey();
 
