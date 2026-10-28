@@ -67,6 +67,8 @@ export function isoWeek(key: DateKey): number {
 export const DOW_SHORT = ['PO', 'ÚT', 'ST', 'ČT', 'PÁ', 'SO', 'NE'];
 export const DOW_ABBR = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
 export const DOW_LONG = ['pondělí', 'úterý', 'středa', 'čtvrtek', 'pátek', 'sobota', 'neděle'];
+/** "každý týden ve středu" */
+export const DOW_ON = ['v pondělí', 'v úterý', 've středu', 've čtvrtek', 'v pátek', 'v sobotu', 'v neděli'];
 export const MONTHS = [
 	'Leden',
 	'Únor',

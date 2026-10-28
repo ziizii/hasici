@@ -121,7 +121,7 @@ don't (`#lib/components/Icon.svelte`).
 | `sessions/{uid}` | `key`, `createdAt` | Created when `key` equals `linkKey` or `passwordHash` |
 | `members/{id}` | `name`, `color`, `archived`, `createdAt` | |
 | `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?`, `except?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat weekly within the range; `to = 9999-12-31` = no end; `except` = skipped days |
-| `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `createdAt` | |
+| `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `series?`, `createdAt` | Weekly repeats are stored as separate events (max 53) sharing `series` = id of the first; edit/delete can apply to "this and later" |
 
 - **Password hash:** `passwordHash` is SHA-256 of `"hasici:" + password`,
   computed in the browser. It is effectively a shared secret, like the link key.

@@ -113,7 +113,8 @@ service cloud.firestore {
     match /events/{id} {
       allow read, delete: if hasSession();
       allow create, update: if hasSession()
-        && request.resource.data.keys().hasOnly(['title', 'date', 'time', 'place', 'note', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['title', 'date', 'time', 'place', 'note', 'series', 'createdAt'])
+        && (!('series' in request.resource.data) || isText(request.resource.data.series, 1, 64))
         && isText(request.resource.data.title, 1, 120)
         && isDate(request.resource.data.date)
         && isText(request.resource.data.time, 0, 5)

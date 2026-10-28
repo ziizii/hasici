@@ -5,7 +5,7 @@
 	import { toasts } from '#lib/toast.svelte.js';
 	import { toggleMemberDay } from '#lib/toggleDay.js';
 	import AvailabilityBar from './AvailabilityBar.svelte';
-	import EventForm from './EventForm.svelte';
+	import EventForm, { type SaveOptions } from './EventForm.svelte';
 	import Icon from './Icon.svelte';
 
 	let { day, onclose }: { day: DateKey; onclose: () => void } = $props();
@@ -32,10 +32,11 @@
 		}
 	}
 
-	async function create(draft: Parameters<typeof data.addEvent>[0]) {
+	async function create(draft: Parameters<typeof data.addEvent>[0], { until }: SaveOptions) {
 		try {
-			await data.addEvent(draft);
-			toasts.show('Akce uložena');
+			if (until) await data.addWeeklyEvents(draft, until);
+			else await data.addEvent(draft);
+			toasts.show(until ? 'Opakované akce uloženy' : 'Akce uložena');
 		} catch (e) {
 			console.error(e);
 			toasts.error();
@@ -105,7 +106,7 @@
 	<section class="flex flex-col gap-3 border-t border-line-soft pt-3.5">
 		<h3 class="text-[1.0625rem] font-bold">Nová akce v tento den</h3>
 		{#key day}
-			<EventForm date={day} onsave={create} />
+			<EventForm date={day} repeatable onsave={create} />
 		{/key}
 	</section>
 </div>

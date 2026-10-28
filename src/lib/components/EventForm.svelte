@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { data, type Event } from '#lib/data.svelte.js';
-	import type { DateKey } from '#lib/dates.js';
+	import { data, MAX_REPEATS, type Event } from '#lib/data.svelte.js';
+	import { addDays, daysBetween, DOW_ON, formatShort, weekdayIndex, type DateKey } from '#lib/dates.js';
 
-	type Draft = Omit<Event, 'id'>;
+	type Draft = Omit<Event, 'id' | 'series'>;
+	/** `until`: repeat weekly up to this day. `following`: apply to later events of the repeat too. */
+	export type SaveOptions = { until?: DateKey; following?: boolean };
 
 	let {
 		date,
@@ -10,6 +12,8 @@
 		showDate = false,
 		showNote = false,
 		saveLabel = 'Uložit akci',
+		repeatable = false,
+		inSeries = false,
 		onsave,
 		oncancel
 	}: {
@@ -18,7 +22,11 @@
 		showDate?: boolean;
 		showNote?: boolean;
 		saveLabel?: string;
-		onsave: (draft: Draft) => Promise<void> | void;
+		/** Offer "repeat every week" (new events). */
+		repeatable?: boolean;
+		/** The edited event is part of a weekly repeat. */
+		inSeries?: boolean;
+		onsave: (draft: Draft, opts: SaveOptions) => Promise<void> | void;
 		oncancel?: () => void;
 	} = $props();
 
@@ -47,6 +55,13 @@
 	let note = $state(initial?.note ?? '');
 	let busy = $state(false);
 
+	let repeat = $state(false);
+	// svelte-ignore state_referenced_locally
+	let until = $state(addDays(date, 7 * 12));
+	const lastDay = $derived(addDays(date, 7 * (MAX_REPEATS - 1)));
+	const count = $derived(until >= date ? Math.min(Math.floor(daysBetween(date, until) / 7) + 1, MAX_REPEATS) : 0);
+	let following = $state(true);
+
 	const uid = Math.random().toString(36).slice(2, 8);
 
 	async function submit(e: SubmitEvent) {
@@ -54,10 +69,14 @@
 		if (!title.trim()) return;
 		busy = true;
 		try {
-			await onsave({ title, date: showDate ? day : date, time, place, note });
+			await onsave(
+				{ title, date: showDate ? day : date, time, place, note },
+				{ until: repeatable && repeat ? until : undefined, following: inSeries && following }
+			);
 			if (!initial) {
 				title = '';
 				note = '';
+				repeat = false;
 			}
 		} finally {
 			busy = false;
@@ -132,6 +151,35 @@
 				rows="3"
 				class="rounded-xl border border-field bg-surface px-3 py-2 text-base font-normal text-ink"
 			></textarea>
+		</label>
+	{/if}
+	{#if repeatable}
+		<label class="flex min-h-11 items-center gap-3 text-base font-semibold">
+			<input type="checkbox" bind:checked={repeat} class="size-6 shrink-0 accent-accent" />
+			Opakovat každý týden {DOW_ON[weekdayIndex(date)]}
+		</label>
+		{#if repeat}
+			<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
+				Opakovat do
+				<input
+					type="date"
+					bind:value={until}
+					required
+					min={date}
+					max={lastDay}
+					class="h-12 rounded-xl border border-field bg-surface px-3 text-base text-ink"
+				/>
+				<span class="text-sm font-normal text-muted">
+					{count === 1 ? '1 akce' : count < 5 ? `${count} akce` : `${count} akcí`}, poslední
+					{formatShort(addDays(date, 7 * Math.max(count - 1, 0)))}
+				</span>
+			</label>
+		{/if}
+	{/if}
+	{#if inSeries}
+		<label class="flex min-h-11 items-center gap-3 text-base font-semibold">
+			<input type="checkbox" bind:checked={following} class="size-6 shrink-0 accent-accent" />
+			Změnit i všechny další opakování
 		</label>
 	{/if}
 	<div class="flex gap-2">

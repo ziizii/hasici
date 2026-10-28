@@ -149,7 +149,12 @@ export interface Event {
 	time: string;
 	place: string;
 	note: string;
+	/** Weekly repeats share the id of their first event; '' or missing for one-off events. */
+	series?: string;
 }
+
+/** Most occurrences one weekly repeat may create (about a year). */
+export const MAX_REPEATS = 53;
 
 export interface DayAvailability {
 	available: Member[];
@@ -157,6 +162,16 @@ export interface DayAvailability {
 }
 
 const collator = new Intl.Collator('cs');
+
+function eventFields(e: Omit<Event, 'id'>) {
+	return {
+		title: e.title.trim(),
+		date: e.date,
+		time: e.time,
+		place: e.place.trim(),
+		note: e.note.trim()
+	};
+}
 
 /**
  * Last synced data, so a known device shows the plan at once. Firebase Auth re-checks
@@ -337,7 +352,8 @@ class Data {
 								date: x.date,
 								time: x.time ?? '',
 								place: x.place ?? '',
-								note: x.note ?? ''
+								note: x.note ?? '',
+								series: x.series ?? ''
 							};
 						})
 						.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -551,24 +567,53 @@ class Data {
 
 	async addEvent(e: Omit<Event, 'id'>): Promise<string> {
 		const ref = await addDoc(collection(db, 'events'), {
-			title: e.title.trim(),
-			date: e.date,
-			time: e.time,
-			place: e.place.trim(),
-			note: e.note.trim(),
+			...eventFields(e),
 			createdAt: serverTimestamp()
 		});
 		return ref.id;
 	}
 
+	/** One event every week on the same weekday, from `e.date` to `until` (inclusive). */
+	async addWeeklyEvents(e: Omit<Event, 'id'>, until: DateKey) {
+		const batch = writeBatch(db);
+		const first = doc(collection(db, 'events'));
+		let day = e.date;
+		for (let i = 0; i < MAX_REPEATS && day <= until; i++, day = addDays(day, 7)) {
+			batch.set(i === 0 ? first : doc(collection(db, 'events')), {
+				...eventFields({ ...e, date: day }),
+				series: first.id,
+				createdAt: serverTimestamp()
+			});
+		}
+		await batch.commit();
+	}
+
+	/** `ev` and the later events of its weekly repeat. */
+	following(ev: Event): Event[] {
+		if (!ev.series) return [ev];
+		return this.events.filter((x) => x.series === ev.series && x.date >= ev.date);
+	}
+
 	async updateEvent(id: string, e: Omit<Event, 'id'>) {
-		await updateDoc(doc(db, 'events', id), {
-			title: e.title.trim(),
-			date: e.date,
-			time: e.time,
-			place: e.place.trim(),
-			note: e.note.trim()
-		});
+		await updateDoc(doc(db, 'events', id), eventFields(e));
+	}
+
+	/** Changes title, time, place and note of `ev` and every later repeat; other dates stay. */
+	async updateFollowing(ev: Event, e: Omit<Event, 'id'>) {
+		const batch = writeBatch(db);
+		for (const x of this.following(ev)) {
+			batch.update(
+				doc(db, 'events', x.id),
+				eventFields({ ...e, date: x.id === ev.id ? e.date : x.date })
+			);
+		}
+		await batch.commit();
+	}
+
+	async deleteFollowing(ev: Event) {
+		const batch = writeBatch(db);
+		for (const x of this.following(ev)) batch.delete(doc(db, 'events', x.id));
+		await batch.commit();
 	}
 
 	async deleteEvent(id: string) {

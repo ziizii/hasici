@@ -4,7 +4,7 @@
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
-	import { formatLong } from '#lib/dates.js';
+	import { DOW_ON, formatLong, formatShort, weekdayIndex } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import { toggleMemberDay } from '#lib/toggleDay.js';
@@ -16,6 +16,9 @@
 	const avail = $derived(ev ? data.availability(ev.date) : null);
 	const myAbsence = $derived(ev && me ? data.absenceOn(me.id, ev.date) : undefined);
 	const total = $derived(data.members.length);
+
+	const series = $derived(ev?.series ? data.events.filter((x) => x.series === ev.series) : []);
+	const later = $derived(ev ? series.filter((x) => x.date > ev.date).length : 0);
 
 	let editing = $state(false);
 	let busy = $state(false);
@@ -52,11 +55,14 @@
 		}
 	}
 
-	async function remove() {
-		if (!ev || !confirm(`Opravdu smazat akci „${ev.title}“?`)) return;
+	async function remove(all: boolean) {
+		if (!ev) return;
+		const what = all ? `akci „${ev.title}“ a všechna další opakování (${later + 1})` : `akci „${ev.title}“`;
+		if (!confirm(`Opravdu smazat ${what}?`)) return;
 		try {
-			await data.deleteEvent(ev.id);
-			toasts.show('Akce smazána');
+			if (all) await data.deleteFollowing(ev);
+			else await data.deleteEvent(ev.id);
+			toasts.show(all ? 'Akce smazány' : 'Akce smazána');
 			goto('/');
 		} catch (e) {
 			console.error(e);
@@ -95,10 +101,12 @@
 				showDate
 				showNote
 				saveLabel="Uložit změny"
+				inSeries={later > 0}
 				oncancel={() => (editing = false)}
-				onsave={async (d) => {
+				onsave={async (d, { following }) => {
 					try {
-						await data.updateEvent(ev.id, d);
+						if (following) await data.updateFollowing(ev, d);
+						else await data.updateEvent(ev.id, d);
 						editing = false;
 					} catch (e) {
 						console.error(e);
@@ -109,10 +117,20 @@
 			<button
 				type="button"
 				class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
-				onclick={remove}
+				onclick={() => remove(false)}
 			>
-				<Icon name="trash" size={18} /> Smazat akci
+				<Icon name="trash" size={18} />
+				{later ? 'Smazat jen tuto akci' : 'Smazat akci'}
 			</button>
+			{#if later}
+				<button
+					type="button"
+					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
+					onclick={() => remove(true)}
+				>
+					<Icon name="trash" size={18} /> Smazat tuto i všechny další ({later + 1})
+				</button>
+			{/if}
 		</section>
 	{:else}
 		<section class="flex flex-col gap-2.5 px-5 pt-1.5 pb-4">
@@ -127,6 +145,13 @@
 				{#if ev.time}
 					<span class="flex items-center gap-2"
 						><Icon name="clock" size={18} class="text-muted" />Sraz v {ev.time}</span
+					>
+				{/if}
+				{#if series.length > 1}
+					<span class="flex items-center gap-2"
+						><Icon name="refresh" size={18} class="text-muted" />Každý týden {DOW_ON[
+							weekdayIndex(ev.date)
+						]}, do {formatShort(series[series.length - 1].date)}</span
 					>
 				{/if}
 				{#if ev.place}
