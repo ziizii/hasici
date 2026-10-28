@@ -1,7 +1,17 @@
+import { execSync } from 'node:child_process';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+
+/** The git commit is the app version; open tabs reload when it changes (see +layout.svelte). */
+function gitVersion(): string {
+	try {
+		return execSync('git rev-parse HEAD').toString().trim();
+	} catch {
+		return 'dev';
+	}
+}
 
 export default defineConfig({
 	plugins: [
@@ -13,7 +23,8 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 			// Single page app: Firebase Hosting serves 200.html for every route.
-			adapter: adapter({ fallback: '200.html' })
+			adapter: adapter({ fallback: '200.html' }),
+			version: { name: gitVersion(), pollInterval: 60_000 }
 		})
 	]
 });

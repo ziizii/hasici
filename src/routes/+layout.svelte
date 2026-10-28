@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount, type Snippet } from 'svelte';
-	import { page } from '$app/state';
+	import { page, updated } from '$app/state';
 	import { access } from '#lib/access.svelte.js';
 	import { data } from '#lib/data.svelte.js';
 	import { configMissing } from '#lib/firebase.js';
@@ -31,6 +31,23 @@
 
 	$effect(() => {
 		if (access.state === 'ready') data.start();
+	});
+
+	// A new version was deployed: reload to get it, but not while someone is typing
+	// (then right after they leave the field or switch away from the tab).
+	$effect(() => {
+		if (!updated.current) return;
+		const go = () => {
+			if (!document.activeElement?.matches('input, textarea, select')) location.reload();
+		};
+		const later = () => setTimeout(go);
+		go();
+		document.addEventListener('focusout', later);
+		document.addEventListener('visibilitychange', go);
+		return () => {
+			document.removeEventListener('focusout', later);
+			document.removeEventListener('visibilitychange', go);
+		};
 	});
 
 	const me = $derived(data.member(access.memberId));

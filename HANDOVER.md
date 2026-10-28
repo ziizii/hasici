@@ -64,6 +64,10 @@ direction; older rows are superseded.
     phones this is a bottom sheet; on desktop (≥1024px) it is the right
     column.
 - **Pull-only:** no notifications or e-mails, by design.
+- **Auto-update:** the build's version is the git commit (`vite.config.ts`).
+  SvelteKit polls `/_app/version.json` every minute and on tab focus; the
+  layout reloads the page when it changes (after the user leaves a text
+  field). Hosting serves everything `no-cache` except `/_app/immutable/**`.
 
 ## Code map
 

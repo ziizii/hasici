@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { version } from '$app/env';
 	import { access } from '#lib/access.svelte.js';
 	import { initials, PALETTE } from '#lib/colors.js';
 	import { absenceWhen, data, groupAbsences, isSwitch, type Member } from '#lib/data.svelte.js';
@@ -528,4 +529,6 @@
 	>
 		<Icon name="user" size={18} /> Změnit, kdo jsem na tomto zařízení
 	</button>
+
+	<p class="text-center text-sm text-faint">Verze {version.slice(0, 7)}</p>
 </div>
