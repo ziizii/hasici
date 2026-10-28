@@ -33,8 +33,8 @@ direction; older rows are superseded.
 - **Repeating absences** ("every Tuesday", "weekends") are normal absences
   with `weekdays`; without an end date they last until deleted. Use
   `covers(a, day)` instead of comparing `from`/`to` directly.
-- **Exceptions:** freeing one day of a repeating or open-ended absence (timeline
-  tap, "Přece jen přijdu", chips on `/ja`) adds it to `except` instead of
+- **Exceptions:** freeing one day of a repeating or open-ended absence (member
+  segment tap, "Přece jen přijdu", chips on `/ja`) adds it to `except` instead of
   splitting; marking the day away again removes it. Plain dated absences
   are still split.
 - **Events keep a time** (`Sraz`, start time only) plus place and an
@@ -55,9 +55,16 @@ direction; older rows are superseded.
   - A vertical timeline, one row per day, with infinite scroll forward and a
     "Zobrazit dřívější dny" button for the past.
   - Jump buttons: Dnes, Příští týden, Za 2 týdny, next 4 months.
+  - Filter above the jump buttons: Vše / Víkendy / Akce, one choice at a
+    time (two toggles would leave "both" ambiguous). Víkendy includes public
+    holidays. Jumps go to the next shown day. With Akce, scrolling loads a
+    year ahead, then a "Hledat akce dál" button takes over.
   - Each day shows a segmented bar. Members who can come are coloured with
     their initials, absent members are grey, and the count ("7/10") is coloured
     by ratio.
+    The segments are not tappable here (accidental taps while scrolling);
+    tapping a member's segment flips their day only in the day panel and on
+    the event page.
   - Czech public holidays are marked.
   - Tapping a day opens the day panel: who can or can't come and why, that
     day's events, a "Tento den nemůžu" toggle, and the new-event form. On
