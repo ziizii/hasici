@@ -135,7 +135,9 @@
 {:else if needsPick}
 	<MemberPicker />
 {:else}
-	<div class="flex min-h-dvh flex-col" style="--header-h: {headerH}px">
+	<!-- Clips sideways overflow here as well as on html/body: the installed iPhone app
+	     ignores the root's overflow for panning. -->
+	<div class="flex min-h-dvh flex-col overflow-x-clip" style="--header-h: {headerH}px">
 		<!-- Desktop header -->
 		<header
 			bind:borderBoxSize={headerBox}
