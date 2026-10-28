@@ -90,7 +90,9 @@
 		return out;
 	});
 
-	// The month heading casts a shadow while a week heading is part-way under it.
+	// The month heading casts a shadow while a week heading is part-way under it. It also
+	// draws a 1px line above itself: the edge against the month being pushed out (in flow it
+	// lands on the previous day's border).
 	let shadowMonth = $state<string | null>(null);
 	let frame = 0;
 	function onscroll() {
@@ -327,8 +329,8 @@
 					style="top: var(--stick-month)"
 					class="sticky z-[6] bg-ground px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold transition-shadow lg:bg-surface lg:px-5 lg:text-[1.625rem] {shadowMonth ===
 					m.key
-						? 'shadow-[0_0.125rem_0.5rem_rgb(0_0_0/0.12)]'
-						: ''}"
+						? 'shadow-[0_-1px_0_var(--color-line),0_0.125rem_0.5rem_rgb(0_0_0/0.12)]'
+						: 'shadow-[0_-1px_0_var(--color-line)]'}"
 				>
 					{m.label}
 				</div>
