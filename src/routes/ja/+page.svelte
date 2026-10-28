@@ -12,10 +12,8 @@
 	import {
 		addDays,
 		formatLong,
-		DOW_ABBR,
 		formatRange,
 		formatShort,
-		formatWeekdays,
 		OPEN_END,
 		pluralDays,
 		rangeLength,
@@ -23,7 +21,9 @@
 		weekdayIndex
 	} from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
+	import { describe, isEmpty, type Repeat } from '#lib/repeat.js';
 	import Icon from '#lib/components/Icon.svelte';
+	import RepeatPicker from '#lib/components/RepeatPicker.svelte';
 	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
 
 	const today = todayKey();
@@ -48,13 +48,17 @@
 	let from = $state(today);
 	let to = $state('');
 	let note = $state('');
-	/** Repeating weekly on these days (0 = Mon); empty = every day in the range. */
-	let weekdays = $state<number[]>([]);
+	/** Repeating on the rule's days from `from`; null = every day in the range. */
+	let repeat = $state<Repeat | null>(null);
 	let busy = $state(false);
-
-	function toggleWeekday(d: number) {
-		weekdays = weekdays.includes(d) ? weekdays.filter((x) => x !== d) : [...weekdays, d].sort();
-	}
+	const WEEKENDS: Repeat[] = [{ freq: 'week', every: 1, weekdays: [5, 6] }];
+	// "Do" ends a single absence; when it starts repeating, the same field is "Opakovat do".
+	let wasRepeating = false;
+	$effect(() => {
+		if (!!repeat !== wasRepeating) to = '';
+		wasRepeating = !!repeat;
+	});
+	const cap = (t: string) => t.replace(/^./, (c) => c.toUpperCase());
 	const reasons = ['Dovolená', 'Práce / směna', 'Mimo obec', 'Nemoc'];
 
 	function pickQuick(q: Quick) {
@@ -69,10 +73,10 @@
 	}
 
 	// Repeating without an end date lasts until it is deleted.
-	const end = $derived(to && to >= from ? to : weekdays.length ? OPEN_END : from);
+	const end = $derived(to && to >= from ? to : repeat ? OPEN_END : from);
 	const summary = $derived(
-		weekdays.length
-			? `${formatWeekdays(weekdays)}, ${end === OPEN_END ? `od ${formatShort(from)} do odvolání` : formatRange(from, end)}`
+		repeat
+			? `${describe(repeat, from)}, ${end === OPEN_END ? `od ${formatShort(from)} do odvolání` : formatRange(from, end)}`
 			: end === from
 				? formatLong(from)
 				: `${formatLong(from)} až ${formatLong(end)} (${pluralDays(rangeLength(from, end))})`
@@ -80,14 +84,14 @@
 
 	async function save(e: SubmitEvent) {
 		e.preventDefault();
-		if (!access.memberId || !from) return;
+		if (!access.memberId || !from || (repeat && isEmpty(repeat))) return;
 		busy = true;
 		try {
-			await data.addAbsence(access.memberId, from, end, note, weekdays);
+			await data.addAbsence(access.memberId, from, end, note, repeat ?? undefined);
 			showForm = false;
 			note = '';
 			to = '';
-			weekdays = [];
+			repeat = null;
 			quick = 'custom';
 			toasts.show('Nepřítomnost uložena');
 		} catch (err) {
@@ -191,40 +195,24 @@
 							class="h-[3.25rem] min-w-0 rounded-xl border-2 border-ink bg-surface px-3 text-base text-ink"
 						/>
 					</label>
-					<label class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
-						<span
-							>Do <span class="font-normal text-faint"
-								>({weekdays.length ? 'prázdné = do odvolání' : 'nepovinné'})</span
-							></span
-						>
-						<input
-							type="date"
-							bind:value={to}
-							min={from}
-							onchange={() => (quick = 'custom')}
-							class="h-[3.25rem] min-w-0 rounded-xl border border-field bg-surface px-3 text-base text-ink"
-						/>
-					</label>
+					{#if !repeat}
+						<label class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
+							<span>Do <span class="font-normal text-faint">(nepovinné)</span></span>
+							<input
+								type="date"
+								bind:value={to}
+								min={from}
+								onchange={() => (quick = 'custom')}
+								class="h-[3.25rem] min-w-0 rounded-xl border border-field bg-surface px-3 text-base text-ink"
+							/>
+						</label>
+					{/if}
 				</div>
 			</fieldset>
 
-			<fieldset class="flex flex-col gap-2.5">
-				<legend class="mb-2.5 font-bold">
-					Opakovat každý týden <span class="font-normal text-faint">(nepovinné)</span>
-				</legend>
-				<div class="flex flex-wrap gap-2">
-					{#each DOW_ABBR as label, d (d)}
-						<button
-							type="button"
-							aria-pressed={weekdays.includes(d)}
-							class="min-h-11 min-w-11 rounded-full px-3 font-semibold {weekdays.includes(d)
-								? 'bg-ink text-white'
-								: 'border border-field bg-surface'}"
-							onclick={() => toggleWeekday(d)}>{label}</button
-						>
-					{/each}
-				</div>
-			</fieldset>
+			<div class="flex flex-col gap-3">
+				<RepeatPicker date={from || today} bind:value={repeat} bind:until={to} extra={WEEKENDS} />
+			</div>
 
 			<fieldset class="flex flex-col gap-2.5">
 				<legend class="mb-2.5 font-bold">Důvod <span class="font-normal text-faint">(nepovinné)</span></legend>
@@ -278,8 +266,8 @@
 			{@const evs = clashes(a)}
 			<li class="flex gap-2 rounded-[14px] border border-line bg-surface py-3.5 pr-2 pl-4">
 				<div class="flex flex-1 flex-col gap-1">
-					{#if a.weekdays.length}
-						<span class="text-lg font-bold">{formatWeekdays(a.weekdays)}</span>
+					{#if a.repeat}
+						<span class="text-lg font-bold">{cap(describe(a.repeat, a.from))}</span>
 						<span class="text-[0.9375rem] text-muted"
 							>{a.to === OPEN_END ? `od ${formatShort(a.from)} do odvolání` : formatRange(a.from, a.to)}</span
 						>
@@ -287,7 +275,7 @@
 						<span class="text-lg font-bold">{formatRange(a.from, a.to)}</span>
 						<span class="text-[0.9375rem] text-muted">{pluralDays(rangeLength(a.from, a.to))}</span>
 					{/if}
-					{#if a.weekdays.length}
+					{#if a.repeat}
 						<span class="mt-1.5 text-[0.9375rem] text-ink-2">Výjimka? Klepněte na den, kdy můžete:</span>
 						<span class="flex flex-wrap gap-1.5">
 							{#each occurrences(a, today, 6) as day (day)}

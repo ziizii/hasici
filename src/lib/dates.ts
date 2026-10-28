@@ -107,14 +107,6 @@ export function formatRange(from: DateKey, to: DateKey): string {
 	return from === to ? formatShort(from) : `${formatShort(from)} – ${formatShort(to)}`;
 }
 
-/** Repeating absences: "Út, Čt každý týden", "Víkendy". */
-export function formatWeekdays(days: number[]): string {
-	const sorted = [...days].sort();
-	if (sorted.join() === '5,6') return 'Víkendy';
-	if (sorted.join() === '0,1,2,3,4') return 'Pracovní dny';
-	return `${sorted.map((d) => DOW_ABBR[d]).join(', ')} každý týden`;
-}
-
 export function rangeLength(from: DateKey, to: DateKey): number {
 	return daysBetween(from, to) + 1;
 }

@@ -30,8 +30,9 @@ direction; older rows are superseded.
   editor on `/jednotka` for anyone): an absence from today with
   `to = OPEN_END` (`'9999-12-31'`), shown as "od …". Switching it off ends it
   yesterday, or deletes it if it started today (`data.setUnavailable`).
-- **Repeating absences** ("every Tuesday", "weekends") are normal absences
-  with `weekdays`; without an end date they last until deleted. Use
+- **Repeating absences** ("every Tuesday", "weekends", "1st Friday") are normal
+  absences with a repeat rule, picked with the same `RepeatPicker` as events
+  (plus "o víkendech"); without an end date they last until deleted. Use
   `covers(a, day)` instead of comparing `from`/`to` directly.
 - **Exceptions:** freeing one day of a repeating or open-ended absence (member
   segment tap, "Přece jen přijdu", chips on `/ja`) adds it to `except` instead of
@@ -138,7 +139,7 @@ don't (`#lib/components/Icon.svelte`).
 | `config/places` | `list` (string[], ≤ 50) | Default event places, edited on `/jednotka`; offered first in the event form |
 | `sessions/{uid}` | `key`, `createdAt` | Created when `key` equals `linkKey` or `passwordHash` |
 | `members/{id}` | `name`, `color`, `archived`, `createdAt` | |
-| `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?`, `except?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat weekly within the range; `to = 9999-12-31` = no end; `except` = skipped days |
+| `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?` or `repeat?`, `except?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat every week within the range; any other rule is stored as `repeat` (same shape as on `series`); both are read as `Absence.repeat`. `to = 9999-12-31` = no end; `except` = skipped days |
 | `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `series?`, `createdAt` | One-off events. A repeat edited on its own is stored here with id `<seriesId>_<day>` and `series` set |
 | `series/{id}` | `title`, `time`, `place`, `note`, `from`, `to` (`9999-12-31` = until cancelled), `except`, `repeat?`, `createdAt` | Repeating event; occurrences are computed in `data.events`/`eventsOn`. Without `repeat`: every week on `from`'s weekday. `repeat` (`lib/repeat.ts`): `{freq: day/week/month/year, every, weekdays?, days?, nth?, kind?, months?}`. `except` = cancelled or individually edited days. "This and later" edits split the series; a plain weekly one moves with a new date, other rules keep their days and only the edited day moves |
 
@@ -152,7 +153,7 @@ don't (`#lib/components/Icon.svelte`).
 - **Fast start:** Firebase Auth re-validates the user over the network on every
   start, and Firestore can't read its cache before that. So a known device
   (`hasici.sessionUid` in localStorage) skips the wait: it renders from a
-  localStorage copy of the data (`hasici.cache.v1`, written after each live
+  localStorage copy of the data (`hasici.cache.v2`, written after each live
   update) and signs in in the background. Bump the cache key if the cached
   shapes change. Day toggles show at once via `data.pending`.
 

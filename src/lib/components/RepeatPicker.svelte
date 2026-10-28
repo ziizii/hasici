@@ -13,14 +13,15 @@
 		type Repeat
 	} from '#lib/repeat.js';
 
-	/** `value`: the chosen rule, null = no repeat. `until`: '' = until cancelled. */
+	/** `value`: the chosen rule, null = no repeat. `until`: '' = until cancelled. `extra`: more choices. */
 	let {
 		date,
 		value = $bindable(null),
-		until = $bindable('')
-	}: { date: DateKey; value?: Repeat | null; until?: string } = $props();
+		until = $bindable(''),
+		extra = []
+	}: { date: DateKey; value?: Repeat | null; until?: string; extra?: Repeat[] } = $props();
 
-	const quick = $derived(quickRepeats(date));
+	const quick = $derived([...quickRepeats(date), ...extra]);
 
 	let choice = $state<'none' | 'custom' | number>('none');
 

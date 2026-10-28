@@ -18,14 +18,13 @@ import {
 	daysBetween,
 	formatRange,
 	formatShort,
-	formatWeekdays,
 	OPEN_END,
 	todayKey,
 	weekdayIndex,
 	type DateKey
 } from './dates';
 import { nextColor } from './colors';
-import { matches, normalize, repeatDays, WEEKLY, type Repeat } from './repeat';
+import { describe, matches, normalize, repeatDays, WEEKLY, type Repeat } from './repeat';
 import { mark } from './perf';
 
 export interface Member {
@@ -43,20 +42,20 @@ export interface Absence {
 	from: DateKey;
 	to: DateKey;
 	note: string;
-	/** Repeating: only these weekdays (0 = Mon … 6 = Sun) within the range. Empty = every day. */
-	weekdays: number[];
+	/** Repeating: only the days of this rule (from `from`) within the range. None = every day. */
+	repeat?: Repeat;
 	/** Days skipped in a repeating / open-ended absence ("this Tuesday I can come"). */
 	except: DateKey[];
 }
 
 /** Absences with exceptions instead of being split when a single day is freed. */
 export function hasExceptions(a: Absence): boolean {
-	return a.weekdays.length > 0 || a.to === OPEN_END;
+	return !!a.repeat || a.to === OPEN_END;
 }
 
 /** True when the absence would cover the day if it weren't an exception. */
 function inPattern(a: Absence, day: DateKey): boolean {
-	return a.from <= day && a.to >= day && (!a.weekdays.length || a.weekdays.includes(weekdayIndex(day)));
+	return a.from <= day && a.to >= day && (!a.repeat || matches(a.repeat, a.from, day));
 }
 
 export function covers(a: Absence, day: DateKey): boolean {
@@ -65,16 +64,12 @@ export function covers(a: Absence, day: DateKey): boolean {
 
 /** The next `n` days the pattern falls on from `day` on (exceptions included). */
 export function occurrences(a: Absence, day: DateKey, n: number): DateKey[] {
-	const out: DateKey[] = [];
-	for (let k = a.from > day ? a.from : day; out.length < n && k <= a.to; k = addDays(k, 1)) {
-		if (inPattern(a, k)) out.push(k);
-	}
-	return out;
+	return repeatDays(a.repeat ?? { freq: 'day', every: 1 }, a.from, a.to, day, addDays(day, 3700), n);
 }
 
 /** The "Nejsem k dispozici" switch: every day, no end. */
 export function isSwitch(a: Absence): boolean {
-	return a.to === OPEN_END && !a.weekdays.length;
+	return a.to === OPEN_END && !a.repeat;
 }
 
 /** A row in an absence list: consecutive plain absences of one member shown as one range. */
@@ -86,7 +81,7 @@ export interface AbsenceGroup {
 
 /** Merges overlapping or back-to-back dated absences per member (1., 2., 3. -> 1.–3.). */
 export function groupAbsences(list: Absence[]): AbsenceGroup[] {
-	const plain = (a: Absence) => !a.weekdays.length && a.to !== OPEN_END && !a.except.length;
+	const plain = (a: Absence) => !a.repeat && a.to !== OPEN_END && !a.except.length;
 	const sorted = [...list].sort((x, y) => x.from.localeCompare(y.from));
 	const out: AbsenceGroup[] = [];
 	const open = new Map<string, AbsenceGroup>(); // member -> group still extendable
@@ -121,7 +116,8 @@ export function absenceWhen(a: Absence, today: DateKey): string {
 				: formatRange(a.from, a.to);
 	const skipped = a.except.filter((d) => d >= today);
 	const except = skipped.length ? ` (kromě ${skipped.slice(0, 2).map(formatShort).join(', ')}${skipped.length > 2 ? ' …' : ''})` : '';
-	return (a.weekdays.length ? `${formatWeekdays(a.weekdays)}, ${range}` : range) + except;
+	const rule = a.repeat && describe(a.repeat, a.from).replace(/^./, (c) => c.toUpperCase());
+	return (rule ? `${rule}, ${range}` : range) + except;
 }
 
 /** The exception list with `day` added or removed; past days are dropped to keep it short. */
@@ -131,14 +127,21 @@ function withException(a: Absence, day: DateKey, on: boolean): DateKey[] {
 	return (on ? [...rest, day] : rest).sort();
 }
 
-/** Firestore fields; `weekdays` only when repeating, so plain absences stay as before. */
+/** Every week on these weekdays: stored as `weekdays`, as before repeat rules existed. */
+function weeklyDays(r: Repeat | undefined, from: DateKey): number[] | undefined {
+	if (r?.freq !== 'week' || r.every !== 1) return undefined;
+	return [...(r.weekdays ?? [weekdayIndex(from)])].sort();
+}
+
+/** Firestore fields; a repeat only when repeating, so plain absences stay as before. */
 function absenceFields(a: Omit<Absence, 'id'>) {
+	const weekdays = weeklyDays(a.repeat, a.from);
 	return {
 		memberId: a.memberId,
 		from: a.from,
 		to: a.to,
 		note: a.note,
-		...(a.weekdays.length ? { weekdays: [...a.weekdays].sort() } : {}),
+		...(weekdays ? { weekdays } : a.repeat ? { repeat: a.repeat } : {}),
 		...(a.except.length ? { except: [...a.except].sort() } : {}),
 		createdAt: serverTimestamp()
 	};
@@ -213,7 +216,7 @@ function eventFields(e: Omit<Event, 'id'>) {
  * the user over the network on every start and Firestore can't read even its own cache
  * before that, which on a slow connection meant seconds of "Načítám…".
  */
-const CACHE_KEY = 'hasici.cache.v1';
+const CACHE_KEY = 'hasici.cache.v2';
 
 export function clearCachedData() {
 	try {
@@ -370,8 +373,12 @@ class Data {
 							from: x.from,
 							to: x.to,
 							note: x.note ?? '',
-							weekdays: Array.isArray(x.weekdays) ? x.weekdays : [],
-							except: Array.isArray(x.except) ? x.except : []
+							except: Array.isArray(x.except) ? x.except : [],
+							...(x.repeat
+								? { repeat: x.repeat as Repeat }
+								: Array.isArray(x.weekdays) && x.weekdays.length
+									? { repeat: { freq: 'week', every: 1, weekdays: x.weekdays } as Repeat }
+									: {})
 						};
 					});
 					this.loaded.absences = true;
@@ -505,7 +512,7 @@ class Data {
 					? undefined
 					: (this.absenceOn(member.id, day) ??
 						(pending
-							? { id: '', memberId: member.id, from: day, to: day, note: '', weekdays: [], except: [] }
+							? { id: '', memberId: member.id, from: day, to: day, note: '', except: [] }
 							: undefined));
 			if (absence) away.push({ member, absence });
 			else available.push(member);
@@ -574,12 +581,14 @@ class Data {
 		from: DateKey,
 		to: DateKey,
 		note = '',
-		weekdays: number[] = []
+		repeat?: Repeat
 	): Promise<string> {
 		if (to < from) [from, to] = [to, from];
+		// for series no rule means weekly; for absences it means every day
+		const rule = repeat && (normalize(repeat, from) ?? { freq: 'week', every: 1, weekdays: [weekdayIndex(from)] });
 		const ref = await addDoc(
 			collection(db, 'absences'),
-			absenceFields({ memberId, from, to, note: note.trim(), weekdays, except: [] })
+			absenceFields({ memberId, from, to, note: note.trim(), except: [], ...(rule ? { repeat: rule } : {}) })
 		);
 		return ref.id;
 	}
