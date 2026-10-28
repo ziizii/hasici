@@ -40,6 +40,21 @@
 		if (access.state === 'ready') data.start();
 	});
 
+	// Sideways swiping is blocked in app.css (the installed iPhone app drifts a pixel or
+	// two). Allow it again while zoomed in, so a zoomed page can still be panned.
+	onMount(() => {
+		const vv = visualViewport;
+		if (!vv) return;
+		const onResize = () => {
+			const zoomed = vv.scale > 1.01;
+			document.documentElement.classList.toggle('zoomed', zoomed);
+			if (!zoomed && scrollX !== 0) scrollTo(0, scrollY);
+		};
+		onResize();
+		vv.addEventListener('resize', onResize);
+		return () => vv.removeEventListener('resize', onResize);
+	});
+
 	// A new version is out (version poll, or a new service worker took over): reload to
 	// get it, but not while someone is typing (then right after they leave the field or
 	// switch away from the tab).
