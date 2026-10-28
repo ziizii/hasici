@@ -56,6 +56,9 @@
 			.sort((x, y) => x.absence.from.localeCompare(y.absence.from))
 	);
 
+	const upcomingEvents = $derived(data.events.filter((e) => e.date >= today));
+	let showAllEvents = $state(false);
+
 	async function backAvailable(m: Member) {
 		await data.setUnavailable(m.id, false).catch(() => toasts.error());
 	}
@@ -239,6 +242,48 @@
 				</li>
 			{/each}
 		</ul>
+	</section>
+
+	<!-- Upcoming events -->
+	<section class="flex flex-col rounded-2xl border border-line bg-surface p-4">
+		<h2 class="mb-2 text-[1.0625rem] font-bold">Nadcházející akce ({upcomingEvents.length})</h2>
+		{#if upcomingEvents.length === 0}
+			<p class="text-[0.9375rem] text-muted">Žádná akce není naplánovaná.</p>
+		{/if}
+		<ul class="flex flex-col">
+			{#each showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 10) as ev (ev.id)}
+				{@const av = data.availability(ev.date)}
+				<li class="border-t border-line-soft">
+					<a href="/akce/{ev.id}" class="flex min-h-[3.25rem] items-center gap-3 py-1.5">
+						<span class="flex min-w-0 flex-1 flex-col">
+							<span class="font-medium">{ev.title}</span>
+							<span class="text-[0.9375rem] text-muted"
+								>{formatShort(ev.date)}{ev.time ? ` · ${ev.time}` : ''}{ev.place
+									? ` · ${ev.place}`
+									: ''}</span
+							>
+						</span>
+						<span class="shrink-0 font-bold whitespace-nowrap"
+							>{av.available.length}<span class="text-sm font-semibold text-faint"
+								>/{data.members.length}</span
+							></span
+						>
+						<Icon name="chevronRight" size={18} class="shrink-0 text-faint" />
+					</a>
+				</li>
+			{/each}
+		</ul>
+		{#if upcomingEvents.length > 10}
+			<button
+				type="button"
+				aria-expanded={showAllEvents}
+				class="flex min-h-11 items-center justify-between border-t border-line-soft pt-2 font-semibold text-muted"
+				onclick={() => (showAllEvents = !showAllEvents)}
+			>
+				{showAllEvents ? 'Zobrazit méně' : `Zobrazit všechny (${upcomingEvents.length})`}
+				<Icon name={showAllEvents ? 'chevronUp' : 'chevronDown'} />
+			</button>
+		{/if}
 	</section>
 
 	<!-- Access -->
