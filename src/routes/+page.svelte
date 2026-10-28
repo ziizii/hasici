@@ -19,7 +19,6 @@
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import DayPanel from '#lib/components/DayPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
-	import { toggleMemberDay } from '#lib/toggleDay.js';
 	import { mark } from '#lib/perf.js';
 	import { onMount } from 'svelte';
 
@@ -202,8 +201,8 @@
 	{@const hol = holiday(key)}
 	{@const wd = weekdayIndex(key)}
 	{@const red = wd >= 5 || !!hol}
-	<!-- The whole row opens the day; the date is the keyboard/screen-reader button and
-	     the member segments are their own buttons. -->
+	<!-- The whole row opens the day; the date is the keyboard/screen-reader button. Member
+	     segments are not toggles here (too easy to hit while scrolling): that is in the day panel. -->
 	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 	<div
 		id="d-{key}"
@@ -272,7 +271,7 @@
 					>
 				</span>
 			</span>
-			<AvailabilityBar availability={av} ontoggle={(m) => toggleMemberDay(m, key)} />
+			<AvailabilityBar availability={av} />
 		</span>
 
 		<span
