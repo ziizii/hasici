@@ -35,13 +35,29 @@
 		if (access.state === 'ready') data.start();
 	});
 
-	// A new version was deployed: reload to get it, but not while someone is typing
-	// (then right after they leave the field or switch away from the tab).
+	// A new version is out (version poll, or a new service worker took over): reload to
+	// get it, but not while someone is typing (then right after they leave the field or
+	// switch away from the tab).
+	let newWorker = $state(false);
+	onMount(() => {
+		const sw = navigator.serviceWorker;
+		if (!sw?.controller) return; // first visit: the worker just installed, nothing to swap
+		const onChange = () => (newWorker = true);
+		sw.addEventListener('controllerchange', onChange);
+		return () => sw.removeEventListener('controllerchange', onChange);
+	});
+
 	$effect(() => {
-		if (!updated.current) return;
+		if (!updated.current && !newWorker) return;
+		// Served by the service worker: reloading now would give the cached old version.
+		// Fetch the new worker instead; its takeover sets `newWorker` and we reload then.
+		if (!newWorker && navigator.serviceWorker?.controller) {
+			void navigator.serviceWorker.getRegistration().then((r) => r?.update());
+			return;
+		}
 		const go = () => {
 			if (document.activeElement?.matches('input, textarea, select')) return;
-			// At most one automatic reload a minute, in case hosting briefly serves an old page.
+			// At most one automatic reload a minute, in case an old page is briefly served.
 			try {
 				const last = Number(sessionStorage.getItem('hasici.reloadedAt'));
 				if (Date.now() - last < 60_000) return;

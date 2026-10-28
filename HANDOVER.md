@@ -68,6 +68,14 @@ direction; older rows are superseded.
   SvelteKit polls `/_app/version.json` every minute and on tab focus; the
   layout reloads the page when it changes (after the user leaves a text
   field). Hosting serves everything `no-cache` except `/_app/immutable/**`.
+- **Service worker** (`src/service-worker.ts`): caches the app shell per
+  version (`app-<git hash>`) and serves it cache-first, so the app opens
+  instantly and offline. A deploy installs a new worker that takes over at once;
+  the layout reloads on `controllerchange`. Firebase requests are not touched.
+- **Home screen:** `static/manifest.webmanifest` + icons (`icon-192/512`,
+  `icon-maskable-512`, `apple-touch-icon`), rendered from the flame logo.
+  On iOS a home-screen app has its own storage, so it asks for the password
+  once (the share link opens in Safari, not in the installed app).
 
 ## Code map
 
