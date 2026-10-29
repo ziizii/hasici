@@ -164,6 +164,8 @@
 		if (name && name !== m.name) await data.updateMember(m.id, { name }).catch(() => toasts.error());
 	}
 
+	const isCustom = (color: string) => !PALETTE.includes(color.toUpperCase());
+
 	async function setColor(m: Member, color: string) {
 		await data.updateMember(m.id, { color }).catch(() => toasts.error());
 	}
@@ -469,6 +471,25 @@
 											{#if m.color.toUpperCase() === c}<Icon name="check" size={18} stroke={3} />{/if}
 										</button>
 									{/each}
+									<label
+										class="relative flex size-10 cursor-pointer items-center justify-center rounded-lg text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+										style="background: {isCustom(m.color)
+											? m.color
+											: 'conic-gradient(#d33, #e90, #dc3, #3a4, #29c, #63c, #c3a, #d33)'}"
+									>
+										{#if isCustom(m.color)}<Icon name="check" size={18} stroke={3} />{:else}<Icon
+												name="plus"
+												size={18}
+												stroke={3}
+											/>{/if}
+										<input
+											type="color"
+											aria-label="Vlastní barva"
+											value={m.color}
+											class="absolute inset-0 size-full cursor-pointer opacity-0"
+											onchange={(e) => setColor(m, e.currentTarget.value.toUpperCase())}
+										/>
+									</label>
 								</div>
 							</div>
 							<UnavailableSwitch member={m} self={m.id === access.memberId} />

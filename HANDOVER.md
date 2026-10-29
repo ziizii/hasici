@@ -75,6 +75,9 @@ direction; older rows are superseded.
   - Archiving a member frees their colour.
   - With more than 20 members, colours are shared.
   - Restoring a member picks a new colour if theirs was taken.
+  - The last square in the colour row is an `<input type="color">` for any
+    custom colour (stored as uppercase `#RRGGBB`). Custom colours aren't
+    checked for contrast with the white initials.
 - **Archiving:** archived members disappear from the plan and the pickers,
   and their absences are kept. Permanent delete exists only from the archive
   and also deletes their absences.

@@ -233,7 +233,8 @@ Otevřete záložku **Jednotka**:
 
 1. Do **Název jednotky** napište např. „SDH Lhota“.
 2. V části **Členové** přidejte ostatní členy jménem a příjmením. Každý dostane
-   vlastní barvu.
+   vlastní barvu. Barvu změníte klepnutím na člena; poslední čtvereček s **+**
+   nabídne libovolnou jinou barvu.
 3. V části **Místa akcí** můžete zapsat místa, kam se obvykle jezdí (zbrojnice,
    cvičiště…). Při zakládání akce se pak nabízejí.
 4. V části **Odkaz pro členy** klikněte na **Kopírovat** nebo **Sdílet** a pošlete
