@@ -278,8 +278,7 @@
 	>
 		<button
 			type="button"
-			aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}: může {av.available.length} z {data.members
-				.length}. Otevřít den."
+			aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}: může {av.available.length} z {av.total}. Otevřít den."
 			class="flex min-h-11 w-10 shrink-0 flex-col items-center lg:w-[6.25rem] lg:flex-row lg:gap-2">
 			<span
 				class="text-xs font-bold tracking-[0.06em] lg:order-2 lg:text-sm lg:font-semibold lg:tracking-normal lg:normal-case {red
@@ -327,11 +326,11 @@
 				<span
 					class="shrink-0 text-right text-[1.1875rem] leading-tight font-bold whitespace-nowrap lg:hidden {countClass(
 						av.available.length,
-						data.members.length
+						av.total
 					)}"
 				>
 					{av.available.length}<span class="text-xs font-semibold text-faint"
-						>/{data.members.length}</span
+						>/{av.total}</span
 					>
 				</span>
 			</span>
@@ -341,11 +340,11 @@
 		<span
 			class="hidden w-[4.375rem] shrink-0 text-right text-xl font-bold whitespace-nowrap lg:block {countClass(
 				av.available.length,
-				data.members.length
+				av.total
 			)}"
 		>
 			{av.available.length}<span class="text-[0.8125rem] font-semibold text-faint"
-				>&nbsp;/{data.members.length}</span
+				>&nbsp;/{av.total}</span
 			>
 		</span>
 	</div>
@@ -389,8 +388,10 @@
 				>Členové ({data.members.length})</span
 			>
 			{#each data.members as m (m.id)}
-				<span class="flex min-h-[2.125rem] items-center gap-2.5 text-[0.9375rem]">
-					<span class="size-3.5 shrink-0 rounded" style="background: {m.color}"></span>{m.name}
+				{@const off = !!data.openAbsence(m.id)}
+				<span class="flex min-h-[2.125rem] items-center gap-2.5 text-[0.9375rem] {off ? 'text-muted' : ''}">
+					<span class="size-3.5 shrink-0 rounded {off ? 'bg-off' : ''}" style={off ? undefined : `background: ${m.color}`}
+					></span>{m.name}{#if off}<span class="sr-only">, není k dispozici</span>{/if}
 				</span>
 			{/each}
 		</section>

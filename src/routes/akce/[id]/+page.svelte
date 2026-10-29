@@ -4,7 +4,7 @@
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
-	import { formatLong, OPEN_END, formatShort } from '#lib/dates.js';
+	import { formatLong, OPEN_END, formatShort, todayKey } from '#lib/dates.js';
 	import { describe, lastDay, nextAfter, WEEKLY } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
@@ -16,7 +16,9 @@
 	const me = $derived(data.member(access.memberId));
 	const avail = $derived(ev ? data.availability(ev.date) : null);
 	const myAbsence = $derived(ev && me ? data.absenceOn(me.id, ev.date) : undefined);
-	const total = $derived(data.members.length);
+	const total = $derived(avail?.total ?? 0);
+	/** Past events show who was there; the bar still corrects it. */
+	const past = $derived(!!ev && ev.date < todayKey());
 
 	const series = $derived(ev ? data.seriesOf(ev) : undefined);
 	/** Later repeats exist, so "this and all later" choices make sense. */
@@ -187,7 +189,7 @@
 		</section>
 
 		<div class="flex flex-col gap-3.5 px-5 pb-8">
-			{#if me}
+			{#if me && !past}
 				{#if !myAbsence}
 					<div class="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
 						<div class="flex items-center gap-2.5">
@@ -245,8 +247,13 @@
 
 			{#if avail}
 				<div class="flex flex-col gap-2.5 rounded-2xl border border-line bg-surface p-4">
-					<span class="font-bold">{avail.available.length} z {total} přijde</span>
+					<span class="font-bold"
+						>{past ? `Přišlo ${avail.available.length} z ${total}` : `${avail.available.length} z ${total} přijde`}</span
+					>
 					<AvailabilityBar availability={avail} ontoggle={(m) => toggleMemberDay(m, ev.date)} />
+					{#if past}
+						<span class="text-sm text-muted">Klepnutím na člena opravíte docházku.</span>
+					{/if}
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						{#each avail.available as m (m.id)}
 							<span class="rounded-lg px-2 py-1 text-sm font-semibold text-white" style="background: {m.color}"
@@ -259,7 +266,7 @@
 				{#if avail.away.length}
 					<section class="flex flex-col rounded-2xl border border-line bg-surface p-4">
 						<h2 class="mb-1.5 text-[0.9375rem] font-bold tracking-[0.06em] text-warn uppercase">
-							Nepřijdou ({avail.away.length})
+							{past ? 'Nepřišli' : 'Nepřijdou'} ({avail.away.length})
 						</h2>
 						{#each avail.away as { member, absence } (member.id)}
 							<div class="flex items-center gap-2.5 border-t border-line-soft py-2.5">
@@ -274,6 +281,13 @@
 							</div>
 						{/each}
 					</section>
+				{/if}
+
+				{#if avail.inactive.length}
+					<p class="text-[0.9375rem] leading-snug text-muted">
+						<strong class="font-bold">Dlouhodobě mimo:</strong>
+						{avail.inactive.map(({ member }) => member.name).join(', ')}
+					</p>
 				{/if}
 			{/if}
 
