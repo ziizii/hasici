@@ -331,8 +331,8 @@
 							<span class="flex min-w-0 flex-1 flex-col">
 								<span class="font-medium">{ev.title}</span>
 								<span class="text-[0.9375rem] text-muted"
-									>{formatShort(ev.date)}{av.away.length
-										? ` · nepřišli: ${av.away.map(({ member }) => member.name).join(', ')}`
+									>{formatShort(ev.date)}{av.available.length
+										? ` · přišli: ${av.available.map((m) => m.name).join(', ')}`
 										: ''}</span
 								>
 							</span>

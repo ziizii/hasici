@@ -72,7 +72,7 @@ jednotlivé dny jde udělat výjimku.
 
 **Jednotka.** Název jednotky, odkaz pro členy, heslo, seznam členů (přidat,
 přejmenovat, změnit barvu, archivovat), přehled nadcházejících nepřítomností a akcí,
-proběhlé akce (kdo přišel a kdo ne, podle zapsaných nepřítomností; opravit se to dá
+proběhlé akce (kdo přišel, podle zapsaných nepřítomností; opravit se to dá
 klepnutím na člena u akce) a seznam míst, kde se akce konají.
 
 Dále:
