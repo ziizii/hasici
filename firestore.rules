@@ -72,8 +72,10 @@ service cloud.firestore {
 
     match /config/access {
       allow read: if hasSession();
+      // Only together with config/public, or a stray access doc would block the setup for good.
       allow create: if signedIn()
         && !exists(publicPath())
+        && existsAfter(publicPath())
         && validAccess(request.resource.data);
       allow update: if hasSession() && validAccess(request.resource.data);
       allow delete: if false;

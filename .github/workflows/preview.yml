@@ -15,8 +15,8 @@ concurrency:
 
 jobs:
   preview:
-    # Secrets aren't available to PRs from forks.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Secrets aren't available to PRs from forks; copies without `make setup-ci` skip it.
+    if: github.event.pull_request.head.repo.full_name == github.repository && vars.VITE_FIREBASE_PROJECT_ID != ''
     runs-on: ubuntu-latest
     env:
       VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
@@ -38,5 +38,5 @@ jobs:
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: hasici-bo
+          projectId: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
           expires: 7d

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # One-time setup for the GitHub Actions deploys: creates a deploy service
-# account in hasici-bo, stores its key as the FIREBASE_SERVICE_ACCOUNT repo
-# secret and the web config from .env as repo variables.
-# Needs: gcloud auth login, gh auth login, a filled .env.
+# account in the project from .env, stores its key as the FIREBASE_SERVICE_ACCOUNT
+# repo secret and the web config from .env as repo variables.
+# Needs: gcloud auth login, gh auth login, a filled .env (npm run setup).
 set -euo pipefail
 
-PROJECT=hasici-bo
-REPO=ziizii/hasici
+cd "$(dirname "$0")/.."
+
+PROJECT=$(sed -n 's/^VITE_FIREBASE_PROJECT_ID=//p' .env)
+REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 SA=github-deploy
 SA_EMAIL="$SA@$PROJECT.iam.gserviceaccount.com"
-
-cd "$(dirname "$0")/.."
 
 # Build config (public values) from .env.
 grep -E '^VITE_FIREBASE_[A-Z_]+=.+' .env | while IFS='=' read -r name value; do

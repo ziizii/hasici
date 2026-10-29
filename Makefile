@@ -1,10 +1,12 @@
-.PHONY: help install login dev dev-prod demo emulators reset-emu check build preview deploy setup-ci
+.PHONY: help install login setup dev dev-prod demo emulators reset-emu check test-rules screenshots build preview deploy setup-ci
 
 FIREBASE ?= npx -y firebase-tools@latest
 # Same project ID the app uses in emulator mode (src/lib/firebase.ts). The
 # demo- prefix keeps the emulators from ever touching real resources.
 EMU = $(FIREBASE) --project demo-hasici
 EMU_DATA = .emulator-data
+# Your Firebase project, from .env (written by `npm run setup`).
+PROJECT = $(shell sed -n 's/^VITE_FIREBASE_PROJECT_ID=//p' .env 2>/dev/null)
 
 help: ## Show targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -14,6 +16,9 @@ node_modules: package.json package-lock.json
 	@touch node_modules
 
 install: node_modules ## Install dependencies
+
+setup: ## First deploy to your own Firebase project (guided, writes .env)
+	npm run setup
 
 dev: node_modules ## Dev server + local emulators (data kept in .emulator-data)
 	$(EMU) emulators:exec --only auth,firestore --import=$(EMU_DATA) --export-on-exit=$(EMU_DATA) \
@@ -34,14 +39,21 @@ reset-emu: ## Wipe local emulator data
 check: node_modules ## Type-check
 	npm run check
 
+test-rules: node_modules ## Test firestore.rules on throwaway emulators
+	$(EMU) emulators:exec --only auth,firestore 'node scripts/test-rules.mjs'
+
+screenshots: node_modules ## Retake the README screenshots (needs Playwright + Chromium)
+	$(EMU) emulators:exec --only auth,firestore 'node scripts/screenshots.cjs'
+
 build: node_modules ## Production build into build/
 	npm run build
 
 preview: build ## Serve the production build locally
 	npm run preview -- --open
 
-deploy: check build ## Deploy rules + hosting to hasici-bo
-	$(FIREBASE) deploy --only firestore:rules,hosting
+deploy: check build ## Deploy rules + hosting to the project in .env
+	@test -n "$(PROJECT)" || { echo 'No project in .env, run make setup first'; exit 1; }
+	$(FIREBASE) deploy --only firestore:rules,hosting --project $(PROJECT)
 
 login: ## Log in to Firebase CLI
 	$(FIREBASE) login
