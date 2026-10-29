@@ -87,7 +87,8 @@ export const MONTHS = [
 /** "So 7. 11." */
 export function formatShort(key: DateKey): string {
 	const d = parseKey(key);
-	return `${DOW_ABBR[weekdayIndex(key)]} ${d.getDate()}. ${d.getMonth() + 1}.`;
+	const year = key.slice(0, 4) === todayKey().slice(0, 4) ? '' : ` ${d.getFullYear()}`;
+	return `${DOW_ABBR[weekdayIndex(key)]} ${d.getDate()}. ${d.getMonth() + 1}.${year}`;
 }
 
 /** "sobota 7. 11. 2026" */

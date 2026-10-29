@@ -5,6 +5,7 @@
 	import { initials, PALETTE } from '#lib/colors.js';
 	import { absenceWhen, data, groupAbsences, isSwitch, type Member } from '#lib/data.svelte.js';
 	import { formatShort, todayKey } from '#lib/dates.js';
+	import { everyLabel } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
@@ -57,7 +58,7 @@
 		)
 	);
 
-	// A weekly repeat is listed once, with its next date.
+	// A repeating event is listed once, with its next date.
 	const upcomingEvents = $derived.by(() => {
 		const seen = new Set<string>();
 		return data.events.filter((e) => {
@@ -265,12 +266,13 @@
 		<ul class="flex flex-col">
 			{#each showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 10) as ev (ev.id)}
 				{@const av = data.availability(ev.date)}
+				{@const series = data.seriesOf(ev)}
 				<li class="border-t border-line-soft">
 					<a href="/akce/{ev.id}" class="flex min-h-[3.25rem] items-center gap-3 py-1.5">
 						<span class="flex min-w-0 flex-1 flex-col">
 							<span class="font-medium">{ev.title}</span>
 							<span class="text-[0.9375rem] text-muted"
-								>{data.seriesOf(ev) ? `Každý týden, příště ${formatShort(ev.date)}` : formatShort(ev.date)}{ev.time ? ` · ${ev.time}` : ''}{ev.place
+								>{series ? `${everyLabel(series.repeat).replace(/^./, (c) => c.toUpperCase())}, příště ${formatShort(ev.date)}` : formatShort(ev.date)}{ev.time ? ` · ${ev.time}` : ''}{ev.place
 									? ` · ${ev.place}`
 									: ''}</span
 							>

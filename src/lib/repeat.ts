@@ -176,6 +176,12 @@ function everyText(freq: Freq, n: number): string {
 	return n === 1 ? `${each} ${unit(freq, 1)}` : `${each} ${n} ${unit(freq, n)}`;
 }
 
+/** Just the step, for a short label: "každý rok", "každé 2 týdny". */
+export function everyLabel(r: Repeat | undefined): string {
+	r ??= WEEKLY;
+	return everyText(r.freq, r.every);
+}
+
 /** "a, b a c" */
 function join(items: string[]): string {
 	return items.length > 1 ? `${items.slice(0, -1).join(', ')} a ${items.at(-1)}` : (items[0] ?? '');
