@@ -40,6 +40,17 @@
 		active = -1;
 	}
 
+	/**
+	 * Phones move focus out of the field before the click, which closes the list and lets the
+	 * click land on whatever was under it. So a tap picks on touchend and cancels the rest.
+	 */
+	let touchY = 0;
+	function tapped(e: TouchEvent, p: string) {
+		if (!e.cancelable || Math.abs(e.changedTouches[0].clientY - touchY) > 10) return; // a scroll
+		e.preventDefault();
+		pick(p);
+	}
+
 	function keydown(e: KeyboardEvent) {
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
 			e.preventDefault();
@@ -106,6 +117,8 @@
 					? 'bg-off'
 					: ''}"
 				onpointerdown={(e) => e.preventDefault()}
+				ontouchstart={(e) => (touchY = e.touches[0].clientY)}
+				ontouchend={(e) => tapped(e, p)}
 				onclick={() => pick(p)}
 			>
 				<Icon name="pin" size={18} class="shrink-0 text-faint" />
