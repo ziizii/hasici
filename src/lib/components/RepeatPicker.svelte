@@ -15,24 +15,22 @@
 	} from '#lib/repeat.js';
 
 	/**
-	 * `value`: the chosen rule, null = no repeat. `until`: '' = until cancelled. `extra`: more choices.
+	 * `value`: the chosen rule, null = no repeat. `until`: '' = until cancelled.
 	 * `initial`: the rule to start from when editing (null = no repeat).
 	 */
 	let {
 		date,
 		value = $bindable(null),
 		until = $bindable(''),
-		extra = [],
 		initial = null
 	}: {
 		date: DateKey;
 		value?: Repeat | null;
 		until?: string;
-		extra?: Repeat[];
 		initial?: Repeat | null;
 	} = $props();
 
-	const quick = $derived([...quickRepeats(date), ...extra]);
+	const quick = $derived(quickRepeats(date));
 
 	// svelte-ignore state_referenced_locally
 	const start = { date, initial, quick };
@@ -97,15 +95,15 @@
 		`flex min-h-11 items-center justify-center rounded-lg border text-base font-semibold ${
 			on ? 'border-accent bg-accent text-white' : 'border-field bg-surface text-ink'
 		}`;
-	const select = 'h-12 min-w-0 flex-1 rounded-xl border border-field bg-surface px-2 text-base text-ink';
+	const select = 'h-12 min-w-0 rounded-xl border border-field bg-surface px-2 text-base text-ink';
 </script>
 
 {#snippet nthPicker()}
 	<div class="flex gap-2">
-		<select bind:value={nth} aria-label="Kolikátý" class={select}>
+		<select bind:value={nth} aria-label="Kolikátý" class="{select} flex-1">
 			{#each NTH_NAMES as [n, name] (n)}<option value={n}>{name}</option>{/each}
 		</select>
-		<select bind:value={kind} aria-label="Den" class={select}>
+		<select bind:value={kind} aria-label="Den" class="{select} flex-1">
 			{#each KIND_NAMES as name, k (k)}<option value={k}>{name}</option>{/each}
 		</select>
 	</div>
