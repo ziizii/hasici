@@ -55,6 +55,9 @@ direction; older rows are superseded.
   A one-off can be turned into a repeat. The page follows the event's new id.
 - **Events keep a time** (`Sraz`, start time only) plus place and an
   optional note, "so we know when to go where".
+- **Place** is free text. While typing, it suggests saved places (the ones
+  from `/jednotka`, then ones used before), ignoring case and diacritics. It is
+  our own list, not `<datalist>`, which is missing or awkward on some phones.
 - **"Nemůžu přijít" on an event is not a separate concept.** It creates a
   normal one-day absence for that date. "Přece jen přijdu" frees that day
   again: covering absences are deleted, shortened or split
@@ -119,6 +122,7 @@ src/
       DayPanel.svelte        Day detail + new event form
       EventForm.svelte       Create/edit event
       RepeatPicker.svelte    "Opakování" radios + custom rule editor (like Apple's "Custom")
+      PlaceInput.svelte      Free-text place with a suggestion list of saved places (data.places)
       MemberPicker.svelte    "Kdo jste?" screen (adds the first member on an empty unit)
       PasswordScreen.svelte  First-run setup / unlock
       Brand.svelte, Icon.svelte

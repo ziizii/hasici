@@ -2,6 +2,7 @@
 	import { data, type Event } from '#lib/data.svelte.js';
 	import { type DateKey } from '#lib/dates.js';
 	import { isEmpty, type Repeat } from '#lib/repeat.js';
+	import PlaceInput from './PlaceInput.svelte';
 	import RepeatPicker from './RepeatPicker.svelte';
 
 	type Draft = Omit<Event, 'id' | 'series'>;
@@ -138,7 +139,7 @@
 			/>
 		</label>
 	{/if}
-	<div class="grid grid-cols-2 gap-2.5">
+	<div class="relative grid grid-cols-2 gap-2.5">
 		<fieldset class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
 			<legend class="mb-1.5">Sraz</legend>
 			<div class="flex min-w-0 items-center gap-1">
@@ -161,18 +162,11 @@
 				</select>
 			</div>
 		</fieldset>
-		<label class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
-			Místo
-			<input
-				bind:value={place}
-				list="places-{uid}"
-				maxlength="120"
-				class="h-12 min-w-0 rounded-xl border border-field bg-surface px-3 text-base text-ink"
-			/>
-			<datalist id="places-{uid}">
-				{#each data.places as p (p)}<option value={p}></option>{/each}
-			</datalist>
-		</label>
+		<!-- Not a <label>: a tap on a suggestion would also focus the field. -->
+		<div class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
+			<span id="place-{uid}">Místo</span>
+			<PlaceInput bind:value={place} places={data.places} labelledby="place-{uid}" />
+		</div>
 	</div>
 	{#if showNote}
 		<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
