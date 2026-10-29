@@ -22,8 +22,9 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Firebase
+# Firebase (the project comes from .env)
 .firebase/
+.firebaserc
 *-debug.log
 
 # Firebase emulator data

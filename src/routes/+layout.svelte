@@ -131,7 +131,8 @@
 	<div class="mx-auto max-w-md p-6">
 		<h1 class="mb-2 text-xl font-bold">Chybí konfigurace Firebase</h1>
 		<p class="text-muted">
-			Zkopírujte <code>.env.example</code> do <code>.env</code> a doplňte hodnoty z
+			Spusťte <code>npm run setup</code> (návod je v README), nebo zkopírujte
+			<code>.env.example</code> do <code>.env</code> a doplňte hodnoty z
 			<code>firebase apps:sdkconfig web</code>.
 		</p>
 	</div>

@@ -133,7 +133,10 @@ src/
     ja/+page.svelte          My absences: add (quick chips), list, delete with undo
     jednotka/+page.svelte    Share link, password, members, archive
 firestore.rules              Security rules (see below)
-firebase.json, .firebaserc   Hosting (SPA fallback 200.html), rules, emulators; project hasici-bo
+firebase.json               Hosting (SPA fallback 200.html), rules, emulators
+scripts/setup.mjs           `npm run setup` / `npm run deploy`: guided deploy to any Firebase project, writes .env
+scripts/test-rules.mjs      `make test-rules`: firestore.rules checks on throwaway emulators
+scripts/setup-ci.sh         `make setup-ci`: GitHub Actions deploy secret + variables
 ```
 
 Imports use the SvelteKit 3 subpath alias `#lib/...`. TypeScript modules need a
@@ -169,6 +172,16 @@ don't (`#lib/components/Icon.svelte`).
 - **Long polling:** Firestore uses `experimentalForceLongPolling` because
   Safari was slow to open the default streaming connection.
 
+## Open source / other units
+
+MIT licensed. Nothing is tied to one unit: the Firebase project comes from `.env`
+(`VITE_FIREBASE_PROJECT_ID`), which `npm run setup` writes after the user picks a
+project; `.firebaserc` is not committed. CI uses the repo variables set by
+`make setup-ci` and skips itself in copies where they are missing. The Czech
+README is the setup guide for non-technical units; its screenshots in
+`docs/screenshots/` come from `?demo` (plan, day, event, me) and the emulators
+(password, member picker, share link).
+
 ## Status
 
 Done: everything described above. `npm run check` and `npm run build` pass, and
@@ -183,12 +196,10 @@ Not yet done / next steps:
    (`.github/workflows/preview.yml`), merges to `main` deploy rules + hosting
    (`deploy.yml`). One-time setup: `make setup-ci`. Previews share the real
    Firestore data. Manual deploy: `make deploy`.
-4. **Test the security rules against real Firebase or the emulator.** The
-   emulator could not be downloaded in the original build environment, so
-   the rules are untested. Focus on:
-   - first-run batch (`config/access` + `config/public` + session);
-   - unlock with link and with password;
-   - members/absences/events writes.
+4. ~~Test the security rules~~ (done): `make test-rules` replays the app's writes
+   against the emulators. It found that `config/access` could be created on its
+   own before setup, which blocked the setup for good; the rule now requires
+   `config/public` in the same batch.
 5. Ideas raised but not built:
    - QR code for the share link;
    - "Kdo je kdo" member highlight on desktop (legend is static now);
