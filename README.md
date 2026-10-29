@@ -4,9 +4,10 @@
 
 <h1 align="center">Dostupnost jednotky</h1>
 
+<h3 align="center">Vyrobeno s ❤️ a 🔥 u Hasičů Březová-Oleško</h3>
+
 <p align="center">
-  Kdo může přijít, na jedno podívání.<br>
-  <sub>Vyrobeno s ❤️ a 🔥 u <b>Hasičů Březová-Oleško</b> · zdarma pro všechny jednotky</sub>
+  Kdo může přijít, na jedno podívání. Zdarma pro všechny jednotky.
 </p>
 
 Jednoduchá webová aplikace pro jednotky sboru dobrovolných hasičů (SDH). Členové si
