@@ -49,7 +49,10 @@ export const auth = initializeAuth(app, {
 });
 
 // Offline cache so the plan opens instantly on a phone with a weak signal.
+// Long polling instead of the default WebChannel streaming, which Safari can take a long
+// time to connect.
 export const db = initializeFirestore(app, {
+	experimentalForceLongPolling: true,
 	localCache: useEmulators
 		? memoryLocalCache()
 		: persistentLocalCache({ tabManager: persistentMultipleTabManager() })

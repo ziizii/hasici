@@ -166,6 +166,8 @@ don't (`#lib/components/Icon.svelte`).
   localStorage copy of the data (`hasici.cache.v2`, written after each live
   update) and signs in in the background. Bump the cache key if the cached
   shapes change. Day toggles show at once via `data.pending`.
+- **Long polling:** Firestore uses `experimentalForceLongPolling` because
+  Safari was slow to open the default streaming connection.
 
 ## Status
 
