@@ -246,12 +246,13 @@ export function describe(r: Repeat | undefined, from: DateKey): string {
 	}
 }
 
-/** The usual choices for an event on `day`: weekly, nth weekday (and last), same day each month. */
+/** The usual choices for an event on `day`: weekly, nth weekday, same day each month. "Last" is in Vlastní. */
 export function quickRepeats(day: DateKey): Repeat[] {
 	const d = parseKey(day);
 	const w = weekdayIndex(day);
-	const out: Repeat[] = [WEEKLY, { freq: 'month', every: 1, nth: Math.ceil(d.getDate() / 7), kind: w }];
-	if (isNth(day, -1, w)) out.push({ freq: 'month', every: 1, nth: -1, kind: w });
-	out.push({ freq: 'month', every: 1, days: [d.getDate()] });
-	return out;
+	return [
+		WEEKLY,
+		{ freq: 'month', every: 1, nth: Math.ceil(d.getDate() / 7), kind: w },
+		{ freq: 'month', every: 1, days: [d.getDate()] }
+	];
 }

@@ -39,11 +39,11 @@ direction; older rows are superseded.
   splitting; marking the day away again removes it. Plain dated absences
   are still split.
 - **Repeating events:** the new-event form offers radios: Neopakovat, every
-  week on that weekday, the nth weekday of the month (plus "poslední" when it
-  is the last one), the same day each month, and Vlastní (Apple-Reminders-like
-  editor: every n days / weeks on weekdays / months on days or the nth
-  weekday / years in months), with an optional end date and a preview of the
-  next dates. Months without the chosen day (31st, 5th Thursday) are skipped.
+  week on that weekday, the nth weekday of the month, the same day each
+  month, and Vlastní (Apple-Reminders-like editor: every n days / weeks on
+  weekdays / months on days or the nth or last weekday / years in months),
+  with an optional end date and a preview of the next dates. Months without
+  the chosen day (31st, 5th Thursday) are skipped.
 - **One date of a repeat** can be moved or changed on its own (event page:
   "Změnit jen tento termín", or Upravit with "Co změnit: Jen tento termín",
   the default). It is stored as its own event and shows "přesunutý z …".
