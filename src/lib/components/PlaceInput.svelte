@@ -42,13 +42,15 @@
 
 	/**
 	 * Phones move focus out of the field before the click, which closes the list and lets the
-	 * click land on whatever was under it. So a tap picks on touchend and cancels the rest.
+	 * click land on whatever was under it. So a tap picks on touchend and cancels the rest,
+	 * then leaves the field so the keyboard goes away.
 	 */
 	let touchY = 0;
 	function tapped(e: TouchEvent, p: string) {
 		if (!e.cancelable || Math.abs(e.changedTouches[0].clientY - touchY) > 10) return; // a scroll
 		e.preventDefault();
 		pick(p);
+		input.blur();
 	}
 
 	function keydown(e: KeyboardEvent) {
