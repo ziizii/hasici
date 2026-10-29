@@ -51,7 +51,6 @@
 	/** Repeating on the rule's days from `from`; null = every day in the range. */
 	let repeat = $state<Repeat | null>(null);
 	let busy = $state(false);
-	const WEEKENDS: Repeat[] = [{ freq: 'week', every: 1, weekdays: [5, 6] }];
 	// "Do" ends a single absence; when it starts repeating, the same field is "Opakovat do".
 	let wasRepeating = false;
 	$effect(() => {
@@ -211,7 +210,7 @@
 			</fieldset>
 
 			<div class="flex flex-col gap-3">
-				<RepeatPicker date={from || today} bind:value={repeat} bind:until={to} extra={WEEKENDS} />
+				<RepeatPicker date={from || today} bind:value={repeat} bind:until={to} />
 			</div>
 
 			<fieldset class="flex flex-col gap-2.5">
