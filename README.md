@@ -96,6 +96,19 @@ nevyžaduje platební kartu. Pro jednotku s desítkami členů jsou limity zdarm
 dostatečné. Kdyby se někdy překročily, aplikace do druhého dne přestane fungovat, ale
 nic se nezaplatí.
 
+> **Na placený tarif „Blaze“ nepřecházejte.** Aplikace potřebuje jen tři věci, které
+> jsou na Sparku zdarma: **Firestore Database** (edice Standard), **Authentication**
+> (anonymní přihlášení) a **Hosting**. Pokud vás konzole Firebase žádá o přechod na
+> Blaze nebo o platební kartu, klikli jste na něco navíc. Typicky jde o **Storage**,
+> **Functions**, **App Hosting** (to je jiná služba než Hosting), edici **Enterprise**
+> u Firestore nebo funkce s AI (Gemini). Nic z toho aplikace nepotřebuje, takže
+> nabídku zavřete a pokračujte podle návodu.
+>
+> Jaký tarif projekt má, uvidíte vlevo dole v konzoli (**Spark** / **Blaze**). Projekt,
+> který už na Blaze přešel, jde vrátit: **Usage and billing** → **Details & settings**
+> → **Modify plan** → **Spark**. Pokud Firebase při vracení hlásí, že projekt používá
+> službu jen pro Blaze, nejdřív tu službu v konzoli vypněte nebo smažte.
+
 **Jedna instalace = jedna jednotka.** Každá jednotka má vlastní adresu, vlastní data
 a vlastní heslo. Data jiných jednotek nikdo nevidí.
 
@@ -120,7 +133,8 @@ napište její název (např. „Firestore“) do vyhledávání nahoře v konzo
 
 1. V levém menu otevřete **Databases & Storage** (ve starší podobě konzole **Build**)
    → **Firestore Database** a klikněte na **Create database**.
-2. Edici nechte **Standard edition** → **Next**.
+2. Edici nechte **Standard edition** (edice Enterprise je jen pro placený tarif)
+   → **Next**.
 3. **Location:** vyberte `eur3 (Europe)` nebo `europe-west3 (Frankfurt)`. Data pak
    zůstanou v Evropské unii. Umístění se později nedá změnit. → **Next**.
 4. Nechte vybrané **Start in production mode** a klikněte na **Create**.
