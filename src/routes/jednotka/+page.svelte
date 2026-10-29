@@ -544,6 +544,15 @@
 		<Icon name="user" size={18} /> Změnit, kdo jsem na tomto zařízení
 	</button>
 
+	<a
+		href="https://github.com/ziizii/hasici"
+		target="_blank"
+		rel="noopener"
+		class="flex min-h-11 items-center justify-center gap-2 text-[0.9375rem] text-muted"
+	>
+		<Icon name="github" size={18} /> Aplikace je zdarma na GitHubu
+	</a>
+
 	<details class="text-center text-sm text-faint">
 		<summary class="min-h-11 cursor-pointer content-center">Verze {version.slice(0, 7)}</summary>
 		<p class="mb-1">

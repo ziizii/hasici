@@ -1,4 +1,4 @@
-.PHONY: help install login setup dev dev-prod demo emulators reset-emu check test-rules build preview deploy setup-ci
+.PHONY: help install login setup dev dev-prod demo emulators reset-emu check test-rules screenshots build preview deploy setup-ci
 
 FIREBASE ?= npx -y firebase-tools@latest
 # Same project ID the app uses in emulator mode (src/lib/firebase.ts). The
@@ -41,6 +41,9 @@ check: node_modules ## Type-check
 
 test-rules: node_modules ## Test firestore.rules on throwaway emulators
 	$(EMU) emulators:exec --only auth,firestore 'node scripts/test-rules.mjs'
+
+screenshots: node_modules ## Retake the README screenshots (needs Playwright + Chromium)
+	$(EMU) emulators:exec --only auth,firestore 'node scripts/screenshots.cjs'
 
 build: node_modules ## Production build into build/
 	npm run build

@@ -136,6 +136,7 @@ firestore.rules              Security rules (see below)
 firebase.json               Hosting (SPA fallback 200.html), rules, emulators
 scripts/setup.mjs           `npm run setup` / `npm run deploy`: guided deploy to any Firebase project, writes .env
 scripts/test-rules.mjs      `make test-rules`: firestore.rules checks on throwaway emulators
+scripts/screenshots.cjs     `make screenshots`: retakes docs/screenshots (needs Playwright + Chromium)
 scripts/setup-ci.sh         `make setup-ci`: GitHub Actions deploy secret + variables
 ```
 
@@ -180,7 +181,8 @@ project; `.firebaserc` is not committed. CI uses the repo variables set by
 `make setup-ci` and skips itself in copies where they are missing. The Czech
 README is the setup guide for non-technical units; its screenshots in
 `docs/screenshots/` come from `?demo` (plan, day, event, me) and the emulators
-(password, member picker, share link).
+(password, member picker, share link). Retake them with `make screenshots`.
+The Jednotka page links to the GitHub repo at the bottom.
 
 ## Status
 
