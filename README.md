@@ -299,7 +299,8 @@ Vraťte se ke kroku 2 a pak spusťte `npm run setup` znovu.
 
 **Instalace skončila chybou u nahrávání (Hosting)**
 Zkontrolujte, že jste v kroku 4 zaškrtli **Also set up Firebase Hosting**. Pokud ne:
-v konzoli Firebase otevřete **Hosting** → **Get started**, odklikejte průvodce
+v konzoli Firebase otevřete **Hosting** (pozor, ne **App Hosting**, ten chce placený
+tarif) → **Get started**, odklikejte průvodce
 a spusťte `npm run setup` znovu.
 
 **Zapomněli jsme heslo**
