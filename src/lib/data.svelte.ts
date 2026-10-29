@@ -20,6 +20,7 @@ import {
 	formatShort,
 	OPEN_END,
 	todayKey,
+	toKey,
 	weekdayIndex,
 	type DateKey
 } from './dates';
@@ -33,6 +34,8 @@ export interface Member {
 	color: string;
 	/** Archived members drop out of the plan; their colour becomes free again. */
 	archived: boolean;
+	/** Day the member was added; earlier days don't count them (history). */
+	since?: DateKey;
 }
 
 /** Whole-day absence, inclusive range. */
@@ -120,10 +123,9 @@ export function absenceWhen(a: Absence, today: DateKey): string {
 	return (rule ? `${rule}, ${range}` : range) + except;
 }
 
-/** The exception list with `day` added or removed; past days are dropped to keep it short. */
+/** The exception list with `day` added or removed. Past days stay: they are the history. */
 function withException(a: Absence, day: DateKey, on: boolean): DateKey[] {
-	const today = todayKey();
-	const rest = a.except.filter((d) => d !== day && d >= today);
+	const rest = a.except.filter((d) => d !== day && d >= a.from);
 	return (on ? [...rest, day] : rest).sort();
 }
 
@@ -197,6 +199,10 @@ const byDateTime = (a: Event, b: Event) => (a.date + a.time).localeCompare(b.dat
 export interface DayAvailability {
 	available: Member[];
 	away: { member: Member; absence: Absence }[];
+	/** Long-term unavailable ("Nejsem k dispozici" on): left out of the count and the bar. */
+	inactive: { member: Member; absence: Absence }[];
+	/** Members who count that day: available + away. */
+	total: number;
 }
 
 const collator = new Intl.Collator('cs');
@@ -351,7 +357,14 @@ class Data {
 					this.allMembers = snap.docs
 						.map((d) => {
 							const x = d.data();
-							return { id: d.id, name: x.name, color: x.color, archived: x.archived === true };
+							const created: Date | undefined = x.createdAt?.toDate?.();
+							return {
+								id: d.id,
+								name: x.name,
+								color: x.color,
+								archived: x.archived === true,
+								...(created ? { since: toKey(created) } : {})
+							};
 						})
 						.sort(byLastName);
 					this.loaded.members = true;
@@ -505,8 +518,18 @@ class Data {
 	availability(day: DateKey): DayAvailability {
 		const available: Member[] = [];
 		const away: DayAvailability['away'] = [];
+		const inactive: DayAvailability['inactive'] = [];
 		for (const member of this.members) {
+			if (member.since && member.since > day) continue;
 			const pending = this.pending[`${member.id}|${day}`];
+			const off =
+				pending === false
+					? undefined
+					: this.absences.find((a) => a.memberId === member.id && isSwitch(a) && covers(a, day));
+			if (off) {
+				inactive.push({ member, absence: off });
+				continue;
+			}
 			const absence =
 				pending === false
 					? undefined
@@ -517,7 +540,7 @@ class Data {
 			if (absence) away.push({ member, absence });
 			else available.push(member);
 		}
-		return { available, away };
+		return { available, away, inactive, total: available.length + away.length };
 	}
 
 	/** Default places first, then places used before (most recent first), for the event form. */

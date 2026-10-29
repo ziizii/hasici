@@ -62,6 +62,14 @@ direction; older rows are superseded.
   normal one-day absence for that date. "Přece jen přijdu" frees that day
   again: covering absences are deleted, shortened or split
   (`data.markAvailable`).
+- **Long-term unavailable** (the switch is on for that day): left out of the
+  count, the bar and "Nemůže" on the plan, day panel and event page
+  (`DayAvailability.inactive`, `.total`); listed as "Dlouhodobě mimo".
+- **History:** Jednotka has a collapsed "Proběhlé akce" list (newest first).
+  A past event page says "Přišlo X z Y" / "Nepřišli", hides "Nemůžu přijít",
+  and the bar still corrects attendance. It is derived from absences, so
+  exceptions on past days are kept (`withException`), and members don't count
+  before the day they were added (`Member.since`, from `createdAt`).
 - **Member colours:** a fixed 20-colour palette (`lib/colors.ts`), assigned
   on creation as the least-used colour among active members.
   - Archiving a member frees their colour.

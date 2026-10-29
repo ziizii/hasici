@@ -66,12 +66,14 @@ a každý může klepnout na „Nemůžu přijít“.
 
 **Moje nepřítomnost.** Každý si zapíše, kdy nemůže: jeden den, několik dní za sebou
 (dovolená), nebo pravidelně (např. „každé úterý – práce“). Přepínač „Nejsem
-k dispozici“ platí do odvolání, třeba při nemoci nebo zranění. Pro jednotlivé dny jde
-udělat výjimku.
+k dispozici“ platí do odvolání, třeba při nemoci nebo zranění. Kdo ho má zapnutý,
+nepočítá se do počtu v plánu ani u akcí (je jen uvedený jako „Dlouhodobě mimo“). Pro
+jednotlivé dny jde udělat výjimku.
 
 **Jednotka.** Název jednotky, odkaz pro členy, heslo, seznam členů (přidat,
-přejmenovat, změnit barvu, archivovat), přehled nadcházejících nepřítomností a akcí
-a seznam míst, kde se akce konají.
+přejmenovat, změnit barvu, archivovat), přehled nadcházejících nepřítomností a akcí,
+proběhlé akce (kdo přišel, podle zapsaných nepřítomností; opravit se to dá
+klepnutím na člena u akce) a seznam míst, kde se akce konají.
 
 Dále:
 

@@ -11,7 +11,7 @@
 	let { day, onclose }: { day: DateKey; onclose: () => void } = $props();
 
 	const avail = $derived(data.availability(day));
-	const total = $derived(data.members.length);
+	const total = $derived(avail.total);
 	const events = $derived(data.eventsOn(day));
 	const myAbsence = $derived(access.memberId ? data.absenceOn(access.memberId, day) : undefined);
 	const title = $derived(formatLong(day).replace(/^./, (c) => c.toUpperCase()));
@@ -71,6 +71,12 @@
 						? ', '
 						: ''}
 				{/each}
+			</p>
+		{/if}
+		{#if avail.inactive.length}
+			<p class="text-[0.9375rem] leading-snug text-muted">
+				<strong class="font-bold">Dlouhodobě mimo:</strong>
+				{avail.inactive.map(({ member }) => member.name).join(', ')}
 			</p>
 		{/if}
 		{#if access.memberId}

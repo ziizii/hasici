@@ -42,6 +42,8 @@ export function demoData(count = 10): {
 		{ id: 'a6', memberId: 'm4', from: d(10), to: d(10), note: '', except: [] },
 		{ id: 'a7', memberId: 'm6', from: d(10), to: d(10), note: 'Práce', except: [] },
 		{ id: 'a8', memberId: 'm9', from: d(12), to: d(16), note: 'Služební cesta', except: [] },
+		{ id: 'a10', memberId: 'm0', from: d(-12), to: OPEN_END, note: 'Zranění', except: [] },
+		{ id: 'a11', memberId: 'm3', from: d(-7), to: d(-7), note: 'Práce', except: [] },
 		{ id: 'a9', memberId: 'm2', from: d(0), to: OPEN_END, note: 'Práce', except: [], repeat: { freq: 'week', every: 1, weekdays: [1] } }
 	];
 	const events: Event[] = [
@@ -54,6 +56,8 @@ export function demoData(count = 10): {
 			note: ''
 		},
 		{ id: 'e2', title: 'Kondiční jízdy', date: d(14), time: '18:00', place: 'Hasičská zbrojnice', note: '' },
+		{ id: 'e4', title: 'Kondiční jízdy', date: d(-7), time: '18:00', place: 'Hasičská zbrojnice', note: '' },
+		{ id: 'e5', title: 'Školení první pomoci', date: d(-20), time: '18:30', place: 'Klubovna', note: '' },
 		{ id: 'e3', title: 'Školení dýchací techniky', date: d(22), time: '18:30', place: 'Klubovna', note: '' }
 	];
 	const series: Series[] = [

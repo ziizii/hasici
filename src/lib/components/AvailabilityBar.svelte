@@ -71,7 +71,9 @@
 {/snippet}
 
 {#if total === 0}
-	<span class="text-sm text-faint">Zatím žádní členové</span>
+	<span class="text-sm text-faint"
+		>{availability.inactive.length ? 'Nikdo není k dispozici' : 'Zatím žádní členové'}</span
+	>
 {:else}
 	<span
 		class="grid gap-[3px] {cols}"
