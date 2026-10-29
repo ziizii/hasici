@@ -1,4 +1,13 @@
-# Dostupnost jednotky
+<p align="center">
+  <img src="static/icon-192.png" width="88" alt="">
+</p>
+
+<h1 align="center">Dostupnost jednotky</h1>
+
+<p align="center">
+  Kdo může přijít, na jedno podívání.<br>
+  <sub>Vyrobeno s ❤️ a 🔥 u <b>Hasičů Březová-Oleško</b> · zdarma pro všechny jednotky</sub>
+</p>
 
 Jednoduchá webová aplikace pro jednotky sboru dobrovolných hasičů (SDH). Členové si
 zapíšou dny, kdy nemůžou, a velitel i ostatní hned vidí, kolik lidí je který den
