@@ -17,7 +17,7 @@
 		{#if access.unitName}
 			<span class="text-xs font-semibold tracking-[0.08em] text-muted uppercase">{access.unitName}</span>
 		{/if}
-		<span class="font-display leading-none font-bold {large ? 'text-[2rem]' : 'text-[1.375rem]'}"
+		<span class="tracking-tight leading-none font-bold {large ? 'text-[2rem]' : 'text-[1.375rem]'}"
 			>Dostupnost jednotky</span
 		>
 	</div>

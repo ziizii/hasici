@@ -349,5 +349,4 @@ současným členům.
 
 ## Licence
 
-[MIT](LICENSE). Písma Barlow jsou pod licencí SIL Open Font License 1.1
-([static/fonts/OFL.txt](static/fonts/OFL.txt)).
+[MIT](LICENSE).

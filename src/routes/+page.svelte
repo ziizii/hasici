@@ -291,12 +291,12 @@
 			</span>
 			{#if key === today}
 				<span
-					class="mt-0.5 flex size-[2.125rem] items-center justify-center rounded-full bg-accent font-display text-[1.3125rem] font-bold text-white lg:order-1 lg:mt-0 lg:size-[2.375rem] lg:text-[1.375rem]"
+					class="mt-0.5 flex size-[2.125rem] items-center justify-center rounded-full bg-accent tracking-tight text-[1.3125rem] font-bold text-white lg:order-1 lg:mt-0 lg:size-[2.375rem] lg:text-[1.375rem]"
 					>{parseKey(key).getDate()}</span
 				>
 			{:else}
 				<span
-					class="font-display text-[1.625rem] leading-[1.1] font-bold lg:order-1 lg:w-[2.375rem] lg:text-center lg:text-[1.75rem]"
+					class="tracking-tight text-[1.625rem] leading-[1.1] font-bold lg:order-1 lg:w-[2.375rem] lg:text-center lg:text-[1.75rem]"
 					>{parseKey(key).getDate()}</span
 				>
 			{/if}
@@ -405,7 +405,7 @@
 	>
 		<!-- Phone header: only the jump buttons stay pinned, so big text still leaves room -->
 		<div class="flex flex-col gap-1 bg-surface px-4 pt-5 pb-3 lg:hidden">
-			<h1 class="font-display text-[2rem] leading-none font-bold">Plán</h1>
+			<h1 class="tracking-tight text-[2rem] leading-none font-bold">Plán</h1>
 			<span class="text-[0.9375rem] text-muted">Klepnutím na den naplánujete akci.</span>
 			<div role="group" aria-label="Zobrazit dny" class="mt-3 flex gap-1 rounded-full border border-field bg-ground p-1">
 				{#each filters as f (f.value)}
@@ -465,7 +465,7 @@
 				<div
 					bind:borderBoxSize={monthBox}
 					style="top: var(--stick-month)"
-					class="sticky z-[6] bg-ground px-4 pt-[1.125rem] pb-1.5 font-display text-2xl font-bold transition-shadow lg:bg-surface lg:px-5 lg:text-[1.625rem] {shadowMonth ===
+					class="sticky z-[6] bg-ground px-4 pt-[1.125rem] pb-1.5 tracking-tight text-2xl font-bold transition-shadow lg:bg-surface lg:px-5 lg:text-[1.625rem] {shadowMonth ===
 					m.key
 						? 'shadow-[0_-1px_0_var(--color-line),0_0.125rem_0.5rem_rgb(0_0_0/0.12)]'
 						: 'shadow-[0_-1px_0_var(--color-line)]'}"

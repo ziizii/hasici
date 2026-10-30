@@ -127,7 +127,7 @@
 
 <div class="mx-auto flex max-w-xl flex-col gap-4 px-5 pt-7 pb-8">
 	<header class="flex flex-col gap-2">
-		<h1 class="font-display text-[2rem] leading-none font-bold">Moje nepřítomnost</h1>
+		<h1 class="tracking-tight text-[2rem] leading-none font-bold">Moje nepřítomnost</h1>
 		{#if me}
 			<div class="flex flex-wrap items-center gap-2 text-base">
 				<span

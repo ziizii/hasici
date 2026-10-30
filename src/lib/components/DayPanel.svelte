@@ -47,7 +47,7 @@
 <div class="flex flex-col gap-4">
 	<header class="flex items-start justify-between gap-2">
 		<div class="flex flex-col gap-0.5">
-			<h2 class="font-display text-[1.75rem] leading-none font-bold">{title}</h2>
+			<h2 class="tracking-tight text-[1.75rem] leading-none font-bold">{title}</h2>
 			{#if hol}<span class="text-sm font-semibold text-muted">Státní svátek · {hol}</span>{/if}
 		</div>
 		<button

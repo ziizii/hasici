@@ -202,7 +202,7 @@
 </script>
 
 <div class="mx-auto flex max-w-xl flex-col gap-4 px-5 pt-7 pb-8">
-	<h1 class="font-display text-[2rem] leading-none font-bold">Jednotka</h1>
+	<h1 class="tracking-tight text-[2rem] leading-none font-bold">Jednotka</h1>
 
 	<label class="flex flex-col gap-1.5 rounded-2xl border border-line bg-surface p-4 font-bold">
 		Název jednotky
