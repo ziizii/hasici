@@ -110,7 +110,7 @@
 		</div>
 	{:else if editing}
 		<section class="flex flex-col gap-4 px-5 pt-2 pb-6">
-			<h1 class="font-display text-[1.75rem] font-bold">Upravit akci</h1>
+			<h1 class="tracking-tight text-[1.75rem] font-bold">Upravit akci</h1>
 			<EventForm
 				date={ev.date}
 				initial={ev}
@@ -156,7 +156,7 @@
 		</section>
 	{:else}
 		<section class="flex flex-col gap-2.5 px-5 pt-1.5 pb-4">
-			<h1 class="font-display text-[1.875rem] leading-[1.05] font-bold">{ev.title}</h1>
+			<h1 class="tracking-tight text-[1.875rem] leading-[1.05] font-bold">{ev.title}</h1>
 			<div class="flex flex-col gap-1.5 text-base text-ink-2">
 				<span class="flex items-center gap-2"
 					><Icon name="calendar" size={18} class="text-muted" />{formatLong(ev.date).replace(
