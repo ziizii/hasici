@@ -12,6 +12,8 @@ import {
 	getDoc,
 	getDocs,
 	getFirestore,
+	increment,
+	onSnapshot,
 	serverTimestamp,
 	setDoc,
 	updateDoc,
@@ -50,9 +52,18 @@ async function expect(name, allowed, fn) {
 	console.log(`${pass ? 'ok  ' : 'FAIL'} ${allowed ? 'allowed' : 'denied '}  ${name}`);
 }
 
-function session(d, key) {
+/** As access.#createSession(): record the attempt, then (in a separate request) the session. */
+async function session(d, key) {
+	await attempt(d, key);
+	return setSession(d, key);
+}
+function attempt(d, key) {
+	return setDoc(doc(d.db, 'attempts', d.uid), { key, at: serverTimestamp(), n: increment(1) }, { merge: true });
+}
+function setSession(d, key) {
 	return setDoc(doc(d.db, 'sessions', d.uid), { key, createdAt: serverTimestamp() });
 }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const outsider = await device();
 const founder = await device();
@@ -90,13 +101,35 @@ await expect('outsider adds a member', false, () =>
 	addDoc(collection(outsider.db, 'members'), { name: 'X', color: '#123456', archived: false, createdAt: serverTimestamp() })
 );
 await expect('wrong password', false, () => session(outsider, hash('spatne')));
-await expect('wrong link', false, () => session(outsider, 'nope'.repeat(5)));
+await expect('wrong link', false, async () => session(await device(), 'nope'.repeat(5)));
+
+// Guess limit.
+const guesser = await device();
+await expect('first attempt', true, () => attempt(guesser, hash('a')));
+await expect('second attempt right away', false, () => attempt(guesser, hash('b')));
+await expect('session without a matching attempt', false, () => setSession(guesser, hash(PASSWORD)));
+await expect('attempt and session in one batch', false, async () => {
+	const b = writeBatch(guesser.db);
+	b.set(doc(guesser.db, 'attempts', guesser.uid), { key: hash(PASSWORD), at: serverTimestamp(), n: increment(1) }, { merge: true });
+	b.set(doc(guesser.db, 'sessions', guesser.uid), { key: hash(PASSWORD), createdAt: serverTimestamp() });
+	await b.commit();
+});
+await expect('attempt that resets the counter', false, () =>
+	setDoc(doc(guesser.db, 'attempts', guesser.uid), { key: hash('c'), at: serverTimestamp(), n: 1 })
+);
+await expect('attempt with a fake time', false, () =>
+	setDoc(doc(guesser.db, 'attempts', guesser.uid), { key: hash('c'), at: new Date(0), n: increment(1) }, { merge: true })
+);
+await sleep(2100);
+await expect('second attempt after 2 s', true, () => attempt(guesser, hash('b')));
+await expect('third attempt after 2 s (needs 4 s)', false, async () => (await sleep(2100), attempt(guesser, hash('c'))));
+await expect('reading another browser’s attempt', false, () => getDoc(doc(outsider.db, 'attempts', guesser.uid)));
 await expect('outsider renames the unit', false, () => updateDoc(doc(outsider.db, 'config', 'public'), { name: 'X' }));
 
 // Unlocking.
 await expect('unlock with the link', true, () => session(byLink, LINK));
 await expect('unlock with the password', true, () => session(byPassword, hash(PASSWORD)));
-await expect('a session cannot be changed', false, () => session(byLink, 'other'));
+await expect('a session cannot be changed to a wrong key', false, () => setSession(byLink, 'other'.repeat(4)));
 await expect('reading another device’s session', false, () => getDoc(doc(byLink.db, 'sessions', founder.uid)));
 
 // Members, absences, events with a session.
@@ -153,15 +186,50 @@ await expect('bad repeat rule', false, () =>
 	addDoc(collection(db, 'series'), { title: 'X', time: '', place: '', note: '', from: '2026-07-01', to: '9999-12-31', except: [], repeat: { freq: 'hour', every: 1 }, createdAt: serverTimestamp() })
 );
 
+await expect('a batch of 40 writes (rules look up the session and access docs once)', true, async () => {
+	const b = writeBatch(db);
+	for (let i = 0; i < 40; i++)
+		b.set(doc(collection(db, 'absences')), { memberId, from: '2026-08-01', to: '2026-08-01', note: '', createdAt: serverTimestamp() });
+	await b.commit();
+});
+
 // Unit settings.
 await expect('rename the unit', true, () => updateDoc(doc(db, 'config', 'public'), { name: 'SDH Lhota' }));
 await expect('save default places', true, () => setDoc(doc(db, 'config', 'places'), { list: ['Zbrojnice', 'Hřiště'] }));
 await expect('rotate the link', true, () => updateDoc(doc(db, 'config', 'access'), { linkKey: 'n'.repeat(24), updatedAt: serverTimestamp() }));
-await expect('old link no longer opens', false, () => session(outsider, LINK));
+await expect('old link no longer opens', false, async () => session(await device(), LINK));
 await expect('change the password', true, () => updateDoc(doc(db, 'config', 'access'), { passwordHash: hash('nove-heslo'), updatedAt: serverTimestamp() }));
-await expect('old password no longer opens', false, () => session(outsider, hash(PASSWORD)));
-await expect('new password opens', true, () => session(outsider, hash('nove-heslo')));
+await expect('old password no longer opens', false, async () => session(await device(), hash(PASSWORD)));
+await expect('new password opens', true, async () => session(await device(), hash('nove-heslo')));
 await expect('config/public cannot be deleted', false, () => deleteDoc(doc(db, 'config', 'public')));
+
+// Log out all other devices, as in access.logOutOthers().
+const NEW_LINK = 'r'.repeat(24);
+let lost = false;
+const stop = onSnapshot(doc(byPassword.db, 'config', 'access'), () => {}, (e) => (lost = e.code === 'permission-denied'));
+await expect('log out the others', true, async () => {
+	const b = writeBatch(db);
+	b.update(doc(db, 'config', 'access'), { linkKey: NEW_LINK, revokedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+	b.set(doc(db, 'sessions', byLink.uid), { key: NEW_LINK, createdAt: serverTimestamp() });
+	await b.commit();
+});
+await expect('the one who logged out the others keeps access', true, () => getDocs(collection(db, 'members')));
+await expect('a logged-out device reads members', false, () => getDocs(collection(byPassword.db, 'members')));
+await expect('a logged-out device writes', false, () => updateDoc(doc(byPassword.db, 'config', 'public'), { name: 'X' }));
+await expect('a logged-out device re-keys its session without an attempt', false, () => setSession(byPassword, hash('nove-heslo')));
+await sleep(500);
+console.log(`${lost ? 'ok  ' : 'FAIL'} a logged-out device’s open listener is cut off`);
+if (!lost) failed++;
+stop();
+await sleep(2100); // its last attempt (unlocking with the password) was just now
+await expect('a logged-out device comes back with the new link', true, () => session(byPassword, NEW_LINK));
+await expect('revokedAt cannot be moved back', false, () =>
+	updateDoc(doc(db, 'config', 'access'), { revokedAt: new Date(0) })
+);
+await expect('revokedAt cannot be removed', false, async () => {
+	const { passwordHash, linkKey } = (await getDoc(doc(db, 'config', 'access'))).data();
+	await setDoc(doc(db, 'config', 'access'), { passwordHash, linkKey });
+});
 
 console.log(failed ? `\n${failed} check(s) failed` : '\nAll checks passed');
 process.exit(failed ? 1 : 0);

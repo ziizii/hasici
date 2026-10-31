@@ -7,6 +7,14 @@ rules_version = '2';
 // password hash stored in config/access (that document is unreadable until
 // you have a session). The very first visitor creates config/access and
 // config/public in one batch together with their own session.
+//
+// Guess limit: before trying a key, a browser must write it to attempts/{uid}
+// in a separate request. Each attempt has to wait longer after the previous one
+// (2 s per attempt so far, up to 5 min), so a password can't be guessed quickly.
+// A failed session write leaves nothing behind, which is why the attempt is its
+// own write and the session rule reads it with get(), not getAfter().
+//
+// Logging out: config/access.revokedAt ends every session created before it.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -22,9 +30,20 @@ service cloud.firestore {
       return /databases/$(database)/documents/config/public;
     }
 
+    function sessionPath() {
+      return /databases/$(database)/documents/sessions/$(request.auth.uid);
+    }
+
+    function attemptPath() {
+      return /databases/$(database)/documents/attempts/$(request.auth.uid);
+    }
+
+    // A session counts only if it was made at or after the last "log out everyone".
     function hasSession() {
       return signedIn()
-        && exists(/databases/$(database)/documents/sessions/$(request.auth.uid));
+        && exists(sessionPath())
+        && (!('revokedAt' in get(accessPath()).data)
+          || get(sessionPath()).data.createdAt >= get(accessPath()).data.revokedAt);
     }
 
     function isDate(v) {
@@ -49,9 +68,10 @@ service cloud.firestore {
     }
 
     function validAccess(d) {
-      return d.keys().hasOnly(['linkKey', 'passwordHash', 'updatedAt'])
+      return d.keys().hasOnly(['linkKey', 'passwordHash', 'updatedAt', 'revokedAt'])
         && isText(d.linkKey, 16, 128)
-        && isText(d.passwordHash, 64, 64);
+        && isText(d.passwordHash, 64, 64)
+        && (!('revokedAt' in d) || d.revokedAt is timestamp);
     }
 
     // Readable by anyone: tells the app whether the first-run setup happened.
@@ -77,7 +97,11 @@ service cloud.firestore {
         && !exists(publicPath())
         && existsAfter(publicPath())
         && validAccess(request.resource.data);
-      allow update: if hasSession() && validAccess(request.resource.data);
+      allow update: if hasSession()
+        && validAccess(request.resource.data)
+        // revokedAt can only be set to now, never moved back to let old sessions in again.
+        && (request.resource.data.get('revokedAt', null) == resource.data.get('revokedAt', null)
+          || request.resource.data.revokedAt == request.time);
       allow delete: if false;
     }
 
@@ -91,14 +115,49 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /sessions/{uid} {
+    // One per browser: the last key it tried and when. Write it before each
+    // session attempt; the wait grows with every attempt (n).
+    match /attempts/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['key', 'createdAt'])
-        && (request.resource.data.key == getAfter(accessPath()).data.linkKey
-          || request.resource.data.key == getAfter(accessPath()).data.passwordHash);
-      allow update, delete: if false;
+        && validAttempt(request.resource.data)
+        && request.resource.data.n == 1;
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && validAttempt(request.resource.data)
+        && request.resource.data.n == resource.data.n + 1
+        && (request.time > resource.data.at + duration.value(300, 's')
+          || request.time > resource.data.at + duration.value(resource.data.n * 2, 's'));
+      allow delete: if false;
+    }
+
+    function validAttempt(d) {
+      return d.keys().hasOnly(['key', 'at', 'n'])
+        && isText(d.key, 1, 128)
+        && d.at == request.time
+        && d.n is int;
+    }
+
+    // The key matches the access doc, and either this browser tried that key
+    // in an earlier request (guess limit), or it is the very first setup, or it
+    // already has a valid session (re-keying itself when logging everyone out).
+    function validSession(d) {
+      return d.keys().hasOnly(['key', 'createdAt'])
+        && d.createdAt == request.time
+        && (d.key == getAfter(accessPath()).data.linkKey
+          || d.key == getAfter(accessPath()).data.passwordHash)
+        && (!exists(accessPath())
+          || hasSession()
+          || (exists(attemptPath()) && get(attemptPath()).data.key == d.key));
+    }
+
+    match /sessions/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && validSession(request.resource.data);
+      allow delete: if false;
     }
 
     match /members/{id} {

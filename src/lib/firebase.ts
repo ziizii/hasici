@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import {
 	browserLocalPersistence,
 	connectAuthEmulator,
@@ -42,6 +43,19 @@ export const app = initializeApp(
 			? { ...firebaseConfig, projectId: 'missing', apiKey: 'missing', appId: 'missing' }
 			: firebaseConfig
 );
+// App Check: Firestore and Auth then accept only requests from this site in a real
+// browser (reCAPTCHA Enterprise, invisible), not scripts that guess passwords. Optional:
+// on when VITE_FIREBASE_APPCHECK_KEY is set; enforce it in the Firebase console
+// (App Check → APIs) once the metrics show the app's requests as verified.
+// Must start before Auth and Firestore make their first request.
+const appCheckKey = env.VITE_FIREBASE_APPCHECK_KEY;
+if (appCheckKey && !useEmulators && !configMissing) {
+	initializeAppCheck(app, {
+		provider: new ReCaptchaEnterpriseProvider(appCheckKey),
+		isTokenAutoRefreshEnabled: true
+	});
+}
+
 // Not getAuth(): that also sets up popup/redirect sign-in, which makes Safari load Google's
 // gapi script and a hidden auth iframe before anything else. iOS tracking protection can
 // stall that iframe for many seconds. Only anonymous sign-in is used, so leave it out.

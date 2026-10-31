@@ -70,10 +70,10 @@ k dispozici“ platí do odvolání, třeba při nemoci nebo zranění. Kdo ho m
 nepočítá se do počtu v plánu ani u akcí (je jen uvedený jako „Dlouhodobě mimo“). Pro
 jednotlivé dny jde udělat výjimku.
 
-**Jednotka.** Název jednotky, odkaz pro členy, heslo, seznam členů (přidat,
-přejmenovat, změnit barvu, archivovat), přehled nadcházejících nepřítomností a akcí,
-proběhlé akce (kdo přišel, podle zapsaných nepřítomností; opravit se to dá
-klepnutím na člena u akce) a seznam míst, kde se akce konají.
+**Jednotka.** Název jednotky, odkaz pro členy, heslo, odhlášení ostatních zařízení,
+seznam členů (přidat, přejmenovat, změnit barvu, archivovat), přehled nadcházejících
+nepřítomností a akcí, proběhlé akce (kdo přišel, podle zapsaných nepřítomností;
+opravit se to dá klepnutím na člena u akce) a seznam míst, kde se akce konají.
 
 Dále:
 
@@ -317,10 +317,17 @@ aplikace a nastavte heslo znovu. Členové, nepřítomnosti a akce zůstanou.
 
 **Chceme odebrat přístup telefonu, který už nemá mít přístup (ztracený telefon,
 odchod z jednotky)**
-Nový odkaz ani nové heslo sama o sobě přihlášená zařízení neodpojí. Odpojte je takto:
-v konzoli Firebase v **Firestore Database** smažte celou kolekci `sessions`, potom
-v aplikaci vytvořte nový odkaz a změňte heslo. Nový odkaz a heslo pošlete jen
-současným členům.
+V záložce **Jednotka** klepněte na **Odhlásit…** u **Odhlásit ostatní zařízení**.
+Pokud heslo zná i ten, kdo už přístup mít nemá, vyplňte rovnou nové heslo. Pak
+klepněte na **Odhlásit ostatní**. Odhlásí se všechna zařízení kromě vašeho a vznikne
+nový odkaz. Pošlete ho (a případně nové heslo) jen současným členům.
+
+Samotný **Vytvořit nový odkaz** nebo nové heslo přihlášená zařízení neodpojí.
+
+**Při zadávání hesla to píše „Moc pokusů“**
+Po každém pokusu se musí chvíli počkat a čekání se s dalšími pokusy prodlužuje (až
+na 5 minut). Chrání to heslo před hádáním. Počkejte, kolik aplikace píše, nebo
+otevřete odkaz ze skupiny jednotky.
 
 ## Bezpečnost a soukromí
 
@@ -332,6 +339,24 @@ současným členům.
   Přístup ke konzoli Firebase má jen účet Google, kterým jste projekt založili (a ti,
   koho do projektu sami přidáte).
 - Vyhledávače aplikaci neindexují.
+- Heslo nejde rychle hádat: po každém pokusu musí zařízení čekat, a čím víc pokusů,
+  tím déle. I tak zvolte heslo aspoň o 8 znacích, ne název obce ani „hasici“.
+
+### Ochrana před hádáním hesla (nepovinné)
+
+Útočník může heslo zkoušet z mnoha zařízení najednou. **App Check** pustí do databáze
+jen vaši aplikaci otevřenou v opravdovém prohlížeči (neviditelně, nic se nepotvrzuje).
+Pro malou jednotku se vejdete do bezplatného limitu.
+
+1. V konzoli Firebase otevřete **App Check** → **Apps**, u své webové aplikace zvolte
+   **reCAPTCHA Enterprise** a podle odkazu tam vytvořte klíč typu **Website**. Do
+   domén zadejte `váš-projekt.web.app` a `váš-projekt.firebaseapp.com` (a `web.app`,
+   pokud používáte náhledy z GitHubu). Klíč vložte do App Check a uložte.
+2. Do souboru `.env` přidejte řádek `VITE_FIREBASE_APPCHECK_KEY=` s tímto klíčem
+   a spusťte `npm run deploy`. (Nasazujete z GitHubu? Spusťte znovu `make setup-ci`.)
+3. Po pár dnech v **App Check** → **APIs** u **Cloud Firestore** a **Authentication**
+   zkontrolujte, že skoro všechny požadavky jsou ověřené (**Verified**), a klikněte na
+   **Enforce**. Teprve tím se ochrana zapne.
 
 ## Pro vývojáře
 

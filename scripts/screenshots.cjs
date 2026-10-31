@@ -87,7 +87,7 @@ async function firstRunShots(browser) {
 	// More members, added straight to the emulator with a password session.
 	const { initializeApp } = lib('firebase/app');
 	const { getAuth, connectAuthEmulator, signInAnonymously } = lib('firebase/auth');
-	const { getFirestore, connectFirestoreEmulator, doc, setDoc, addDoc, collection, serverTimestamp } = lib('firebase/firestore');
+	const { getFirestore, connectFirestoreEmulator, doc, setDoc, addDoc, collection, serverTimestamp, increment } = lib('firebase/firestore');
 	const app = initializeApp({ apiKey: 'demo-key', appId: 'demo-app', projectId: 'demo-hasici' }, 'seed');
 	const auth = getAuth(app);
 	connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
@@ -95,6 +95,8 @@ async function firstRunShots(browser) {
 	connectFirestoreEmulator(db, '127.0.0.1', 8080);
 	const { user } = await signInAnonymously(auth);
 	const key = createHash('sha256').update('hasici:' + PASSWORD).digest('hex');
+	// As the app does: record the attempt first (guess limit in firestore.rules), then the session.
+	await setDoc(doc(db, 'attempts', user.uid), { key, at: serverTimestamp(), n: increment(1) }, { merge: true });
 	await setDoc(doc(db, 'sessions', user.uid), { key, createdAt: serverTimestamp() });
 	const members = [['Jan Černý', '#9C2A2A'], ['Petr Dvořák', '#1F6B45'], ['Karel Fiala', '#6B3FA0'], ['Jiří Horák', '#0F6E70'], ['Eva Jelínková', '#A12160']];
 	for (const [name, color] of members) {
