@@ -22,7 +22,13 @@
 		busy = true;
 		try {
 			if (mode === 'setup') await access.setup(password);
-			else if (!(await access.unlock(password))) error = 'Špatné heslo. Zkuste to znovu.';
+			else {
+				const result = await access.unlock(password);
+				if (!result.ok)
+					error = result.wait
+						? `Moc pokusů. Zkuste to znovu za ${result.wait} s.`
+						: 'Špatné heslo. Zkuste to znovu.';
+			}
 		} catch (err) {
 			console.error(err);
 			error = 'Nepodařilo se to uložit. Zkontrolujte připojení.';

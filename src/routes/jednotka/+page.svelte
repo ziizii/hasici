@@ -114,6 +114,29 @@
 		}
 	}
 
+	// --- log out other devices ---
+	let outOpen = $state(false);
+	let outPw = $state('');
+	let outBusy = $state(false);
+
+	async function logOutOthers(e: SubmitEvent) {
+		e.preventDefault();
+		const newPw = outPw.trim();
+		if (newPw && newPw.length < 4) return toasts.error('Heslo musí mít aspoň 4 znaky.');
+		outBusy = true;
+		try {
+			await access.logOutOthers(newPw || undefined);
+			outPw = '';
+			outOpen = false;
+			toasts.show('Ostatní jsou odhlášení. Pošlete členům nový odkaz.');
+		} catch (err) {
+			console.error(err);
+			toasts.error();
+		} finally {
+			outBusy = false;
+		}
+	}
+
 	// --- places ---
 	let newPlace = $state('');
 
@@ -402,7 +425,7 @@
 				{#if !pwOpen}
 					<button
 						type="button"
-						class="min-h-11 rounded-[10px] border border-field px-3 font-bold"
+						class="min-h-11 shrink-0 rounded-[10px] border border-field px-3 font-bold"
 						onclick={() => (pwOpen = true)}>Změnit</button
 					>
 				{/if}
@@ -431,6 +454,57 @@
 							disabled={pwBusy}
 							class="min-h-12 flex-[2] rounded-xl bg-ink font-bold text-white disabled:opacity-60"
 							>Uložit heslo</button
+						>
+					</div>
+				</form>
+			{/if}
+		</div>
+
+		<div class="flex flex-col gap-3 border-t border-line-soft pt-3">
+			<div class="flex items-center justify-between gap-3">
+				<div class="flex flex-col">
+					<span class="font-bold">Odhlásit ostatní zařízení</span>
+					<span class="text-[0.9375rem] leading-snug text-muted"
+						>Když někdo odešel nebo ztratil telefon.</span
+					>
+				</div>
+				{#if !outOpen}
+					<button
+						type="button"
+						class="min-h-11 shrink-0 rounded-[10px] border border-field px-3 font-bold"
+						onclick={() => (outOpen = true)}>Odhlásit…</button
+					>
+				{/if}
+			</div>
+			{#if outOpen}
+				<form class="flex flex-col gap-2" onsubmit={logOutOthers}>
+					<p class="text-[0.9375rem] leading-snug text-ink-2">
+						Všechna zařízení kromě tohoto se odhlásí a vznikne nový odkaz. Členům ho pak pošlete
+						znovu.
+					</p>
+					<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
+						Nové heslo (nepovinné)
+						<span class="font-normal text-muted"
+							>Vyplňte, pokud heslo zná i ten, kdo už přístup mít nemá.</span
+						>
+						<input
+							type="text"
+							bind:value={outPw}
+							autocomplete="off"
+							class="h-12 rounded-xl border border-field px-3 text-base text-ink"
+						/>
+					</label>
+					<div class="flex gap-2">
+						<button
+							type="button"
+							class="min-h-12 flex-1 rounded-xl border border-field font-bold"
+							onclick={() => ((outOpen = false), (outPw = ''))}>Zrušit</button
+						>
+						<button
+							type="submit"
+							disabled={outBusy}
+							class="min-h-12 flex-[2] rounded-xl bg-ink font-bold text-white disabled:opacity-60"
+							>Odhlásit ostatní</button
 						>
 					</div>
 				</form>

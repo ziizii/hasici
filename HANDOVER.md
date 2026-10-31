@@ -160,9 +160,10 @@ don't (`#lib/components/Icon.svelte`).
 | Path | Fields | Notes |
 | --- | --- | --- |
 | `config/public` | `initialized: true`, `name` | Readable by anyone; tells the app if first-run setup happened. `name` is the unit name shown in the brand (edited on `/jednotka`) |
-| `config/access` | `linkKey`, `passwordHash`, `updatedAt` | Readable only with a session |
+| `config/access` | `linkKey`, `passwordHash`, `updatedAt`, `revokedAt?` | Readable only with a valid session. `revokedAt` ends every session created before it |
 | `config/places` | `list` (string[], ≤ 50) | Default event places, edited on `/jednotka`; offered first in the event form |
-| `sessions/{uid}` | `key`, `createdAt` | Created when `key` equals `linkKey` or `passwordHash` |
+| `attempts/{uid}` | `key`, `at`, `n` | Guess limit: a device writes the key it is about to try here first, in its own request. Attempt `n+1` must come more than `min(2·n, 300)` s after the last one |
+| `sessions/{uid}` | `key`, `createdAt` | Created (or re-created) when `key` equals `linkKey` or `passwordHash` and the device's `attempts` doc holds that key. `createdAt` must be the server time; valid while `createdAt >= config/access.revokedAt` |
 | `members/{id}` | `name`, `color`, `archived`, `createdAt` | |
 | `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?` or `repeat?`, `except?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat every week within the range; any other rule is stored as `repeat` (same shape as on `series`); both are read as `Absence.repeat`. `to = 9999-12-31` = no end; `except` = skipped days |
 | `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `series?`, `createdAt` | One-off events. A repeat edited on its own is stored here with id `<seriesId>_<day>` and `series` set |
@@ -171,8 +172,22 @@ don't (`#lib/components/Icon.svelte`).
 - **Password hash:** `passwordHash` is SHA-256 of `"hasici:" + password`,
   computed in the browser. It is effectively a shared secret, like the link key.
 - **Session lifetime:** rotating the link or changing the password does not
-  revoke existing sessions. To kick devices out, delete docs in `sessions`
-  from the console.
+  revoke existing sessions. "Odhlásit ostatní zařízení" on `/jednotka`
+  (`access.logOutOthers`) does: one batch sets `revokedAt` to now, rotates the
+  link, optionally changes the password and re-creates the caller's own session.
+  Other devices' `config/access` listener gets permission-denied; the layout then
+  re-checks with the server (`#recheckSession`) and locks. The old link would let
+  them straight back in, hence the rotation.
+- **Guess limit:** a failed session write leaves nothing behind, so the attempt
+  is a separate write that always succeeds if the device waited long enough
+  (`firestore.rules`, `access.#createSession`). The password screen shows
+  "Moc pokusů. Zkuste to znovu za N s." It slows one device; App Check stops
+  scripts that spread guesses over many anonymous users.
+- **App Check** (optional): `VITE_FIREBASE_APPCHECK_KEY` (reCAPTCHA Enterprise
+  site key) turns it on in `lib/firebase.ts`. It does nothing until enforced in
+  the console (README, „Ochrana před hádáním hesla“). Off with the emulators.
+- **Security review:** `docs/security-audit.md` (if merged) lists the remaining
+  findings.
 - **Data loading:** the whole unit is small, so the app subscribes to whole
   collections. If it grows, add date-range queries for absences and events.
 - **Fast start:** Firebase Auth re-validates the user over the network on every

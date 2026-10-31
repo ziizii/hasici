@@ -94,6 +94,11 @@ if (!deployOnly) {
 	const sdk = firebaseJson(['apps:sdkconfig', 'WEB', appId, '--project', project]);
 	const config = sdk.sdkConfig ?? sdk;
 	if (!config.apiKey) fail('Nepodařilo se načíst nastavení aplikace: ' + sdk.error);
+	// Keep the optional App Check key from an earlier .env of the same project.
+	const old = existsSync('.env') ? readFileSync('.env', 'utf8') : '';
+	const appCheckKey = old.includes(`VITE_FIREBASE_PROJECT_ID=${config.projectId}\n`)
+		? (old.match(/^VITE_FIREBASE_APPCHECK_KEY=(.*)$/m)?.[1] ?? '')
+		: '';
 	writeFileSync(
 		'.env',
 		[
@@ -104,6 +109,8 @@ if (!deployOnly) {
 			`VITE_FIREBASE_APP_ID=${config.appId}`,
 			`VITE_FIREBASE_MESSAGING_SENDER_ID=${config.messagingSenderId}`,
 			`VITE_FIREBASE_STORAGE_BUCKET=${config.storageBucket ?? ''}`,
+			'# Nepovinné: klíč reCAPTCHA Enterprise pro App Check (README, „Ochrana před hádáním hesla“).',
+			`VITE_FIREBASE_APPCHECK_KEY=${appCheckKey}`,
 			''
 		].join('\n')
 	);

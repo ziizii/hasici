@@ -1,9 +1,26 @@
-import { doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import {
+	doc,
+	type FirestoreError,
+	getDoc,
+	getDocFromServer,
+	increment,
+	onSnapshot,
+	serverTimestamp,
+	setDoc,
+	updateDoc,
+	writeBatch
+} from 'firebase/firestore';
 import { clearCachedData } from './data.svelte';
 import { db, ensureUser } from './firebase';
 import { mark } from './perf';
 
 export type GateState = 'loading' | 'setup' | 'locked' | 'ready' | 'error';
+
+/** Result of trying a link key or password: `wait` = too many tries, `seconds` until the next one. */
+export type UnlockResult = { ok: true } | { ok: false; wait?: number };
+
+/** By code, not instanceof: bundling can load two copies of the Firestore error class. */
+const denied = (e: unknown) => (e as FirestoreError | undefined)?.code === 'permission-denied';
 
 const MEMBER_KEY = 'hasici.memberId';
 /** uid whose session was confirmed on this device, so later visits can skip the wait. */
@@ -79,7 +96,7 @@ class Access {
 			this.#ready(url);
 			ensureUser()
 				.then(({ user }) => (mark('Firebase přihlášen'), user))
-				.then((user) => (user.uid === known ? this.#recheckSession(known) : this.#lockAgain()))
+				.then((user) => (user.uid === known ? this.#recheckSession() : this.#lockAgain()))
 				.catch((e) => console.error(e));
 			return;
 		}
@@ -95,14 +112,13 @@ class Access {
 			// A brand-new device can't have a session yet: skip that round trip.
 			if (!created) {
 				this.step = 'Ověřuji přístup…';
-				const session = await getDoc(doc(db, 'sessions', user.uid));
-				if (session.exists()) return this.#ready(url);
+				if (await this.#hasValidSession()) return this.#ready(url);
 			}
 
 			const fromLink = url.searchParams.get(LINK_PARAM);
 			if (fromLink) {
 				this.step = 'Otevírám odkaz jednotky…';
-				if (await this.#createSession(fromLink)) return this.#ready(url);
+				if ((await this.#createSession(fromLink)).ok) return this.#ready(url);
 			}
 
 			this.step = 'Zjišťuji stav jednotky…';
@@ -128,20 +144,57 @@ class Access {
 		this.state = 'ready';
 	}
 
-	async #createSession(key: string): Promise<boolean> {
+	/**
+	 * The rules only let a device try a key after it wrote it to attempts/{uid}, and each
+	 * attempt has to wait longer than the one before (firestore.rules). So: attempt, then session.
+	 */
+	async #createSession(key: string): Promise<UnlockResult> {
+		const attempt = doc(db, 'attempts', this.uid!);
+		try {
+			await setDoc(attempt, { key, at: serverTimestamp(), n: increment(1) }, { merge: true });
+		} catch (e) {
+			if (!denied(e)) throw e;
+			return { ok: false, wait: await this.#waitSeconds() };
+		}
 		try {
 			await setDoc(doc(db, 'sessions', this.uid!), { key, createdAt: serverTimestamp() });
-			return true;
-		} catch {
-			return false;
+			return { ok: true };
+		} catch (e) {
+			if (!denied(e)) throw e;
+			return { ok: false };
 		}
 	}
 
-	async #recheckSession(uid: string) {
+	/** Seconds until this device may try again (same formula as firestore.rules). */
+	async #waitSeconds(): Promise<number> {
 		try {
-			const session = await getDocFromServer(doc(db, 'sessions', uid));
-			// Session was removed (e.g. from the console): lock this device again.
-			if (!session.exists()) this.#lockAgain();
+			const d = (await getDocFromServer(doc(db, 'attempts', this.uid!))).data();
+			if (!d) return 5;
+			const until = d.at.toMillis() + Math.min(d.n * 2, 300) * 1000;
+			return Math.max(1, Math.ceil((until - Date.now()) / 1000));
+		} catch {
+			return 5;
+		}
+	}
+
+	/**
+	 * config/access is readable only with a valid session: one that exists and wasn't
+	 * ended by "Odhlásit ostatní zařízení" (config/access.revokedAt).
+	 */
+	async #hasValidSession(): Promise<boolean> {
+		try {
+			await getDocFromServer(doc(db, 'config', 'access'));
+			return true;
+		} catch (e) {
+			if (denied(e)) return false;
+			throw e;
+		}
+	}
+
+	async #recheckSession() {
+		try {
+			// Session was removed or logged out from another device: lock this one again.
+			if (!(await this.#hasValidSession())) this.#lockAgain();
 		} catch {
 			// Offline or slow network: keep going with the cached data.
 		}
@@ -160,9 +213,18 @@ class Access {
 			history.replaceState(history.state, '', url.pathname + url.search + url.hash);
 		}
 		this.#stopAccessDoc?.();
-		this.#stopAccessDoc = onSnapshot(doc(db, 'config', 'access'), (snap) => {
-			this.linkKey = (snap.data()?.linkKey as string) ?? null;
-		});
+		this.#stopAccessDoc = onSnapshot(
+			doc(db, 'config', 'access'),
+			(snap) => {
+				this.linkKey = (snap.data()?.linkKey as string) ?? null;
+			},
+			// Maybe someone pressed "Odhlásit ostatní zařízení" (or deleted the session).
+			// Ask the server once signed in, rather than lock on an early denial.
+			(e) => {
+				console.error(e);
+				if (denied(e)) ensureUser().then(() => this.#recheckSession(), console.error);
+			}
+		);
 		this.state = 'ready';
 	}
 
@@ -181,11 +243,11 @@ class Access {
 		this.#ready();
 	}
 
-	/** Returns false when the password is wrong. */
-	async unlock(password: string): Promise<boolean> {
-		const ok = await this.#createSession(await hashPassword(password));
-		if (ok) this.#ready();
-		return ok;
+	/** `ok: false` = wrong password, or (with `wait`) too many tries in a row. */
+	async unlock(password: string): Promise<UnlockResult> {
+		const result = await this.#createSession(await hashPassword(password));
+		if (result.ok) this.#ready();
+		return result;
 	}
 
 	async setUnitName(name: string) {
@@ -204,6 +266,25 @@ class Access {
 			linkKey: randomKey(),
 			updatedAt: serverTimestamp()
 		});
+	}
+
+	/**
+	 * Ends every other device's session and makes a new share link (the old one would
+	 * let them straight back in). Optionally changes the password too, for when someone
+	 * who knows it should no longer have access.
+	 */
+	async logOutOthers(password?: string) {
+		const linkKey = randomKey();
+		const batch = writeBatch(db);
+		batch.update(doc(db, 'config', 'access'), {
+			linkKey,
+			...(password ? { passwordHash: await hashPassword(password) } : {}),
+			revokedAt: serverTimestamp(),
+			updatedAt: serverTimestamp()
+		});
+		// Same time as revokedAt, so this device stays in.
+		batch.set(doc(db, 'sessions', this.uid!), { key: linkKey, createdAt: serverTimestamp() });
+		await batch.commit();
 	}
 
 	shareUrl(): string | null {
