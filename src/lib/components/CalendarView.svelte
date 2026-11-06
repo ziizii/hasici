@@ -82,7 +82,9 @@
 		class="flex min-h-[3.25rem] min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-1.5 lg:min-h-[6.5rem] {key ===
 		selected
 			? 'bg-ink/10'
-			: 'hover:bg-ink/5'} {key === today ? 'ring-2 ring-ink ring-inset' : ''} {key < today
+			: wd >= 5 || hol
+				? 'bg-weekend hover:bg-ink/10'
+				: 'hover:bg-ink/5'} {key === today ? 'ring-2 ring-ink ring-inset' : ''} {key < today
 			? 'opacity-60'
 			: ''}"
 		onclick={() => onselect(key)}
@@ -111,7 +113,10 @@
 						: ''}">{parseKey(key).getDate()}</span
 			>
 		</span>
-		<!-- Wide screens have room for the count and the events' names. -->
+		<!-- Wide screens have room for the holiday, the count and the events' names. -->
+		{#if hol}
+			<span class="hidden w-full truncate text-xs font-semibold text-accent-dark lg:block">{hol}</span>
+		{/if}
 		<span class="hidden text-xs font-semibold text-muted lg:block"
 			>{av.available.length}/{av.total}</span
 		>

@@ -582,6 +582,9 @@
 					>kruh = kolik lidí může</span
 				>
 				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded-full bg-accent"></span>akce</span>
+				<span class="flex items-center gap-1.5"
+					><span class="size-3.5 rounded border border-line bg-weekend"></span>víkend a svátek</span
+				>
 			{:else}
 				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-[#1F4E8C]"></span>může</span>
 				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-off"></span>nepřítomen</span>
