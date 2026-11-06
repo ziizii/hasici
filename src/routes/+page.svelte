@@ -200,6 +200,8 @@
 	// The day at the top of the timeline (just under the sticky headings). Rows are in date
 	// order, so a binary search finds the first one still showing below the headings.
 	let topDay = $state<DateKey>(today);
+	/** Last day of the top row: the same day in the list, the week row's last day in the calendar. */
+	let topEnd = $state<DateKey>(today);
 	function findTopDay() {
 		// List: one per day. Calendar: one per week row, keyed by its first day in that month.
 		const rows = document.querySelectorAll<HTMLElement>('[data-top]');
@@ -213,6 +215,7 @@
 			else lo = mid + 1;
 		}
 		topDay = rows[lo].dataset.top!;
+		topEnd = rows[lo].dataset.end ?? topDay;
 	}
 
 	// While a jump scrolls smoothly, its button stays lit instead of flicking through the
@@ -225,12 +228,16 @@
 		findTopDay();
 	}
 
-	// Of the jumps whose range holds the top day, the one starting latest (a click on
+	// Of the jumps whose range overlaps the top row, the one starting latest (a click on
 	// "Listopad" lights "Listopad", not "Dnes", even when the 1st is in this week).
 	const activeJump = $derived.by(() => {
 		if (jumping) return jumping;
 		let best: DateKey | null = null;
-		for (const j of jumps) if (j.key <= topDay && topDay < j.until && (!best || j.key > best)) best = j.key;
+		for (const j of jumps) {
+			// In the calendar "Dnes" also covers this month's earlier weeks: they sit above today's row.
+			const from = view === 'calendar' && j.key === today ? today.slice(0, 8) + '01' : j.key;
+			if (from <= topEnd && topDay < j.until && (!best || j.key > best)) best = j.key;
+		}
 		return best;
 	});
 

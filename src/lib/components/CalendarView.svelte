@@ -145,6 +145,7 @@
 			{#each m.weeks as week (week.find(Boolean))}
 				<div
 					data-top={week.find(Boolean)}
+					data-end={week.findLast(Boolean)}
 					style="scroll-margin-top: var(--stick-calrow)"
 					class="grid grid-cols-7 gap-0.5 px-2 pt-1 lg:px-3"
 				>
