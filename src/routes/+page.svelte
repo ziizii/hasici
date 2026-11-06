@@ -583,6 +583,12 @@
 				>
 				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded-full bg-accent"></span>akce</span>
 				<span class="flex items-center gap-1.5"
+					><span
+						class="size-3.5 rounded-full"
+						style="background: conic-gradient(var(--color-accent) 0 50%, #2C3E9E 50% 100%)"
+					></span>2 akce</span
+				>
+				<span class="flex items-center gap-1.5"
 					><span class="size-3.5 rounded-full border border-line bg-weekend"></span>víkend a svátek</span
 				>
 			{:else}

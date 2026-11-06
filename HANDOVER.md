@@ -103,7 +103,9 @@ direction; older rows are superseded.
     (Mon–Sun columns, one block per month, sticky month + weekday heading) over
     the same `start`/`end` range, infinite scroll and jump buttons as the list.
     Each day is a circle whose SVG ring fills with available/total (full ring =
-    everyone; colour like the count); event days have a filled red circle,
+    everyone; colour like the count); event days have a filled circle: red
+    for one event, equal conic slices for more (by time; `colors.EVENT_COLORS`; the
+    event names in desktop cells and in the day panel get a dot in their colour),
     today is outlined, past days dimmed; weekends and public holidays have a
     tinted inner circle and red number (the holiday's name on desktop). Desktop cells also show the count and
     up to two event names. The Vše/Víkendy/Akce filter applies to the list only.

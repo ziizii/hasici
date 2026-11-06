@@ -64,6 +64,7 @@ export function demoData(count = 10): {
 			note: ''
 		},
 		{ id: 'e2', title: 'Kondiční jízdy', date: d(14), time: '18:00', place: 'Hasičská zbrojnice', note: '' },
+		{ id: 'e6', title: 'Kontrola hydrantů', date: d(10), time: '14:00', place: '', note: '' },
 		{ id: 'e4', title: 'Kondiční jízdy', date: d(-7), time: '18:00', place: 'Hasičská zbrojnice', note: '' },
 		{ id: 'e5', title: 'Školení první pomoci', date: d(-20), time: '18:30', place: 'Klubovna', note: '' },
 		{ id: 'e3', title: 'Školení dýchací techniky', date: d(22), time: '18:30', place: 'Klubovna', note: '' }

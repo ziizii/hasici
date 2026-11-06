@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { eventColor } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
 	import {
 		addDays,
@@ -58,6 +59,13 @@
 	let headBox = $state<ResizeObserverSize[]>();
 	const headH = $derived(headBox?.[0]?.blockSize ?? 0);
 
+	/** Filled circle: one colour, or equal slices clockwise from the top. */
+	function eventFill(n: number) {
+		if (n <= 1) return `background: ${eventColor(0)}`;
+		const stops = Array.from({ length: n }, (_, i) => `${eventColor(i)} ${(i * 100) / n}% ${((i + 1) * 100) / n}%`);
+		return `background: conic-gradient(${stops.join(', ')})`;
+	}
+
 	function ringColor(n: number, total: number) {
 		const r = n / total;
 		return r >= 0.8 ? 'var(--color-good)' : r >= 0.6 ? 'var(--color-ink-2)' : 'var(--color-warn)';
@@ -105,10 +113,11 @@
 			</svg>
 			<span
 				class="absolute inset-[14%] flex items-center justify-center rounded-full text-[0.9375rem] font-bold {evs.length
-					? 'bg-accent text-white'
+					? 'text-white'
 					: wd >= 5 || hol
 						? 'bg-weekend text-accent-dark'
-						: ''}">{parseKey(key).getDate()}</span
+						: ''}"
+				style={evs.length ? eventFill(evs.length) : undefined}>{parseKey(key).getDate()}</span
 			>
 		</span>
 		<!-- Wide screens have room for the holiday, the count and the events' names. -->
@@ -118,10 +127,13 @@
 		<span class="hidden text-xs font-semibold text-muted lg:block"
 			>{av.available.length}/{av.total}</span
 		>
-		{#each evs.slice(0, 2) as ev (ev.id)}
+		{#each evs.slice(0, 2) as ev, i (ev.id)}
 			<span
-				class="hidden w-full truncate rounded-md bg-event px-1 text-left text-xs font-semibold text-event-ink lg:block"
-				>{ev.time ? `${ev.time} ` : ''}{ev.title}</span
+				class="hidden w-full items-center gap-1 rounded-md bg-event px-1 text-left text-xs font-semibold text-event-ink lg:flex"
+				>{#if evs.length > 1}<span
+						class="size-2 shrink-0 rounded-full"
+						style="background: {eventColor(i)}"
+					></span>{/if}<span class="truncate">{ev.time ? `${ev.time} ` : ''}{ev.title}</span></span
 			>
 		{/each}
 		{#if evs.length > 2}

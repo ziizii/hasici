@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
+	import { eventColor } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
 	import { formatLong, holiday, type DateKey } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
@@ -96,11 +97,17 @@
 
 	{#if events.length}
 		<section class="flex flex-col gap-2">
-			{#each events as ev (ev.id)}
+			{#each events as ev, i (ev.id)}
 				<a
 					href="/akce/{ev.id}"
 					class="flex min-h-12 items-center gap-2.5 rounded-xl bg-event px-3 py-2.5 text-event-ink"
 				>
+					<!-- Matches this activity's slice of the day's circle in the calendar. -->
+					{#if events.length > 1}<span
+							class="size-3 shrink-0 rounded-full"
+							style="background: {eventColor(i)}"
+							aria-hidden="true"
+						></span>{/if}
 					{#if ev.time}<span class="text-sm font-bold">{ev.time}</span>{/if}
 					<span class="min-w-0 flex-1 text-[0.9375rem] leading-snug font-semibold">{ev.title}</span>
 					<Icon name="chevronRight" size={18} />

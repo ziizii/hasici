@@ -23,6 +23,17 @@ export const PALETTE = [
 ];
 
 /**
+ * One colour per activity of a day (by time) in the calendar, so two activities show as
+ * two halves of the day's circle. The first is the usual red; all carry white text and
+ * differ from the availability ring colours.
+ */
+export const EVENT_COLORS = ['#B3261A', '#2C3E9E', '#7D2E8E', '#0F6E73'];
+
+export function eventColor(i: number): string {
+	return EVENT_COLORS[i % EVENT_COLORS.length];
+}
+
+/**
  * Colour for a new member: the first palette colour no active member uses.
  * Archived members don't count, so their colours get recycled. With more
  * members than colours, the least-used colour is shared.
