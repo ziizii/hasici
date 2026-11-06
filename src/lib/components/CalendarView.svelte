@@ -82,9 +82,7 @@
 		class="flex min-h-[3.25rem] min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-1.5 lg:min-h-[6.5rem] {key ===
 		selected
 			? 'bg-ink/10'
-			: wd >= 5 || hol
-				? 'bg-weekend hover:bg-ink/10'
-				: 'hover:bg-ink/5'} {key === today ? 'ring-2 ring-ink ring-inset' : ''} {key < today
+			: 'hover:bg-ink/5'} {key === today ? 'ring-2 ring-ink ring-inset' : ''} {key < today
 			? 'opacity-60'
 			: ''}"
 		onclick={() => onselect(key)}
@@ -109,7 +107,7 @@
 				class="absolute inset-[14%] flex items-center justify-center rounded-full text-[0.9375rem] font-bold {evs.length
 					? 'bg-accent text-white'
 					: wd >= 5 || hol
-						? 'text-accent-dark'
+						? 'bg-weekend text-accent-dark'
 						: ''}">{parseKey(key).getDate()}</span
 			>
 		</span>

@@ -105,7 +105,7 @@ direction; older rows are superseded.
     Each day is a circle whose SVG ring fills with available/total (full ring =
     everyone; colour like the count); event days have a filled red circle,
     today is outlined, past days dimmed; weekends and public holidays have a
-    tinted cell and red number (the holiday's name on desktop). Desktop cells also show the count and
+    tinted inner circle and red number (the holiday's name on desktop). Desktop cells also show the count and
     up to two event names. The Vše/Víkendy/Akce filter applies to the list only.
     Jumps and the lit jump button use `[data-top]` (a day row in the list, a
     week row in the calendar). Switching keeps the position.

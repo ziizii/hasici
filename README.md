@@ -56,8 +56,8 @@ posouvání plánu.
 **Kalendář.** Přepínačem **Seznam / Kalendář** nahoře se plán ukáže jako běžný měsíční
 kalendář (dny v týdnu ve sloupcích, týdny v řádcích, měsíce pod sebou). Kruh kolem
 každého dne ukazuje, kolik lidí může: celý kruh = všichni, půlka = polovina. Dny s akcí
-mají červené kolečko, dnešek je v rámečku. Víkendy a státní svátky mají podbarvené
-políčko a červené číslo, na počítači je u svátku i jeho název. Klepnutím na den se otevře jeho přehled.
+mají červené kolečko, dnešek je v rámečku. Víkendy a státní svátky mají podbarvený
+vnitřek kroužku a červené číslo, na počítači je u svátku i jeho název. Klepnutím na den se otevře jeho přehled.
 Telefon si zvolené zobrazení zapamatuje.
 
 **Den.** Klepnutím na den se otevře přehled: kdo může, kdo ne a proč (např.
