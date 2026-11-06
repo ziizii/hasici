@@ -154,6 +154,11 @@
 		}
 	}
 
+	async function setDefaultPlace(p: string) {
+		const def = data.defaultPlace === p ? '' : p;
+		await data.setDefaultPlaces(data.defaultPlaces, def).catch(() => toasts.error());
+	}
+
 	async function removePlace(p: string) {
 		await data
 			.setDefaultPlaces(data.defaultPlaces.filter((x) => x !== p))
@@ -164,6 +169,7 @@
 	let newName = $state('');
 	let editing = $state<string | null>(null);
 	let editName = $state('');
+	let editNick = $state('');
 
 	async function addMember(e: SubmitEvent) {
 		e.preventDefault();
@@ -180,6 +186,12 @@
 	function startEdit(m: Member) {
 		editing = m.id;
 		editName = m.name;
+		editNick = m.nickname ?? '';
+	}
+
+	async function saveNick(m: Member) {
+		const nickname = editNick.trim();
+		if (nickname !== (m.nickname ?? '')) await data.updateMember(m.id, { nickname }).catch(() => toasts.error());
 	}
 
 	async function saveName(m: Member) {
@@ -530,6 +542,18 @@
 									class="h-12 rounded-xl border border-field px-3 text-base text-ink"
 								/>
 							</label>
+							<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
+								Přezdívka (nepovinné)
+								<span class="font-normal text-muted">V plánu se ukáže místo křestního jména.</span>
+								<input
+									bind:value={editNick}
+									maxlength="30"
+									placeholder="např. Pepa"
+									onblur={() => saveNick(m)}
+									onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+									class="h-12 rounded-xl border border-field px-3 text-base font-normal text-ink"
+								/>
+							</label>
 							<div class="flex flex-col gap-1.5">
 								<span class="text-[0.9375rem] font-semibold text-ink-2">Barva</span>
 								<div class="flex flex-wrap gap-1.5">
@@ -590,7 +614,10 @@
 								class="flex size-8 items-center justify-center rounded-lg text-xs font-bold text-white"
 								style="background: {m.color}">{initials(m.name)}</span
 							>
-							<span class="flex-1 font-medium">{m.name}</span>
+							<span class="flex min-w-0 flex-1 flex-col">
+								<span class="font-medium">{m.name}</span>
+								{#if m.nickname}<span class="text-[0.9375rem] text-muted">„{m.nickname}“</span>{/if}
+							</span>
 							{#if data.openAbsence(m.id)}
 								<span class="rounded-full bg-warn-bg px-2 py-0.5 text-sm font-semibold text-warn-ink"
 									>nedostupný</span
@@ -656,18 +683,35 @@
 	<!-- Places -->
 	<section class="flex flex-col rounded-2xl border border-line bg-surface p-4">
 		<h2 class="text-[1.0625rem] font-bold">Místa akcí</h2>
-		<p class="mb-2 text-[0.9375rem] leading-snug text-muted">Nabídnou se při zakládání akce, první je předvyplněné.</p>
+		<p class="mb-2 text-[0.9375rem] leading-snug text-muted">
+			Nabídnou se při zakládání akce. Výchozí místo se rovnou vyplní.
+		</p>
 		<ul class="flex flex-col">
 			{#each data.defaultPlaces as p (p)}
-				<li class="flex min-h-[3.25rem] items-center gap-3 border-t border-line-soft">
-					<Icon name="pin" size={18} class="text-faint" />
-					<span class="min-w-0 flex-1 font-medium">{p}</span>
-					<button
-						type="button"
-						aria-label="Odebrat {p}"
-						class="flex size-11 items-center justify-center text-muted"
-						onclick={() => removePlace(p)}><Icon name="x" size={20} /></button
-					>
+				{@const isDefault = data.defaultPlace === p}
+				<!-- The name takes its own line when the buttons don't fit beside it (big text). -->
+				<li class="flex min-h-[3.25rem] flex-wrap items-center gap-x-3 border-t border-line-soft py-1">
+					<span class="flex min-w-0 flex-[1_1_6rem] items-center gap-3">
+						<Icon name="pin" size={18} class="shrink-0 text-faint" />
+						<span class="min-w-0 font-medium break-words">{p}</span>
+					</span>
+					<span class="ml-auto flex shrink-0 items-center gap-1">
+						<button
+							type="button"
+							aria-pressed={isDefault}
+							class="flex min-h-11 items-center gap-1.5 rounded-[10px] px-3 text-[0.9375rem] font-bold {isDefault
+								? 'bg-ink text-white'
+								: 'border border-field text-ink-2'}"
+							onclick={() => setDefaultPlace(p)}
+							>{#if isDefault}<Icon name="check" size={16} stroke={3} /> Výchozí{:else}Nastavit výchozí{/if}</button
+						>
+						<button
+							type="button"
+							aria-label="Odebrat {p}"
+							class="flex size-11 items-center justify-center text-muted"
+							onclick={() => removePlace(p)}><Icon name="x" size={20} /></button
+						>
+					</span>
 				</li>
 			{/each}
 		</ul>

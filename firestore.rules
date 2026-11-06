@@ -105,13 +105,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Default event places, edited on the Jednotka page.
+    // Default event places, edited on the Jednotka page. `default` is pre-filled in new events.
     match /config/places {
       allow read: if hasSession();
       allow create, update: if hasSession()
-        && request.resource.data.keys().hasOnly(['list'])
+        && request.resource.data.keys().hasOnly(['list', 'default'])
         && request.resource.data.list is list
-        && request.resource.data.list.size() <= 50;
+        && request.resource.data.list.size() <= 50
+        && (!('default' in request.resource.data) || isText(request.resource.data['default'], 0, 120));
       allow delete: if false;
     }
 
@@ -163,8 +164,9 @@ service cloud.firestore {
     match /members/{id} {
       allow read, delete: if hasSession();
       allow create, update: if hasSession()
-        && request.resource.data.keys().hasOnly(['name', 'color', 'archived', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'nickname', 'color', 'archived', 'createdAt'])
         && isText(request.resource.data.name, 1, 60)
+        && (!('nickname' in request.resource.data) || isText(request.resource.data.nickname, 0, 30))
         && isText(request.resource.data.color, 4, 9)
         && request.resource.data.get('archived', false) is bool;
     }

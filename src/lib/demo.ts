@@ -14,6 +14,8 @@ export function demoData(count = 10): {
 	absences: Absence[];
 	events: Event[];
 	series: Series[];
+	places: string[];
+	defaultPlace: string;
 } {
 	const names = [
 		'Josef Beneš',
@@ -23,14 +25,20 @@ export function demoData(count = 10): {
 		'Jiří Horák',
 		'Eva Jelínková',
 		'Lenka Králová',
-		'Tomáš Novák',
+		'Jan Novák',
 		'Martin Svoboda',
 		'Michal Veselý'
 	];
 	for (let i = names.length; i < count; i++) names.push(`Člen ${i + 1} Test`);
 	const members = names
 		.slice(0, Math.max(count, 1))
-		.map((name, i) => ({ id: 'm' + i, name, color: PALETTE[i % PALETTE.length], archived: false }));
+		.map((name, i) => ({
+			id: 'm' + i,
+			name,
+			...(name === 'Jiří Horák' ? { nickname: 'Jirka' } : {}),
+			color: PALETTE[i % PALETTE.length],
+			archived: false
+		}));
 	const t = todayKey();
 	const d = (n: number) => addDays(t, n);
 	const absences: Absence[] = [
@@ -56,6 +64,7 @@ export function demoData(count = 10): {
 			note: ''
 		},
 		{ id: 'e2', title: 'Kondiční jízdy', date: d(14), time: '18:00', place: 'Hasičská zbrojnice', note: '' },
+		{ id: 'e6', title: 'Kontrola hydrantů', date: d(10), time: '14:00', place: '', note: '' },
 		{ id: 'e4', title: 'Kondiční jízdy', date: d(-7), time: '18:00', place: 'Hasičská zbrojnice', note: '' },
 		{ id: 'e5', title: 'Školení první pomoci', date: d(-20), time: '18:30', place: 'Klubovna', note: '' },
 		{ id: 'e3', title: 'Školení dýchací techniky', date: d(22), time: '18:30', place: 'Klubovna', note: '' }
@@ -83,5 +92,6 @@ export function demoData(count = 10): {
 			repeat: { freq: 'month', every: 1, nth: 1, kind: 4 }
 		}
 	];
-	return { members, absences, events, series };
+	const places = ['Hasičská zbrojnice', 'Klubovna', 'Hřiště u školy'];
+	return { members, absences, events, series, places, defaultPlace: places[0] };
 }

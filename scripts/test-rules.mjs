@@ -139,6 +139,9 @@ await expect('add a member', true, async () => {
 	memberId = (await addDoc(collection(db, 'members'), { name: 'Jan Novák', color: '#C62828', archived: false, createdAt: serverTimestamp() })).id;
 });
 await expect('rename a member', true, () => updateDoc(doc(db, 'members', memberId), { name: 'Jan Nový' }));
+await expect('set a nickname', true, () => updateDoc(doc(db, 'members', memberId), { nickname: 'Honza' }));
+await expect('clear a nickname', true, () => updateDoc(doc(db, 'members', memberId), { nickname: '' }));
+await expect('nickname too long', false, () => updateDoc(doc(db, 'members', memberId), { nickname: 'x'.repeat(31) }));
 await expect('archive a member', true, () => updateDoc(doc(db, 'members', memberId), { archived: true }));
 await expect('member with an empty name', false, () =>
 	addDoc(collection(db, 'members'), { name: '', color: '#C62828', archived: false, createdAt: serverTimestamp() })
@@ -196,6 +199,12 @@ await expect('a batch of 40 writes (rules look up the session and access docs on
 // Unit settings.
 await expect('rename the unit', true, () => updateDoc(doc(db, 'config', 'public'), { name: 'SDH Lhota' }));
 await expect('save default places', true, () => setDoc(doc(db, 'config', 'places'), { list: ['Zbrojnice', 'Hřiště'] }));
+await expect('pick a default place', true, () =>
+	setDoc(doc(db, 'config', 'places'), { list: ['Zbrojnice', 'Hřiště'], default: 'Hřiště' })
+);
+await expect('default place not text', false, () =>
+	setDoc(doc(db, 'config', 'places'), { list: ['Zbrojnice'], default: 1 })
+);
 await expect('rotate the link', true, () => updateDoc(doc(db, 'config', 'access'), { linkKey: 'n'.repeat(24), updatedAt: serverTimestamp() }));
 await expect('old link no longer opens', false, async () => session(await device(), LINK));
 await expect('change the password', true, () => updateDoc(doc(db, 'config', 'access'), { passwordHash: hash('nove-heslo'), updatedAt: serverTimestamp() }));

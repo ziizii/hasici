@@ -18,7 +18,9 @@
 		type DateKey
 	} from '#lib/dates.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
+	import CalendarView from '#lib/components/CalendarView.svelte';
 	import DayPanel from '#lib/components/DayPanel.svelte';
+	import NewEventPanel from '#lib/components/NewEventPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import { mark } from '#lib/perf.js';
 	import { onMount } from 'svelte';
@@ -30,6 +32,8 @@
 	let start = $state(today);
 	let end = $state(addDays(today, 62));
 	let selected = $state<DateKey | null>(null);
+	/** "Naplánovat akci" open: the new-event form with a date picker, in place of a day. */
+	let planning = $state(false);
 	let desktop = $state(false);
 	let sentinel = $state<HTMLElement>();
 	// Heights of the sticky bars (they grow with the phone's text size). Border-box sizes,
@@ -60,6 +64,31 @@
 	];
 	let filter = $state<Filter>('all');
 
+	// List (days under each other) or calendar (month grid). Remembered on this device.
+	type View = 'list' | 'calendar';
+	const VIEW_KEY = 'hasici.view';
+	let view = $state<View>(readView());
+	function readView(): View {
+		try {
+			return localStorage.getItem(VIEW_KEY) === 'calendar' ? 'calendar' : 'list';
+		} catch {
+			return 'list';
+		}
+	}
+	function setView(v: View) {
+		view = v;
+		try {
+			localStorage.setItem(VIEW_KEY, v);
+		} catch {
+			// not remembered: fine
+		}
+		tick().then(() => jump(view === 'calendar' ? topDay.slice(0, 8) + '01' : topDay, false));
+	}
+	const views: { value: View; label: string; icon: 'list' | 'calendar' }[] = [
+		{ value: 'list', label: 'Seznam', icon: 'list' },
+		{ value: 'calendar', label: 'Kalendář', icon: 'calendar' }
+	];
+
 	function shown(key: DateKey) {
 		if (filter === 'weekends') return isWeekend(key) || !!holiday(key);
 		if (filter === 'events') return data.eventsOn(key).length > 0;
@@ -69,7 +98,7 @@
 	// Events can be sparse, so with that filter on, scrolling alone loads only a year ahead;
 	// past that a button asks for more instead of loading empty months forever.
 	let limit = $state(addDays(today, 365));
-	const autoload = $derived(filter !== 'events' || end < limit);
+	const autoload = $derived(view === 'calendar' || filter !== 'events' || end < limit);
 
 	// Infinite scroll forward. Re-observing after each load fires again if the sentinel is
 	// still in view (a filter can leave a loaded month with nothing to show).
@@ -171,8 +200,11 @@
 	// The day at the top of the timeline (just under the sticky headings). Rows are in date
 	// order, so a binary search finds the first one still showing below the headings.
 	let topDay = $state<DateKey>(today);
+	/** Last day of the top row: the same day in the list, the week row's last day in the calendar. */
+	let topEnd = $state<DateKey>(today);
 	function findTopDay() {
-		const rows = document.querySelectorAll<HTMLElement>('[id^="d-"]');
+		// List: one per day. Calendar: one per week row, keyed by its first day in that month.
+		const rows = document.querySelectorAll<HTMLElement>('[data-top]');
 		if (!rows.length) return;
 		const line = parseFloat(getComputedStyle(rows[0]).scrollMarginTop) || 0;
 		let lo = 0;
@@ -182,7 +214,8 @@
 			if (rows[mid].getBoundingClientRect().bottom > line + 1) hi = mid;
 			else lo = mid + 1;
 		}
-		topDay = rows[lo].id.slice(2);
+		topDay = rows[lo].dataset.top!;
+		topEnd = rows[lo].dataset.end ?? topDay;
 	}
 
 	// While a jump scrolls smoothly, its button stays lit instead of flicking through the
@@ -195,12 +228,16 @@
 		findTopDay();
 	}
 
-	// Of the jumps whose range holds the top day, the one starting latest (a click on
+	// Of the jumps whose range overlaps the top row, the one starting latest (a click on
 	// "Listopad" lights "Listopad", not "Dnes", even when the 1st is in this week).
 	const activeJump = $derived.by(() => {
 		if (jumping) return jumping;
 		let best: DateKey | null = null;
-		for (const j of jumps) if (j.key <= topDay && topDay < j.until && (!best || j.key > best)) best = j.key;
+		for (const j of jumps) {
+			// In the calendar "Dnes" also covers this month's earlier weeks: they sit above today's row.
+			const from = view === 'calendar' && j.key === today ? today.slice(0, 8) + '01' : j.key;
+			if (from <= topEnd && topDay < j.until && (!best || j.key > best)) best = j.key;
+		}
 		return best;
 	});
 
@@ -221,18 +258,31 @@
 	// Loading more days or changing the filter moves rows without a scroll event.
 	$effect(() => {
 		void months;
+		void view;
 		tick().then(findTopDay);
 	});
 
-	async function jump(key: DateKey) {
+	async function jump(key: DateKey, smooth = true) {
 		if (key < start) start = key;
 		if (key > addDays(end, -21)) end = addDays(key, 45);
 		await tick();
-		// The day itself may be filtered out: go to the next shown one.
-		const target = months
-			.flatMap((m) => m.weeks.flatMap((w) => w.days))
-			.find((k) => k >= key);
-		const el = target ? document.getElementById('d-' + target) : sentinel;
+		let el: HTMLElement | null | undefined;
+		if (view === 'calendar') {
+			// A month from its heading, any other day from its week row.
+			el = key.endsWith('-01')
+				? document.getElementById('cm-' + key.slice(0, 7))
+				: document.getElementById('c-' + key)?.closest<HTMLElement>('[data-top]');
+		} else {
+			// The day itself may be filtered out: go to the next shown one.
+			const target = months
+				.flatMap((m) => m.weeks.flatMap((w) => w.days))
+				.find((k) => k >= key);
+			el = target ? document.getElementById('d-' + target) : sentinel;
+		}
+		if (!smooth) {
+			el?.scrollIntoView({ block: 'start' });
+			return endJump();
+		}
 		jumping = key;
 		clearTimeout(jumpTimer);
 		// Browsers without `scrollend` (or a scroll that doesn't move) end the jump on a timer.
@@ -253,11 +303,56 @@
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && selected && !desktop) selected = null;
+		if (e.key === 'Escape' && !desktop) close();
+	}
+
+	function close() {
+		selected = null;
+		planning = false;
+	}
+
+	function openDay(key: DateKey) {
+		planning = false;
+		selected = key;
+	}
+
+	function plan() {
+		selected = null;
+		planning = true;
+	}
+
+	/** After saving, show the new event's day, so it is clear where it went. */
+	function planned(day: DateKey) {
+		openDay(day);
+		jump(day);
 	}
 </script>
 
 <svelte:window {onkeydown} {onscroll} onscrollend={() => jumping && endJump()} />
+
+{#snippet viewSwitch(cls: string)}
+	<div role="group" aria-label="Zobrazení" class="flex gap-1 rounded-full border border-field bg-ground p-1 {cls}">
+		{#each views as v (v.value)}
+			<button
+				type="button"
+				aria-pressed={view === v.value}
+				class="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[0.9375rem] font-semibold whitespace-nowrap {view ===
+				v.value
+					? 'bg-ink text-white'
+					: 'text-ink-2 hover:bg-surface'}"
+				onclick={() => setView(v.value)}><Icon name={v.icon} size={18} /> {v.label}</button
+			>
+		{/each}
+	</div>
+{/snippet}
+
+{#snippet planButton()}
+	<button
+		type="button"
+		class="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-accent px-4 font-bold text-white"
+		onclick={plan}><Icon name="plus" size={18} stroke={2.5} /> Naplánovat akci</button
+	>
+{/snippet}
 
 {#snippet dayRow(key: DateKey)}
 	{@const av = data.availability(key)}
@@ -270,11 +365,12 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 	<div
 		id="d-{key}"
+		data-top={key}
 		style="scroll-margin-top: var(--stick-day)"
 		class="flex w-full cursor-pointer items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
 			key
 		)}"
-		onclick={() => (selected = key)}
+		onclick={() => openDay(key)}
 	>
 		<button
 			type="button"
@@ -353,7 +449,24 @@
 <div class="mx-auto flex max-w-[90rem] flex-wrap items-start gap-6 lg:p-6">
 	<!-- Left rail (desktop) -->
 	<aside class="hidden w-56 shrink-0 flex-col gap-5 lg:sticky lg:top-[5.5rem] lg:flex">
+		{@render planButton()}
 		<section class="flex flex-col">
+			<span class="mb-2 text-xs font-bold tracking-[0.08em] text-muted uppercase">Zobrazení</span>
+			<div role="group" aria-label="Zobrazení" class="flex flex-col gap-1">
+				{#each views as v (v.value)}
+					<button
+						type="button"
+						aria-pressed={view === v.value}
+						class="flex min-h-11 items-center gap-2 rounded-[10px] px-3 text-left text-[0.9375rem] font-semibold {view ===
+						v.value
+							? 'bg-ink text-white'
+							: 'hover:bg-surface'}"
+						onclick={() => setView(v.value)}><Icon name={v.icon} size={18} /> {v.label}</button
+					>
+				{/each}
+			</div>
+		</section>
+		<section class="flex flex-col {view === 'calendar' ? 'hidden' : ''}">
 			<span class="mb-2 text-xs font-bold tracking-[0.08em] text-muted uppercase">Zobrazit</span>
 			<div role="group" aria-label="Zobrazit dny" class="flex flex-col gap-1">
 				{#each filters as f (f.value)}
@@ -405,9 +518,17 @@
 	>
 		<!-- Phone header: only the jump buttons stay pinned, so big text still leaves room -->
 		<div class="flex flex-col gap-1 bg-surface px-4 pt-5 pb-3 lg:hidden">
-			<h1 class="tracking-tight text-[2rem] leading-none font-bold">Plán</h1>
-			<span class="text-[0.9375rem] text-muted">Klepnutím na den naplánujete akci.</span>
-			<div role="group" aria-label="Zobrazit dny" class="mt-3 flex gap-1 rounded-full border border-field bg-ground p-1">
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+				<h1 class="tracking-tight text-[2rem] leading-none font-bold">Plán</h1>
+				{@render planButton()}
+			</div>
+			<span class="text-[0.9375rem] text-muted">Nebo klepněte na den v plánu.</span>
+			{@render viewSwitch('mt-3')}
+			<div
+				role="group"
+				aria-label="Zobrazit dny"
+				class="mt-2 flex gap-1 rounded-full border border-field bg-ground p-1 {view === 'calendar' ? 'hidden' : ''}"
+			>
 				{#each filters as f (f.value)}
 					<button
 						type="button"
@@ -445,8 +566,35 @@
 		<div
 			class="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 border-b border-line-soft px-4 py-2 text-[0.8125rem] text-muted lg:border-line lg:px-5 lg:py-3.5 lg:text-sm"
 		>
-			<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-[#1F4E8C]"></span>může</span>
-			<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-off"></span>nepřítomen</span>
+			{#if view === 'calendar'}
+				<span class="flex items-center gap-1.5"
+					><svg viewBox="0 0 40 40" class="size-4 -rotate-90" aria-hidden="true"
+						><circle cx="20" cy="20" r="16" fill="none" stroke-width="7" style="stroke: var(--color-off)" /><circle
+							cx="20"
+							cy="20"
+							r="16"
+							fill="none"
+							stroke-width="7"
+							pathLength="100"
+							stroke-dasharray="75 100"
+							style="stroke: var(--color-good)"
+						/></svg
+					>kruh = kolik lidí může</span
+				>
+				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded-full bg-accent"></span>akce</span>
+				<span class="flex items-center gap-1.5"
+					><span
+						class="size-3.5 rounded-full"
+						style="background: conic-gradient(var(--color-accent) 0 50%, #2C3E9E 50% 100%)"
+					></span>2 akce</span
+				>
+				<span class="flex items-center gap-1.5"
+					><span class="size-3.5 rounded-full border border-line bg-weekend"></span>víkend a svátek</span
+				>
+			{:else}
+				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-[#1F4E8C]"></span>může</span>
+				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-off"></span>nepřítomen</span>
+			{/if}
 			<span class="hidden lg:inline">· Klepněte na den a naplánujte akci.</span>
 		</div>
 
@@ -454,12 +602,17 @@
 			<button
 				type="button"
 				class="flex min-h-10 items-center gap-1.5 px-3 text-sm font-semibold text-muted"
-				onclick={() => (start = addDays(start, -14))}
+				onclick={() =>
+					(start =
+						view === 'calendar' ? addDays(start.slice(0, 8) + '01', -1).slice(0, 8) + '01' : addDays(start, -14))}
 			>
-				<Icon name="chevronUp" size={16} /> Zobrazit dřívější dny
+				<Icon name="chevronUp" size={16} /> {view === 'calendar' ? 'Zobrazit dřívější měsíc' : 'Zobrazit dřívější dny'}
 			</button>
 		</div>
 
+		{#if view === 'calendar'}
+			<CalendarView {start} {end} {today} {selected} onselect={openDay} />
+		{:else}
 		{#each months as m (m.key)}
 			<div data-month={m.key}>
 				<div
@@ -489,10 +642,11 @@
 				{/each}
 			</div>
 		{/each}
+		{/if}
 
 		<div bind:this={sentinel} class="flex flex-col items-center gap-2 py-6 text-center text-sm text-faint">
 			{#if autoload}
-				Načítám další dny…
+				{view === 'calendar' ? 'Načítám další měsíce…' : 'Načítám další dny…'}
 			{:else}
 				{#if !months.length}<span>Na rok dopředu žádné akce.</span>{/if}
 				<button
@@ -510,8 +664,10 @@
 			aria-label="Vybraný den"
 			class="sticky top-[5.5rem] max-h-[calc(100dvh-112px)] w-[22.5rem] shrink-0 overflow-y-auto rounded-2xl border border-line bg-surface p-5"
 		>
-			{#if selected}
-				<DayPanel day={selected} onclose={() => (selected = null)} />
+			{#if planning}
+				<NewEventPanel onclose={close} onsaved={planned} />
+			{:else if selected}
+				<DayPanel day={selected} onclose={close} />
 			{:else}
 				<div class="flex flex-col gap-2 text-muted">
 					<Icon name="calendar" size={28} />
@@ -525,22 +681,26 @@
 </div>
 
 <!-- Bottom sheet (mobile) -->
-{#if selected && !desktop}
+{#if (selected || planning) && !desktop}
 	<div class="fixed inset-0 z-40">
 		<button
 			type="button"
 			aria-label="Zavřít"
 			class="absolute inset-0 bg-ink/50"
-			onclick={() => (selected = null)}
+			onclick={close}
 		></button>
 		<div
 			role="dialog"
 			aria-modal="true"
-			aria-label="Vybraný den"
+			aria-label={planning ? 'Nová akce' : 'Vybraný den'}
 			class="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[20px] bg-surface px-5 pt-2.5 pb-[max(24px,env(safe-area-inset-bottom))]"
 		>
 			<div class="mx-auto mb-2 h-[5px] w-11 rounded-full bg-field" aria-hidden="true"></div>
-			<DayPanel day={selected} onclose={() => (selected = null)} />
+			{#if planning}
+				<NewEventPanel onclose={close} onsaved={planned} />
+			{:else if selected}
+				<DayPanel day={selected} onclose={close} />
+			{/if}
 		</div>
 	</div>
 {/if}
