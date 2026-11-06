@@ -24,13 +24,15 @@ import {
 	weekdayIndex,
 	type DateKey
 } from './dates';
-import { nextColor } from './colors';
+import { nextColor, shortNames } from './colors';
 import { describe, matches, normalize, repeatDays, WEEKLY, type Repeat } from './repeat';
 import { mark } from './perf';
 
 export interface Member {
 	id: string;
 	name: string;
+	/** What people call them ("Pepa"); shown in the bar instead of the first name. */
+	nickname?: string;
 	color: string;
 	/** Archived members drop out of the plan; their colour becomes free again. */
 	archived: boolean;
@@ -249,6 +251,8 @@ class Data {
 	/** Active members: the ones shown in the plan and pickers. */
 	members = $derived(this.allMembers.filter((m) => !m.archived));
 	archived = $derived(this.allMembers.filter((m) => m.archived));
+	/** Bar labels of active members: nickname, first name, or first name + surname initial. */
+	labels = $derived(shortNames(this.members));
 	absences = $state<Absence[]>([]);
 	/** Events stored one by one (one-off, or a repeat edited on its own). */
 	stored = $state<Event[]>([]);
@@ -266,6 +270,8 @@ class Data {
 	});
 	/** Default event places, set on the Jednotka page. */
 	defaultPlaces = $state<string[]>([]);
+	/** Pre-filled in the new-event form; '' = none. */
+	defaultPlace = $state('');
 	loaded = $state({ members: false, absences: false, events: false, series: false });
 
 	#unsubs: Unsubscribe[] = [];
@@ -280,6 +286,7 @@ class Data {
 			this.stored = c.events;
 			this.series = c.series ?? [];
 			this.defaultPlaces = c.defaultPlaces;
+			this.defaultPlace = c.defaultPlace ?? '';
 			this.loaded = { members: true, absences: true, events: true, series: true };
 			mark('data z paměti zařízení');
 		} catch {
@@ -299,7 +306,8 @@ class Data {
 						absences: this.absences,
 						events: this.stored,
 						series: this.series,
-						defaultPlaces: this.defaultPlaces
+						defaultPlaces: this.defaultPlaces,
+						defaultPlace: this.defaultPlace
 					})
 				);
 			} catch {
@@ -317,8 +325,17 @@ class Data {
 	#demo = false;
 
 	/** Dev-only: fill with sample data instead of Firestore. */
-	loadDemo(sample: { members: Member[]; absences: Absence[]; events: Event[]; series: Series[] }) {
+	loadDemo(sample: {
+		members: Member[];
+		absences: Absence[];
+		events: Event[];
+		series: Series[];
+		places?: string[];
+		defaultPlace?: string;
+	}) {
 		this.#demo = true;
+		this.defaultPlaces = sample.places ?? [];
+		this.defaultPlace = sample.defaultPlace ?? '';
 		this.allMembers = [...sample.members].sort(byLastName);
 		this.absences = sample.absences;
 		this.stored = sample.events;
@@ -361,6 +378,7 @@ class Data {
 							return {
 								id: d.id,
 								name: x.name,
+								...(x.nickname ? { nickname: x.nickname } : {}),
 								color: x.color,
 								archived: x.archived === true,
 								...(created ? { since: toKey(created) } : {})
@@ -407,6 +425,8 @@ class Data {
 				(snap) => {
 					const list = snap.data()?.list;
 					this.defaultPlaces = Array.isArray(list) ? list : [];
+					const def = snap.data()?.default;
+					this.defaultPlace = typeof def === 'string' ? def : '';
 					this.#saveSoon();
 				},
 				onError
@@ -553,8 +573,14 @@ class Data {
 		return [...seen];
 	}
 
-	async setDefaultPlaces(list: string[]) {
-		await setDoc(doc(db, 'config', 'places'), { list });
+	/** Bar label for a member ("Jan", "Jan N.", or their nickname). */
+	shortName(m: Member): string {
+		return this.labels.get(m.id) ?? m.name;
+	}
+
+	/** `def` must be one of `list`; anything else clears the default. */
+	async setDefaultPlaces(list: string[], def = this.defaultPlace) {
+		await setDoc(doc(db, 'config', 'places'), { list, default: list.includes(def) ? def : '' });
 	}
 
 	// --- members ----------------------------------------------------------
@@ -569,7 +595,7 @@ class Data {
 		return ref.id;
 	}
 
-	async updateMember(id: string, patch: Partial<Pick<Member, 'name' | 'color'>>) {
+	async updateMember(id: string, patch: Partial<Pick<Member, 'name' | 'nickname' | 'color'>>) {
 		await updateDoc(doc(db, 'members', id), patch);
 	}
 

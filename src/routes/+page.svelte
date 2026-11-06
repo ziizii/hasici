@@ -19,6 +19,7 @@
 	} from '#lib/dates.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
 	import DayPanel from '#lib/components/DayPanel.svelte';
+	import NewEventPanel from '#lib/components/NewEventPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import { mark } from '#lib/perf.js';
 	import { onMount } from 'svelte';
@@ -30,6 +31,8 @@
 	let start = $state(today);
 	let end = $state(addDays(today, 62));
 	let selected = $state<DateKey | null>(null);
+	/** "Naplánovat akci" open: the new-event form with a date picker, in place of a day. */
+	let planning = $state(false);
 	let desktop = $state(false);
 	let sentinel = $state<HTMLElement>();
 	// Heights of the sticky bars (they grow with the phone's text size). Border-box sizes,
@@ -253,11 +256,40 @@
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && selected && !desktop) selected = null;
+		if (e.key === 'Escape' && !desktop) close();
+	}
+
+	function close() {
+		selected = null;
+		planning = false;
+	}
+
+	function openDay(key: DateKey) {
+		planning = false;
+		selected = key;
+	}
+
+	function plan() {
+		selected = null;
+		planning = true;
+	}
+
+	/** After saving, show the new event's day, so it is clear where it went. */
+	function planned(day: DateKey) {
+		openDay(day);
+		jump(day);
 	}
 </script>
 
 <svelte:window {onkeydown} {onscroll} onscrollend={() => jumping && endJump()} />
+
+{#snippet planButton()}
+	<button
+		type="button"
+		class="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-accent px-4 font-bold text-white"
+		onclick={plan}><Icon name="plus" size={18} stroke={2.5} /> Naplánovat akci</button
+	>
+{/snippet}
 
 {#snippet dayRow(key: DateKey)}
 	{@const av = data.availability(key)}
@@ -274,7 +306,7 @@
 		class="flex w-full cursor-pointer items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
 			key
 		)}"
-		onclick={() => (selected = key)}
+		onclick={() => openDay(key)}
 	>
 		<button
 			type="button"
@@ -353,6 +385,7 @@
 <div class="mx-auto flex max-w-[90rem] flex-wrap items-start gap-6 lg:p-6">
 	<!-- Left rail (desktop) -->
 	<aside class="hidden w-56 shrink-0 flex-col gap-5 lg:sticky lg:top-[5.5rem] lg:flex">
+		{@render planButton()}
 		<section class="flex flex-col">
 			<span class="mb-2 text-xs font-bold tracking-[0.08em] text-muted uppercase">Zobrazit</span>
 			<div role="group" aria-label="Zobrazit dny" class="flex flex-col gap-1">
@@ -405,8 +438,11 @@
 	>
 		<!-- Phone header: only the jump buttons stay pinned, so big text still leaves room -->
 		<div class="flex flex-col gap-1 bg-surface px-4 pt-5 pb-3 lg:hidden">
-			<h1 class="tracking-tight text-[2rem] leading-none font-bold">Plán</h1>
-			<span class="text-[0.9375rem] text-muted">Klepnutím na den naplánujete akci.</span>
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+				<h1 class="tracking-tight text-[2rem] leading-none font-bold">Plán</h1>
+				{@render planButton()}
+			</div>
+			<span class="text-[0.9375rem] text-muted">Nebo klepněte na den v plánu.</span>
 			<div role="group" aria-label="Zobrazit dny" class="mt-3 flex gap-1 rounded-full border border-field bg-ground p-1">
 				{#each filters as f (f.value)}
 					<button
@@ -510,8 +546,10 @@
 			aria-label="Vybraný den"
 			class="sticky top-[5.5rem] max-h-[calc(100dvh-112px)] w-[22.5rem] shrink-0 overflow-y-auto rounded-2xl border border-line bg-surface p-5"
 		>
-			{#if selected}
-				<DayPanel day={selected} onclose={() => (selected = null)} />
+			{#if planning}
+				<NewEventPanel onclose={close} onsaved={planned} />
+			{:else if selected}
+				<DayPanel day={selected} onclose={close} />
 			{:else}
 				<div class="flex flex-col gap-2 text-muted">
 					<Icon name="calendar" size={28} />
@@ -525,22 +563,26 @@
 </div>
 
 <!-- Bottom sheet (mobile) -->
-{#if selected && !desktop}
+{#if (selected || planning) && !desktop}
 	<div class="fixed inset-0 z-40">
 		<button
 			type="button"
 			aria-label="Zavřít"
 			class="absolute inset-0 bg-ink/50"
-			onclick={() => (selected = null)}
+			onclick={close}
 		></button>
 		<div
 			role="dialog"
 			aria-modal="true"
-			aria-label="Vybraný den"
+			aria-label={planning ? 'Nová akce' : 'Vybraný den'}
 			class="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[20px] bg-surface px-5 pt-2.5 pb-[max(24px,env(safe-area-inset-bottom))]"
 		>
 			<div class="mx-auto mb-2 h-[5px] w-11 rounded-full bg-field" aria-hidden="true"></div>
-			<DayPanel day={selected} onclose={() => (selected = null)} />
+			{#if planning}
+				<NewEventPanel onclose={close} onsaved={planned} />
+			{:else if selected}
+				<DayPanel day={selected} onclose={close} />
+			{/if}
 		</div>
 	</div>
 {/if}

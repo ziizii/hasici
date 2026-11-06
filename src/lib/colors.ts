@@ -48,3 +48,42 @@ export function initials(name: string): string {
 export function firstName(name: string): string {
 	return name.trim().split(/\s+/)[0] ?? name;
 }
+
+/**
+ * What the availability bar shows for each member: the nickname if set, else the first
+ * name. Members whose first name is shown for someone else too get the start of their
+ * surname ("Jan N.", "Jan Nov."), so the label stays unique. Derived from the current
+ * list, so once a name is unique again it goes back to just the first name.
+ */
+export function shortNames(members: { id: string; name: string; nickname?: string }[]): Map<string, string> {
+	const out = new Map<string, string>();
+	const base = (m: (typeof members)[number]) => m.nickname?.trim() || firstName(m.name);
+	const groups = new Map<string, typeof members>();
+	for (const m of members) {
+		const key = base(m).toLocaleLowerCase('cs');
+		groups.set(key, [...(groups.get(key) ?? []), m]);
+	}
+	for (const group of groups.values()) {
+		const plain = group.filter((m) => !m.nickname?.trim());
+		// A nickname is what people chose to be called: it stays as it is.
+		for (const m of group) if (m.nickname?.trim()) out.set(m.id, m.nickname.trim());
+		if (group.length === 1) {
+			for (const m of plain) out.set(m.id, base(m));
+			continue;
+		}
+		const surname = (m: (typeof members)[number]) => m.name.trim().split(/\s+/).slice(1).join(' ');
+		for (const m of plain) {
+			const last = surname(m);
+			let label = last ? '' : m.name.trim();
+			for (let n = 1; !label && n <= last.length; n++) {
+				const prefix = last.slice(0, n).toLocaleLowerCase('cs');
+				const clash = plain.some(
+					(o) => o !== m && surname(o).slice(0, n).toLocaleLowerCase('cs') === prefix
+				);
+				if (!clash) label = `${firstName(m.name)} ${last.slice(0, n)}${n < last.length ? '.' : ''}`;
+			}
+			out.set(m.id, label || m.name.trim());
+		}
+	}
+	return out;
+}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { data, type Event } from '#lib/data.svelte.js';
 	import { type DateKey } from '#lib/dates.js';
 	import { isEmpty, type Repeat } from '#lib/repeat.js';
@@ -16,6 +17,7 @@
 		date,
 		initial,
 		showDate = false,
+		pickDate = false,
 		showNote = false,
 		saveLabel = 'Uložit akci',
 		repeatable = false,
@@ -27,6 +29,8 @@
 		date: DateKey;
 		initial?: Partial<Draft>;
 		showDate?: boolean;
+		/** New event from no particular day: the date comes first, empty, with its picker open. */
+		pickDate?: boolean;
 		showNote?: boolean;
 		saveLabel?: string;
 		/** Offer repeating (new events). */
@@ -43,7 +47,18 @@
 	// svelte-ignore state_referenced_locally
 	let title = $state(initial?.title ?? '');
 	// svelte-ignore state_referenced_locally
-	let day = $state(initial?.date ?? date);
+	let day = $state(pickDate ? '' : (initial?.date ?? date));
+	let dateInput = $state<HTMLInputElement>();
+	onMount(() => {
+		if (!pickDate || !dateInput) return;
+		dateInput.focus();
+		// Opens the calendar straight away where the browser allows it (needs the tap that opened the form).
+		try {
+			dateInput.showPicker?.();
+		} catch {
+			// not allowed here: the focused field is one tap away
+		}
+	});
 	// svelte-ignore state_referenced_locally
 	// New events default to 09:00; '––' clears the time.
 	let hour = $state(initial ? (initial.time?.slice(0, 2) ?? '') : '09');
@@ -59,7 +74,7 @@
 		...new Set([...Array.from({ length: 12 }, (_, i) => pad(i * 5)), minute])
 	].sort();
 	// svelte-ignore state_referenced_locally
-	let place = $state(initial?.place ?? data.places[0] ?? '');
+	let place = $state(initial?.place ?? data.defaultPlace);
 	// svelte-ignore state_referenced_locally
 	let note = $state(initial?.note ?? '');
 	let busy = $state(false);
@@ -84,7 +99,7 @@
 		busy = true;
 		try {
 			await onsave(
-				{ title, date: showDate ? day : date, time, place, note },
+				{ title, date: showDate || pickDate ? day : date, time, place, note },
 				{
 					repeat: !showRepeat ? undefined : repeatable ? repeat || undefined : repeat,
 					until: showRepeat && repeat && until ? until : undefined,
@@ -104,7 +119,23 @@
 	}
 </script>
 
+{#snippet dateField()}
+	<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
+		Datum
+		<input
+			type="date"
+			bind:value={day}
+			bind:this={dateInput}
+			required
+			class="h-12 rounded-xl border border-field bg-surface px-3 text-base text-ink"
+		/>
+	</label>
+{/snippet}
+
 <form class="flex flex-col gap-3" onsubmit={submit}>
+	{#if pickDate}
+		{@render dateField()}
+	{/if}
 	{#if inSeries}
 		<fieldset class="flex flex-col">
 			<legend class="mb-1 text-[0.9375rem] font-semibold text-ink-2">Co změnit</legend>
@@ -128,16 +159,8 @@
 			class="h-12 rounded-xl border-2 border-ink bg-surface px-3 text-base font-normal text-ink"
 		/>
 	</label>
-	{#if showDate}
-		<label class="flex flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
-			Datum
-			<input
-				type="date"
-				bind:value={day}
-				required
-				class="h-12 rounded-xl border border-field bg-surface px-3 text-base text-ink"
-			/>
-		</label>
+	{#if showDate && !pickDate}
+		{@render dateField()}
 	{/if}
 	<div class="relative grid grid-cols-2 gap-2.5">
 		<fieldset class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
@@ -182,7 +205,7 @@
 	{#if showRepeat}
 		{#key saved}
 			<RepeatPicker
-				date={showDate && day ? day : date}
+				date={(showDate || pickDate) && day ? day : date}
 				initial={editRepeat?.repeat ?? null}
 				bind:value={repeat}
 				bind:until

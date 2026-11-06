@@ -42,11 +42,14 @@ upozornění ani e‑maily: kdo chce vědět, podívá se.
 
 ## Co aplikace umí
 
-**Plán.** Dny pod sebou jako v kalendáři. U každého dne je řada barevných políček,
-jedno za každého člena: barevné = může přijít, šedé = nemůže. Číslo vpravo („7/10“)
-říká, kolik lidí ten den může. Svátky a víkendy jsou zvýrazněné. Tlačítky nahoře se
-skočí na dnešek, příští týden nebo další měsíce a filtr ukáže jen víkendy nebo jen dny
-s akcí.
+**Plán.** Dny pod sebou jako v kalendáři. U každého dne je řada barevných políček
+s křestními jmény, jedno za každého člena: barevné = může přijít, šedé = nemůže. Když
+mají dva členové stejné křestní jméno, přidá se počáteční písmeno příjmení („Jan N.“).
+Kdo má vyplněnou přezdívku, ukáže se pod ní. Číslo vpravo („7/10“) říká, kolik lidí ten
+den může. Svátky a víkendy jsou zvýrazněné. Tlačítky nahoře se skočí na dnešek, příští
+týden nebo další měsíce a filtr ukáže jen víkendy nebo jen dny s akcí. Tlačítko
+**Naplánovat akci** založí akci na libovolné datum, které vyberete v kalendáři, bez
+posouvání plánu.
 
 **Den.** Klepnutím na den se otevře přehled: kdo může, kdo ne a proč (např.
 „Dovolená“). Tady jde jedním tlačítkem zapsat „Tento den nemůžu“ a založit novou akci.
@@ -71,9 +74,10 @@ nepočítá se do počtu v plánu ani u akcí (je jen uvedený jako „Dlouhodob
 jednotlivé dny jde udělat výjimku.
 
 **Jednotka.** Název jednotky, odkaz pro členy, heslo, odhlášení ostatních zařízení,
-seznam členů (přidat, přejmenovat, změnit barvu, archivovat), přehled nadcházejících
-nepřítomností a akcí, proběhlé akce (kdo přišel, podle zapsaných nepřítomností;
-opravit se to dá klepnutím na člena u akce) a seznam míst, kde se akce konají.
+seznam členů (přidat, přejmenovat, přezdívka, změnit barvu, archivovat), přehled
+nadcházejících nepřítomností a akcí, proběhlé akce (kdo přišel, podle zapsaných
+nepřítomností; opravit se to dá klepnutím na člena u akce) a seznam míst, kde se akce
+konají, s výchozím místem pro nové akce.
 
 Dále:
 
@@ -233,10 +237,12 @@ Otevřete záložku **Jednotka**:
 
 1. Do **Název jednotky** napište např. „SDH Lhota“.
 2. V části **Členové** přidejte ostatní členy jménem a příjmením. Každý dostane
-   vlastní barvu. Barvu změníte klepnutím na člena; poslední čtvereček s **+**
-   nabídne libovolnou jinou barvu.
+   vlastní barvu. Klepnutím na člena změníte barvu nebo doplníte **Přezdívku** (v plánu
+   se pak ukáže místo křestního jména); poslední čtvereček s **+** nabídne libovolnou
+   jinou barvu.
 3. V části **Místa akcí** můžete zapsat místa, kam se obvykle jezdí (zbrojnice,
-   cvičiště…). Při zakládání akce se pak nabízejí.
+   cvičiště…). Při zakládání akce se pak nabízejí. Tlačítkem **Nastavit výchozí** vyberete
+   místo, které se do nové akce vyplní samo. Bez výchozího místa zůstane pole prázdné.
 4. V části **Odkaz pro členy** klikněte na **Kopírovat** nebo **Sdílet** a pošlete
    odkaz do skupiny jednotky (WhatsApp, Messenger, SMS…).
 

@@ -14,6 +14,8 @@ export function demoData(count = 10): {
 	absences: Absence[];
 	events: Event[];
 	series: Series[];
+	places: string[];
+	defaultPlace: string;
 } {
 	const names = [
 		'Josef Beneš',
@@ -23,14 +25,20 @@ export function demoData(count = 10): {
 		'Jiří Horák',
 		'Eva Jelínková',
 		'Lenka Králová',
-		'Tomáš Novák',
+		'Jan Novák',
 		'Martin Svoboda',
 		'Michal Veselý'
 	];
 	for (let i = names.length; i < count; i++) names.push(`Člen ${i + 1} Test`);
 	const members = names
 		.slice(0, Math.max(count, 1))
-		.map((name, i) => ({ id: 'm' + i, name, color: PALETTE[i % PALETTE.length], archived: false }));
+		.map((name, i) => ({
+			id: 'm' + i,
+			name,
+			...(name === 'Jiří Horák' ? { nickname: 'Jirka' } : {}),
+			color: PALETTE[i % PALETTE.length],
+			archived: false
+		}));
 	const t = todayKey();
 	const d = (n: number) => addDays(t, n);
 	const absences: Absence[] = [
@@ -83,5 +91,6 @@ export function demoData(count = 10): {
 			repeat: { freq: 'month', every: 1, nth: 1, kind: 4 }
 		}
 	];
-	return { members, absences, events, series };
+	const places = ['Hasičská zbrojnice', 'Klubovna', 'Hřiště u školy'];
+	return { members, absences, events, series, places, defaultPlace: places[0] };
 }

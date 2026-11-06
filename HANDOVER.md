@@ -56,7 +56,9 @@ direction; older rows are superseded.
 - **Events keep a time** (`Sraz`, start time only) plus place and an
   optional note, "so we know when to go where".
 - **Place** is free text. While typing, it suggests saved places (the ones
-  from `/jednotka`, then ones used before), ignoring case and diacritics. It is
+  from `/jednotka`, then ones used before), ignoring case and diacritics.
+  New events are pre-filled with the default place picked on `/jednotka`
+  ("Nastavit výchozí", one for the whole unit); with none, the field is empty. It is
   our own list, not `<datalist>`, which is missing or awkward on some phones.
 - **"Nemůžu přijít" on an event is not a separate concept.** It creates a
   normal one-day absence for that date. "Přece jen přijdu" frees that day
@@ -77,7 +79,7 @@ direction; older rows are superseded.
   - Restoring a member picks a new colour if theirs was taken.
   - The last square in the colour row is an `<input type="color">` for any
     custom colour (stored as uppercase `#RRGGBB`). Custom colours aren't
-    checked for contrast with the white initials.
+    checked for contrast with the white text.
 - **Archiving:** archived members disappear from the plan and the pickers,
   and their absences are kept. Permanent delete exists only from the archive
   and also deletes their absences.
@@ -90,8 +92,16 @@ direction; older rows are superseded.
     holidays. Jumps go to the next shown day. With Akce, scrolling loads a
     year ahead, then a "Hledat akce dál" button takes over.
   - Each day shows a segmented bar. Members who can come are coloured with
-    their initials, absent members are grey, and the count ("7/10") is coloured
-    by ratio.
+    their short name, absent members are grey, and the count ("7/10") is coloured
+    by ratio. Short name (`colors.shortNames`, `data.labels`): the nickname if
+    set, else the first name; when two active members would show the same, the
+    start of the surname is added ("Jan N.", "Jan Nov."). It is derived, so a
+    name that becomes unique goes back to the first name. Columns are as wide as
+    the longest label (in `ch`) and wrap. Avatars next to full names keep initials.
+  - **Naplánovat akci** (phone header, desktop left rail) opens the new-event
+    form with the date first, empty, and its picker opened (`EventForm pickDate`,
+    `NewEventPanel`) in the bottom sheet / right column. After saving, the plan
+    jumps to that day and opens it.
     The segments are not tappable here (accidental taps while scrolling);
     tapping a member's segment flips their day only in the day panel and on
     the event page.
@@ -125,12 +135,13 @@ src/
     data.svelte.ts           Realtime store (members, absences, events) and all writes
     dates.ts                 'YYYY-MM-DD' helpers, Czech names, ISO weeks, CZ holidays
     repeat.ts                Event repeat rules (daily … yearly, nth weekday), Czech wording
-    colors.ts                Palette, nextColor(), initials()
+    colors.ts                Palette, nextColor(), initials(), shortNames()
     toast.svelte.ts          Snackbar with optional undo action
     demo.ts                  Dev-only sample data for /?demo
     components/
       AvailabilityBar.svelte Segmented availability bar (auto-wrapping grid)
       DayPanel.svelte        Day detail + new event form
+      NewEventPanel.svelte   "Naplánovat akci": new event with a date picker
       EventForm.svelte       Create/edit event
       RepeatPicker.svelte    "Opakování" radios + custom rule editor (like Apple's "Custom")
       PlaceInput.svelte      Free-text place with a suggestion list of saved places (data.places)
@@ -161,10 +172,10 @@ don't (`#lib/components/Icon.svelte`).
 | --- | --- | --- |
 | `config/public` | `initialized: true`, `name` | Readable by anyone; tells the app if first-run setup happened. `name` is the unit name shown in the brand (edited on `/jednotka`) |
 | `config/access` | `linkKey`, `passwordHash`, `updatedAt`, `revokedAt?` | Readable only with a valid session. `revokedAt` ends every session created before it |
-| `config/places` | `list` (string[], ≤ 50) | Default event places, edited on `/jednotka`; offered first in the event form |
+| `config/places` | `list` (string[], ≤ 50), `default?` | Saved event places, edited on `/jednotka`; offered first in the event form. `default` (one of `list`, or '') pre-fills new events |
 | `attempts/{uid}` | `key`, `at`, `n` | Guess limit: a device writes the key it is about to try here first, in its own request. Attempt `n+1` must come more than `min(2·n, 300)` s after the last one |
 | `sessions/{uid}` | `key`, `createdAt` | Created (or re-created) when `key` equals `linkKey` or `passwordHash` and the device's `attempts` doc holds that key. `createdAt` must be the server time; valid while `createdAt >= config/access.revokedAt` |
-| `members/{id}` | `name`, `color`, `archived`, `createdAt` | |
+| `members/{id}` | `name`, `nickname?` (≤ 30), `color`, `archived`, `createdAt` | `nickname` replaces the first name in the bar |
 | `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?` or `repeat?`, `except?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat every week within the range; any other rule is stored as `repeat` (same shape as on `series`); both are read as `Absence.repeat`. `to = 9999-12-31` = no end; `except` = skipped days |
 | `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `series?`, `createdAt` | One-off events. A repeat edited on its own is stored here with id `<seriesId>_<day>` and `series` set |
 | `series/{id}` | `title`, `time`, `place`, `note`, `from`, `to` (`9999-12-31` = until cancelled), `except`, `repeat?`, `createdAt` | Repeating event; occurrences are computed in `data.events`/`eventsOn`. Without `repeat`: every week on `from`'s weekday. `repeat` (`lib/repeat.ts`): `{freq: day/week/month/year, every, weekdays?, days?, nth?, kind?, months?}`. `except` = cancelled or individually edited days. "This and later" edits split the series; a plain weekly one moves with a new date, other rules keep their days and only the edited day moves |
