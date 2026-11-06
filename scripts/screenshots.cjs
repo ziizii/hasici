@@ -49,6 +49,13 @@ async function demoShots(browser) {
 	await p.goto(DEMO + '/?demo');
 	await p.waitForTimeout(2000);
 	await p.screenshot({ path: OUT + 'telefon-plan.png' });
+	await p.getByRole('button', { name: 'Kalendář' }).click();
+	await p.waitForTimeout(800);
+	await p.evaluate(() => scrollTo(0, 0));
+	await p.waitForTimeout(300);
+	await p.screenshot({ path: OUT + 'telefon-kalendar.png' });
+	await p.getByRole('button', { name: 'Seznam' }).click();
+	await p.waitForTimeout(800);
 	await p.click(`#d-${eventDay()}`);
 	await p.waitForTimeout(800);
 	await p.screenshot({ path: OUT + 'telefon-den.png' });

@@ -98,6 +98,16 @@ direction; older rows are superseded.
     start of the surname is added ("Jan N.", "Jan Nov."). It is derived, so a
     name that becomes unique goes back to the first name. Columns are as wide as
     the longest label (in `ch`) and wrap. Avatars next to full names keep initials.
+  - **Seznam / Kalendář** switch (phone header, desktop left rail), kept in
+    localStorage `hasici.view`. Kalendář (`CalendarView`) is a month grid
+    (Mon–Sun columns, one block per month, sticky month + weekday heading) over
+    the same `start`/`end` range, infinite scroll and jump buttons as the list.
+    Each day is a circle whose SVG ring fills with available/total (full ring =
+    everyone; colour like the count); event days have a filled red circle,
+    today is outlined, past days dimmed. Desktop cells also show the count and
+    up to two event names. The Vše/Víkendy/Akce filter applies to the list only.
+    Jumps and the lit jump button use `[data-top]` (a day row in the list, a
+    week row in the calendar). Switching keeps the position.
   - **Naplánovat akci** (phone header, desktop left rail) opens the new-event
     form with the date first, empty, and its picker opened (`EventForm pickDate`,
     `NewEventPanel`) in the bottom sheet / right column. After saving, the plan
@@ -140,6 +150,7 @@ src/
     demo.ts                  Dev-only sample data for /?demo
     components/
       AvailabilityBar.svelte Segmented availability bar (auto-wrapping grid)
+      CalendarView.svelte    Plan as a month grid with availability rings
       DayPanel.svelte        Day detail + new event form
       NewEventPanel.svelte   "Naplánovat akci": new event with a date picker
       EventForm.svelte       Create/edit event
@@ -217,7 +228,7 @@ MIT licensed. Nothing is tied to one unit: the Firebase project comes from `.env
 project; `.firebaserc` is not committed. CI uses the repo variables set by
 `make setup-ci` and skips itself in copies where they are missing. The Czech
 README is the setup guide for non-technical units; its screenshots in
-`docs/screenshots/` come from `?demo` (plan, day, event, me) and the emulators
+`docs/screenshots/` come from `?demo` (plan, calendar, day, event, me) and the emulators
 (password, member picker, share link). Retake them with `make screenshots`.
 The Jednotka page links to the GitHub repo at the bottom.
 

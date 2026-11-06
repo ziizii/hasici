@@ -22,6 +22,8 @@ nezakládá účet. Je zdarma a každá jednotka si ji provozuje sama na svém (
 <p>
   <img src="docs/screenshots/telefon-plan.png" width="260" alt="Plán v telefonu">
   &nbsp;
+  <img src="docs/screenshots/telefon-kalendar.png" width="260" alt="Plán jako kalendář">
+  &nbsp;
   <img src="docs/screenshots/pocitac-plan.png" width="560" alt="Plán na počítači">
 </p>
 
@@ -50,6 +52,12 @@ den může. Svátky a víkendy jsou zvýrazněné. Tlačítky nahoře se skočí
 týden nebo další měsíce a filtr ukáže jen víkendy nebo jen dny s akcí. Tlačítko
 **Naplánovat akci** založí akci na libovolné datum, které vyberete v kalendáři, bez
 posouvání plánu.
+
+**Kalendář.** Přepínačem **Seznam / Kalendář** nahoře se plán ukáže jako běžný měsíční
+kalendář (dny v týdnu ve sloupcích, týdny v řádcích, měsíce pod sebou). Kruh kolem
+každého dne ukazuje, kolik lidí může: celý kruh = všichni, půlka = polovina. Dny s akcí
+mají červené kolečko, dnešek je v rámečku. Klepnutím na den se otevře jeho přehled.
+Telefon si zvolené zobrazení zapamatuje.
 
 **Den.** Klepnutím na den se otevře přehled: kdo může, kdo ne a proč (např.
 „Dovolená“). Tady jde jedním tlačítkem zapsat „Tento den nemůžu“ a založit novou akci.
