@@ -80,6 +80,9 @@ direction; older rows are superseded.
   - The last square in the colour row is an `<input type="color">` for any
     custom colour (stored as uppercase `#RRGGBB`). Custom colours aren't
     checked for contrast with the white text.
+  - The picker (`components/ColorPicker.svelte`) is in the member editor on
+    `/jednotka` and, for yourself, under "Moje barva" on `/ja` (collapsed row
+    below the "Nejsem k dispozici" switch).
 - **Archiving:** archived members disappear from the plan and the pickers,
   and their absences are kept. Permanent delete exists only from the archive
   and also deletes their absences.
@@ -159,6 +162,7 @@ src/
       EventForm.svelte       Create/edit event
       RepeatPicker.svelte    "Opakování" radios + custom rule editor (like Apple's "Custom")
       PlaceInput.svelte      Free-text place with a suggestion list of saved places (data.places)
+      ColorPicker.svelte     Member colour: palette squares + custom <input type="color">
       MemberPicker.svelte    "Kdo jste?" screen (adds the first member on an empty unit)
       PasswordScreen.svelte  First-run setup / unlock
       Brand.svelte, Icon.svelte
