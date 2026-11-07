@@ -82,7 +82,8 @@ a každý může klepnout na „Nemůžu přijít“.
 (dovolená), nebo pravidelně (např. „každé úterý – práce“). Přepínač „Nejsem
 k dispozici“ platí do odvolání, třeba při nemoci nebo zranění. Kdo ho má zapnutý,
 nepočítá se do počtu v plánu ani u akcí (je jen uvedený jako „Dlouhodobě mimo“). Pro
-jednotlivé dny jde udělat výjimku.
+jednotlivé dny jde udělat výjimku. Pod přepínačem si v **Moje barva** každý vybere
+barvu, kterou je vidět v plánu.
 
 **Jednotka.** Název jednotky, odkaz pro členy, heslo, odhlášení ostatních zařízení,
 seznam členů (přidat, přejmenovat, přezdívka, změnit barvu, archivovat), přehled

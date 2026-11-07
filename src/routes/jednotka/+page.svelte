@@ -2,11 +2,12 @@
 	import { version } from '$app/env';
 	import { perfReport } from '#lib/perf.js';
 	import { access } from '#lib/access.svelte.js';
-	import { initials, PALETTE } from '#lib/colors.js';
+	import { initials } from '#lib/colors.js';
 	import { absenceWhen, data, groupAbsences, isSwitch, type Member } from '#lib/data.svelte.js';
 	import { formatShort, todayKey } from '#lib/dates.js';
 	import { everyLabel } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
+	import ColorPicker from '#lib/components/ColorPicker.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
 
@@ -198,8 +199,6 @@
 		const name = editName.trim();
 		if (name && name !== m.name) await data.updateMember(m.id, { name }).catch(() => toasts.error());
 	}
-
-	const isCustom = (color: string) => !PALETTE.includes(color.toUpperCase());
 
 	async function setColor(m: Member, color: string) {
 		await data.updateMember(m.id, { color }).catch(() => toasts.error());
@@ -556,39 +555,7 @@
 							</label>
 							<div class="flex flex-col gap-1.5">
 								<span class="text-[0.9375rem] font-semibold text-ink-2">Barva</span>
-								<div class="flex flex-wrap gap-1.5">
-									{#each PALETTE as c (c)}
-										<button
-											type="button"
-											aria-label="Barva {c}"
-											aria-pressed={m.color.toUpperCase() === c}
-											class="flex size-10 items-center justify-center rounded-lg text-white"
-											style="background: {c}"
-											onclick={() => setColor(m, c)}
-										>
-											{#if m.color.toUpperCase() === c}<Icon name="check" size={18} stroke={3} />{/if}
-										</button>
-									{/each}
-									<label
-										class="relative flex size-10 cursor-pointer items-center justify-center rounded-lg text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
-										style="background: {isCustom(m.color)
-											? m.color
-											: 'conic-gradient(#d33, #e90, #dc3, #3a4, #29c, #63c, #c3a, #d33)'}"
-									>
-										{#if isCustom(m.color)}<Icon name="check" size={18} stroke={3} />{:else}<Icon
-												name="plus"
-												size={18}
-												stroke={3}
-											/>{/if}
-										<input
-											type="color"
-											aria-label="Vlastní barva"
-											value={m.color}
-											class="absolute inset-0 size-full cursor-pointer opacity-0"
-											onchange={(e) => setColor(m, e.currentTarget.value.toUpperCase())}
-										/>
-									</label>
-								</div>
+								<ColorPicker value={m.color} onpick={(c) => setColor(m, c)} />
 							</div>
 							<UnavailableSwitch member={m} self={m.id === access.memberId} />
 							<div class="flex items-center justify-between">

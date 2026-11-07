@@ -22,6 +22,7 @@
 	} from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import { describe, isEmpty, type Repeat } from '#lib/repeat.js';
+	import ColorPicker from '#lib/components/ColorPicker.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import RepeatPicker from '#lib/components/RepeatPicker.svelte';
 	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
@@ -41,6 +42,11 @@
 
 	let showForm = $state(false);
 	let showPast = $state(false);
+	let showColors = $state(false);
+
+	async function setColor(color: string) {
+		if (me) await data.updateMember(me.id, { color }).catch(() => toasts.error());
+	}
 
 	// --- form ---
 	type Quick = 'today' | 'tomorrow' | 'weekend' | 'custom';
@@ -144,8 +150,26 @@
 	</header>
 
 	{#if me}
-		<div class="rounded-2xl border border-line bg-surface px-4 py-2">
+		<div class="flex flex-col rounded-2xl border border-line bg-surface px-4 py-2">
 			<UnavailableSwitch member={me} self />
+			<button
+				type="button"
+				aria-expanded={showColors}
+				class="mt-2 flex min-h-11 w-full items-center gap-3 border-t border-line-soft pt-2 text-left"
+				onclick={() => (showColors = !showColors)}
+			>
+				<span class="flex min-w-0 flex-1 flex-col">
+					<span class="font-bold">Moje barva</span>
+					<span class="text-[0.9375rem] leading-snug text-muted">Touto barvou jste vidět v plánu</span>
+				</span>
+				<span aria-hidden="true" class="size-8 shrink-0 rounded-lg" style="background: {me.color}"></span>
+				<Icon name={showColors ? 'chevronUp' : 'chevronDown'} class="shrink-0 text-muted" />
+			</button>
+			{#if showColors}
+				<div class="pt-1 pb-2">
+					<ColorPicker value={me.color} onpick={setColor} />
+				</div>
+			{/if}
 		</div>
 	{/if}
 
