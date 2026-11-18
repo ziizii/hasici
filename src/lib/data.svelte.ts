@@ -764,6 +764,14 @@ class Data {
 		await updateDoc(doc(db, 'todos', id), fields);
 	}
 
+	async deleteTodo(id: string) {
+		if (this.#demo) {
+			this.todos = this.todos.filter((todo) => todo.id !== id);
+			return;
+		}
+		await deleteDoc(doc(db, 'todos', id));
+	}
+
 	// --- events -----------------------------------------------------------
 
 	async addEvent(e: Omit<Event, 'id'>): Promise<string> {

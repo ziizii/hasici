@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { data, type Todo, type TodoFields } from '#lib/data.svelte.js';
 	import { formatShort, todayKey } from '#lib/dates.js';
@@ -9,6 +10,7 @@
 	const requestedDate = $derived(page.url.searchParams.get('den') ?? '');
 	const date = $derived(!eventId && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : '');
 	const scopedEvent = $derived(eventId ? data.event(eventId) : undefined);
+	const canCreateHere = $derived(!eventId || (scopedEvent && scopedEvent.date >= todayKey()));
 	const statuses = [
 		{ value: false, label: 'Otevřené' },
 		{ value: true, label: 'Hotové' }
@@ -18,19 +20,22 @@
 	let editing = $state<string | null>(null);
 	let busy = $state(false);
 	let title = $state('');
+	let titleInput = $state<HTMLInputElement>();
 	let target = $state<'none' | 'date' | 'event'>('none');
 	let linkedDate = $state('');
 	let linkedEvent = $state('');
+	let originalEventId = $state('');
 	let dueDate = $state('');
 	let assignee = $state('');
 
-	const field = 'min-h-11 w-full min-w-0 rounded-xl border border-field bg-surface px-3';
 	const button = 'flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-bold disabled:opacity-50';
 	const eventsLoaded = $derived(data.loaded.events && data.loaded.series);
 	const eventOptions = $derived.by(() => {
 		const selected = linkedEvent ? data.event(linkedEvent) : undefined;
-		const events = data.events;
-		return selected && !events.some((event) => event.id === selected.id)
+		const today = todayKey();
+		const events = data.events.filter((event) => event.date >= today);
+		return selected && (selected.id === originalEventId || selected.date >= today) &&
+			!events.some((event) => event.id === selected.id)
 			? [selected, ...events]
 			: events;
 	});
@@ -43,20 +48,32 @@
 				a.title.localeCompare(b.title, 'cs'))
 	);
 
-	function openForm(todo?: Todo) {
+	async function openForm(todo?: Todo) {
+		if (!todo && eventId && (!scopedEvent || scopedEvent.date < todayKey())) return;
 		editing = todo?.id ?? '';
+		originalEventId = todo?.eventId ?? '';
 		title = todo?.title ?? '';
 		linkedDate = todo ? todo.date ?? '' : date;
 		linkedEvent = todo ? todo.eventId ?? '' : eventId;
 		target = linkedEvent ? 'event' : linkedDate ? 'date' : 'none';
 		dueDate = todo?.dueDate ?? '';
 		assignee = todo?.assigneeId ?? '';
+		await tick();
+		titleInput?.focus();
 	}
 
 	async function save(event: SubmitEvent) {
 		event.preventDefault();
 		if (busy || editing === null || !title.trim() ||
 			(target === 'date' && !linkedDate) || (target === 'event' && !linkedEvent)) return;
+		if (target === 'event' && linkedEvent !== originalEventId) {
+			const activity = data.event(linkedEvent);
+			if (!activity || activity.date < todayKey()) {
+				linkedEvent = '';
+				toasts.error('Vyberte akci, která se koná dnes nebo později.');
+				return;
+			}
+		}
 		const fields: TodoFields = {
 			title: title.trim(),
 			date: target === 'date' ? linkedDate : null,
@@ -74,6 +91,22 @@
 			editing = null;
 		} catch {
 			toasts.error('Úkol se nepodařilo uložit. Zkuste to znovu.');
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function removeTodo() {
+		if (busy || !editing) return;
+		const todo = data.todos.find((item) => item.id === editing);
+		if (!todo || !confirm(`Opravdu smazat úkol „${todo.title}“?`)) return;
+		busy = true;
+		try {
+			await data.deleteTodo(todo.id);
+			editing = null;
+			toasts.show('Úkol smazán');
+		} catch {
+			toasts.error('Úkol se nepodařilo smazat.');
 		} finally {
 			busy = false;
 		}
@@ -106,54 +139,61 @@
 				<a href="/ukoly" class="inline-flex min-h-11 items-center font-semibold text-accent-dark">Všechny úkoly</a>
 			{/if}
 		</div>
-		<button type="button" class="{button} bg-accent text-white"
-			disabled={busy || editing !== null || data.todosStatus !== 'ready'} onclick={() => openForm()}>
-			<Icon name="plus" size={19} /> Nový úkol
-		</button>
+		{#if editing === null && canCreateHere}
+			<button type="button" class="{button} bg-accent text-white"
+				disabled={busy || data.todosStatus !== 'ready'} onclick={() => openForm()}>
+				<Icon name="plus" size={19} /> Nový úkol
+			</button>
+		{/if}
 	</header>
 
+	{#if scopedEvent && !canCreateHere}
+		<p class="text-sm text-muted">Nové úkoly lze přiřadit k akcím ode dneška.</p>
+	{/if}
+
 	{#if editing !== null}
-		<form onsubmit={save} aria-label={editing ? 'Upravit úkol' : 'Nový úkol'}
-			class="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
-			<fieldset disabled={busy} class="grid min-w-0 gap-3 sm:grid-cols-2">
-				<label class="grid min-w-0 gap-1 font-semibold sm:col-span-2">
+		<form onsubmit={save} aria-labelledby="todo-form-heading"
+			class="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4 sm:p-5">
+			<h2 id="todo-form-heading" class="text-lg font-bold">{editing ? 'Upravit úkol' : 'Nový úkol'}</h2>
+			<fieldset disabled={busy} class="grid min-w-0 items-start gap-4 sm:grid-cols-2">
+				<label class="todo-label sm:col-span-2">
 					Název
-					<input class={field} bind:value={title} required maxlength="120" />
+					<input class="todo-field" bind:this={titleInput} bind:value={title} required maxlength="120" />
 				</label>
-				<label class="grid min-w-0 gap-1 font-semibold">
+				<label class="todo-label {target === 'none' ? 'sm:col-span-2' : ''}">
 					Přiřadit k
-					<select class={field} bind:value={target}>
+					<select class="todo-field" bind:value={target}>
 						<option value="none">Bez přiřazení</option>
 						<option value="date">Dni</option>
 						<option value="event">Akci</option>
 					</select>
 				</label>
 				{#if target === 'date'}
-					<label class="grid min-w-0 gap-1 font-semibold">
+					<label class="todo-label">
 						Den
-						<input type="date" class={field} bind:value={linkedDate} required />
+						<input type="date" class="todo-field" bind:value={linkedDate} required />
 					</label>
 				{:else if target === 'event'}
-					<label class="grid min-w-0 gap-1 font-semibold">
+					<label class="todo-label">
 						Akce
-						<select class={field} bind:value={linkedEvent} required>
+						<select class="todo-field" bind:value={linkedEvent} required>
 							<option value="">{eventsLoaded ? 'Vyberte akci' : 'Načítám akce…'}</option>
 							{#each eventOptions as event (event.id)}
 								<option value={event.id}>{formatShort(event.date)} {event.time} · {event.title}</option>
 							{/each}
-							{#if linkedEvent && !data.event(linkedEvent)}
+							{#if linkedEvent && linkedEvent === originalEventId && !data.event(linkedEvent)}
 								<option value={linkedEvent}>{eventsLoaded ? 'Nedostupná akce' : 'Načítám akci…'}</option>
 							{/if}
 						</select>
 					</label>
 				{/if}
-				<label class="grid min-w-0 gap-1 font-semibold">
+				<label class="todo-label">
 					Termín dokončení
-					<input type="date" class={field} bind:value={dueDate} />
+					<input type="date" class="todo-field" bind:value={dueDate} />
 				</label>
-				<label class="grid min-w-0 gap-1 font-semibold">
+				<label class="todo-label">
 					Řešitel
-					<select class={field} bind:value={assignee}>
+					<select class="todo-field" bind:value={assignee}>
 						<option value="">Nepřiřazeno</option>
 						{#each data.members as member (member.id)}
 							<option value={member.id}>{member.name}</option>
@@ -164,8 +204,14 @@
 					</select>
 				</label>
 			</fieldset>
-			<div class="flex flex-wrap justify-end gap-2">
-				<button type="button" class={button} disabled={busy} onclick={() => (editing = null)}>Zrušit</button>
+			<div class="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+				{#if editing}
+					<button type="button" class="{button} mr-auto text-accent-dark"
+						disabled={busy} onclick={removeTodo}>
+						<Icon name="trash" size={18} /> Smazat úkol
+					</button>
+				{/if}
+				<button type="button" class="{button} border border-field text-ink" disabled={busy} onclick={() => (editing = null)}>Zrušit</button>
 				<button type="submit" class="{button} bg-accent text-white" disabled={busy || !title.trim()}>Uložit úkol</button>
 			</div>
 		</form>
@@ -228,3 +274,48 @@
 		</ul>
 	{/if}
 </section>
+
+<style>
+	.todo-label {
+		display: grid;
+		min-width: 0;
+		gap: 0.375rem;
+		color: var(--color-ink-2);
+		font-size: 0.9375rem;
+		font-weight: 600;
+	}
+
+	.todo-field {
+		appearance: none;
+		width: 100%;
+		min-width: 0;
+		height: 3.25rem;
+		min-height: 3.25rem;
+		border: 1px solid var(--color-field);
+		border-radius: 0.75rem;
+		background-color: var(--color-surface);
+		padding: 0 0.75rem;
+		color: var(--color-ink);
+		font-size: 1rem;
+		font-weight: 400;
+	}
+
+	.todo-field:focus-visible {
+		border-color: var(--color-accent-dark);
+		outline: 2px solid var(--color-accent-dark);
+		outline-offset: 1px;
+	}
+
+	select.todo-field {
+		padding-right: 2.5rem;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 8 5 5 5-5' stroke='%235a5650' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+		background-position: right 0.75rem center;
+		background-repeat: no-repeat;
+		background-size: 1.125rem;
+		text-overflow: ellipsis;
+	}
+
+	input[type='date'].todo-field::-webkit-date-and-time-value {
+		text-align: left;
+	}
+</style>

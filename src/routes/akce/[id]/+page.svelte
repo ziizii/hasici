@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { access } from '#lib/access.svelte.js';
 	import { initials } from '#lib/colors.js';
-	import { data } from '#lib/data.svelte.js';
+	import { data, type Todo } from '#lib/data.svelte.js';
 	import { formatLong, OPEN_END, formatShort, todayKey } from '#lib/dates.js';
 	import { describe, lastDay, nextAfter, WEEKLY } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
@@ -13,6 +13,11 @@
 	import Icon from '#lib/components/Icon.svelte';
 
 	const ev = $derived(data.event(page.params.id ?? ''));
+	const activityTodos = $derived(
+		data.todos
+			.filter((todo) => ev && todo.eventId === ev.id)
+			.sort((a, b) => a.title.localeCompare(b.title, 'cs'))
+	);
 	const me = $derived(data.member(access.memberId));
 	const avail = $derived(ev ? data.availability(ev.date) : null);
 	const myAbsence = $derived(ev && me ? data.absenceOn(me.id, ev.date) : undefined);
@@ -34,6 +39,21 @@
 
 	let editing = $state(false);
 	let busy = $state(false);
+	let pendingTodos = $state<Record<string, boolean>>({});
+
+	async function setTodoCompleted(todo: Todo, checkbox: HTMLInputElement) {
+		const completed = checkbox.checked;
+		pendingTodos[todo.id] = completed;
+		try {
+			await data.updateTodo(todo.id, { completed });
+			toasts.show(completed ? 'Úkol dokončen' : 'Úkol znovu otevřen');
+		} catch {
+			checkbox.checked = todo.completed;
+			toasts.error('Stav úkolu se nepodařilo změnit.');
+		} finally {
+			delete pendingTodos[todo.id];
+		}
+	}
 
 	async function cannotCome() {
 		if (!ev || !me) return;
@@ -183,16 +203,54 @@
 					<span class="flex items-center gap-2"><Icon name="pin" size={18} class="text-muted" />{ev.place}</span>
 				{/if}
 			</div>
-			<a class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
-				href="/ukoly?akce={encodeURIComponent(ev.id)}">
-				<Icon name="list" size={18} /> Úkoly k akci
-			</a>
 			{#if ev.note}
 				<p class="text-[0.9375rem] leading-snug whitespace-pre-line text-ink-2">{ev.note}</p>
 			{/if}
 		</section>
 
 		<div class="flex flex-col gap-3.5 px-5 pb-8">
+			<section aria-labelledby="activity-todos-heading" class="rounded-2xl border border-line bg-surface px-4 pt-2 pb-3">
+				<div class="flex flex-wrap items-center justify-between gap-x-3">
+					<h2 id="activity-todos-heading" class="flex items-center gap-2 font-bold">
+						<Icon name="list" size={18} class="text-muted" /> Úkoly k akci
+					</h2>
+					<a href="/ukoly?akce={encodeURIComponent(ev.id)}"
+						class="inline-flex min-h-11 items-center text-sm font-semibold text-accent-dark">
+						Spravovat úkoly
+					</a>
+				</div>
+				{#if data.todosStatus === 'loading'}
+					<p role="status" class="text-sm text-muted">Načítám úkoly…</p>
+				{:else if data.todosStatus === 'error'}
+					<p role="status" class="text-sm text-accent-dark">Úkoly se nepodařilo načíst.</p>
+				{:else if !activityTodos.length}
+					<p class="text-sm text-muted">K této akci zatím nejsou žádné úkoly.</p>
+				{:else}
+					<ul class="divide-y divide-line border-t border-line">
+						{#each activityTodos as todo (todo.id)}
+							{@const completed = pendingTodos[todo.id] ?? todo.completed}
+							{@const member = data.allMembers.find((member) => member.id === todo.assigneeId)}
+							<li>
+								<label class="flex min-h-12 items-center gap-3 py-2">
+									<input type="checkbox" checked={completed} disabled={todo.id in pendingTodos}
+										class="size-5 shrink-0 accent-accent-dark disabled:opacity-60"
+										onchange={(event) => setTodoCompleted(todo, event.currentTarget)} />
+									<span class="min-w-0">
+										<span class="block break-words font-semibold" class:line-through={completed} class:text-muted={completed}>{todo.title}</span>
+										{#if todo.dueDate || todo.assigneeId}
+											<span class="flex flex-wrap gap-x-3 text-sm text-muted">
+												{#if todo.dueDate}<span>Termín {formatShort(todo.dueDate)}</span>{/if}
+												{#if todo.assigneeId}<span>{member?.name ?? 'Bývalý člen'}</span>{/if}
+											</span>
+										{/if}
+									</span>
+								</label>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+
 			{#if me && !past}
 				{#if !myAbsence}
 					<div class="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
