@@ -151,7 +151,7 @@
 		</label>
 
 		{#if freq === 'week'}
-			<div class="grid grid-cols-7 gap-1" role="group" aria-label="Dny v týdnu">
+			<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,2.5rem),1fr))] gap-1" role="group" aria-label="Dny v týdnu">
 				{#each DOW_ABBR as name, w (w)}
 					<button
 						type="button"
@@ -175,7 +175,7 @@
 			{#if monthNth}
 				{@render nthPicker()}
 			{:else}
-				<div class="grid grid-cols-7 gap-1" role="group" aria-label="Dny v měsíci">
+				<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,2.5rem),1fr))] gap-1" role="group" aria-label="Dny v měsíci">
 					{#each { length: 31 }, i (i)}
 						<button
 							type="button"
@@ -187,7 +187,7 @@
 				</div>
 			{/if}
 		{:else if freq === 'year'}
-			<div class="grid grid-cols-4 gap-1" role="group" aria-label="Měsíce">
+			<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,3.25rem),1fr))] gap-1" role="group" aria-label="Měsíce">
 				{#each MONTHS_ABBR as name, i (i)}
 					<button
 						type="button"

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { access } from '#lib/access.svelte.js';
@@ -38,6 +39,24 @@
 	});
 
 	let editing = $state(false);
+	let editHeading = $state<HTMLHeadingElement>();
+	let editButton = $state<HTMLButtonElement>();
+	let occurrenceButton = $state<HTMLButtonElement>();
+	let editOccurrence = false;
+	let attendanceButton = $state<HTMLButtonElement>();
+
+	async function startEdit(occurrence = false) {
+		editOccurrence = occurrence;
+		editing = true;
+		await tick();
+		editHeading?.focus();
+	}
+
+	async function finishEdit() {
+		editing = false;
+		await tick();
+		(editOccurrence ? occurrenceButton ?? editButton : editButton)?.focus();
+	}
 	let busy = $state(false);
 	let pendingTodos = $state<Record<string, boolean>>({});
 
@@ -52,6 +71,8 @@
 			toasts.error('Stav úkolu se nepodařilo změnit.');
 		} finally {
 			delete pendingTodos[todo.id];
+			await tick();
+			if (document.activeElement === document.body && checkbox.isConnected) checkbox.focus();
 		}
 	}
 
@@ -65,6 +86,8 @@
 			toasts.error();
 		} finally {
 			busy = false;
+			await tick();
+			if (document.activeElement === document.body) attendanceButton?.focus();
 		}
 	}
 
@@ -78,6 +101,8 @@
 			toasts.error();
 		} finally {
 			busy = false;
+			await tick();
+			if (document.activeElement === document.body) attendanceButton?.focus();
 		}
 	}
 
@@ -107,6 +132,8 @@
 	}
 </script>
 
+<svelte:head><title>{editing ? 'Upravit akci' : ev?.title ?? 'Akce'} | Dostupnost jednotky</title></svelte:head>
+
 <div class="mx-auto flex max-w-xl flex-col">
 	<header class="flex items-center justify-between px-3 pt-4">
 		<a href="/" class="flex min-h-11 items-center gap-0.5 px-2 text-base font-semibold">
@@ -116,7 +143,8 @@
 			<button
 				type="button"
 				class="flex min-h-11 items-center px-3 font-bold text-accent"
-				onclick={() => (editing = true)}>Upravit</button
+				bind:this={editButton}
+				onclick={() => startEdit()}>Upravit</button
 			>
 		{/if}
 	</header>
@@ -125,12 +153,12 @@
 		<p class="px-5 py-6 text-muted">Načítám…</p>
 	{:else if !ev}
 		<div class="flex flex-col gap-3 px-5 py-6">
-			<p class="text-lg font-semibold">Akce už neexistuje.</p>
+			<h1 class="text-lg font-semibold">Akce už neexistuje.</h1>
 			<a href="/" class="font-semibold text-accent">Zpět na plán</a>
 		</div>
 	{:else if editing}
 		<section class="flex flex-col gap-4 px-5 pt-2 pb-6">
-			<h1 class="tracking-tight text-[1.75rem] font-bold">Upravit akci</h1>
+			<h1 tabindex="-1" bind:this={editHeading} class="tracking-tight text-[1.75rem] font-bold">Upravit akci</h1>
 			<EventForm
 				date={ev.date}
 				initial={ev}
@@ -141,7 +169,7 @@
 				editRepeat={series
 					? { repeat: series.repeat ?? WEEKLY, until: series.to === OPEN_END ? '' : series.to }
 					: { repeat: null, until: '' }}
-				oncancel={() => (editing = false)}
+				oncancel={finishEdit}
 				onsave={async (d, { following, repeat, until }) => {
 					try {
 						let id = ev.id;
@@ -268,6 +296,7 @@
 						<button
 							type="button"
 							disabled={busy}
+							bind:this={attendanceButton}
 							onclick={cannotCome}
 							class="flex min-h-[3.25rem] items-center justify-center gap-2 rounded-xl border-2 border-accent-dark text-[1.0625rem] font-bold text-accent-dark disabled:opacity-60"
 						>
@@ -287,11 +316,10 @@
 							</div>
 						</div>
 						<label class="block">
-							<span class="sr-only">Důvod</span>
+							<span class="block pb-1 text-sm font-semibold">Důvod (nepovinné)</span>
 							<input
 								value={myAbsence.note}
 								onblur={(e) => saveReason(e.currentTarget.value)}
-								placeholder="Důvod (nepovinné)"
 								maxlength="200"
 								class="h-12 w-full rounded-xl border border-field bg-surface px-3 text-base"
 							/>
@@ -299,6 +327,7 @@
 						<button
 							type="button"
 							disabled={busy}
+							bind:this={attendanceButton}
 							onclick={comeAfterAll}
 							class="flex min-h-[3.25rem] items-center justify-center gap-2 rounded-xl bg-ink text-[1.0625rem] font-bold text-white disabled:opacity-60"
 						>
@@ -361,7 +390,8 @@
 				<button
 					type="button"
 					class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent"
-					onclick={() => (editing = true)}
+					bind:this={occurrenceButton}
+					onclick={() => startEdit(true)}
 				>
 					<Icon name="calendar" size={18} /> Změnit jen tento termín
 				</button>

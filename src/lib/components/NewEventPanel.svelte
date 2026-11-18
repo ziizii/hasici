@@ -23,7 +23,7 @@
 
 <div class="flex flex-col gap-4">
 	<header class="flex items-start justify-between gap-2">
-		<h2 class="tracking-tight text-[1.75rem] leading-none font-bold">Nová akce</h2>
+		<h2 id="plan-panel-heading" data-panel-heading tabindex="-1" class="tracking-tight text-[1.75rem] leading-none font-bold">Nová akce</h2>
 		<button
 			type="button"
 			aria-label="Zavřít"

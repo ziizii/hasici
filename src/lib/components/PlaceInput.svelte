@@ -58,13 +58,17 @@
 			e.preventDefault();
 			if (!open) return void (open = true);
 			const n = matches.length;
-			if (n) active = (active + (e.key === 'ArrowDown' ? 1 : n - 1 + (active < 0 ? 1 : 0))) % n;
+			if (!n) return;
+			active = (active + (e.key === 'ArrowDown' ? 1 : n - 1 + (active < 0 ? 1 : 0))) % n;
+			document.getElementById(`places-${uid}-${active}`)?.scrollIntoView({ block: 'nearest' });
 		} else if (e.key === 'Enter' && shown && active >= 0) {
 			e.preventDefault();
 			pick(matches[active]);
 		} else if (e.key === 'Escape' && shown) {
 			e.preventDefault();
+			e.stopPropagation();
 			open = false;
+			active = -1;
 		}
 	}
 </script>
@@ -81,7 +85,7 @@
 		aria-labelledby={labelledby}
 		aria-autocomplete="list"
 		aria-expanded={shown}
-		aria-controls="places-{uid}"
+		aria-controls={shown ? `places-${uid}` : undefined}
 		aria-activedescendant={shown && active >= 0 ? `places-${uid}-${active}` : undefined}
 		class="h-12 min-w-0 flex-1 rounded-xl bg-transparent pl-3 outline-none text-base font-normal text-ink"
 		onfocus={() => (open = true)}

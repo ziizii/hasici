@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from './Icon.svelte';
 	import { eventColor } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
 	import {
@@ -29,7 +30,7 @@
 		end: DateKey;
 		today: DateKey;
 		selected: DateKey | null;
-		onselect: (day: DateKey) => void;
+		onselect: (day: DateKey, trigger: HTMLButtonElement) => void;
 	} = $props();
 
 	type Month = { ym: string; label: string; weeks: (DateKey | null)[][] };
@@ -81,19 +82,14 @@
 	<button
 		type="button"
 		id="c-{key}"
-		aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}{key === today ? ', dnes' : ''}{hol
-			? `, ${hol}`
-			: ''}: může {av.available.length} z {av.total}{evs.length
-			? `. Akce: ${evs.map((e) => e.title).join(', ')}`
-			: ''}"
 		aria-current={key === today ? 'date' : undefined}
+		aria-pressed={key === selected}
+		style:scroll-margin-block-start="var(--stick-calrow)"
 		class="flex min-h-[3.25rem] min-w-0 flex-col items-center gap-1 rounded-xl px-0.5 py-1.5 lg:min-h-[6.5rem] {key ===
 		selected
 			? 'bg-ink/10'
-			: 'hover:bg-ink/5'} {key === today ? 'ring-2 ring-ink ring-inset' : ''} {key < today
-			? 'opacity-60'
-			: ''}"
-		onclick={() => onselect(key)}
+			: key < today ? 'bg-ink/[0.03] hover:bg-ink/5' : 'hover:bg-ink/5'} {key === today ? 'ring-2 ring-ink ring-inset' : ''}"
+		onclick={(event) => onselect(key, event.currentTarget)}
 	>
 		<span class="relative flex aspect-square w-full max-w-11 shrink-0 items-center justify-center">
 			<svg viewBox="0 0 40 40" class="absolute inset-0 size-full -rotate-90" aria-hidden="true">
@@ -120,11 +116,11 @@
 				style={evs.length ? eventFill(evs.length) : undefined}>{parseKey(key).getDate()}</span
 			>
 		</span>
-		<!-- Wide screens have room for the holiday, the count and the events' names. -->
+		<!-- Wide screens have room for the holiday and event names. -->
 		{#if hol}
 			<span class="hidden w-full truncate text-xs font-semibold text-accent-dark lg:block">{hol}</span>
 		{/if}
-		<span class="hidden text-xs font-semibold text-muted lg:block"
+		<span class="text-xs font-semibold text-muted"
 			>{av.available.length}/{av.total}</span
 		>
 		{#each evs.slice(0, 2) as ev, i (ev.id)}
@@ -139,12 +135,21 @@
 		{#if evs.length > 2}
 			<span class="hidden text-xs text-muted lg:block">+{evs.length - 2}</span>
 		{/if}
+		{#if evs.length}
+			<span class="flex items-center gap-0.5 text-xs font-semibold text-event-ink lg:hidden">
+				<Icon name="calendar" size={12} />
+				{evs.length}<span class="sr-only">, akce: {evs.map((event) => event.title).join(', ')}</span>
+			</span>
+		{/if}
+		<span class="sr-only">
+			{DOW_LONG[wd]} {formatDayMonth(key)}. Dostupní členové: {av.available.length} z {av.total}.
+		</span>
 	</button>
 {/snippet}
 
 <div style="--stick-calrow: calc(var(--stick-month) + {headH}px)">
 	{#each months as m (m.ym)}
-		<div id="cm-{m.ym}" style="scroll-margin-top: var(--stick-month)" class="pb-3">
+		<div id="cm-{m.ym}" tabindex="-1" style="scroll-margin-top: var(--stick-month)" class="pb-3">
 			<div
 				bind:borderBoxSize={headBox}
 				style="top: var(--stick-month)"

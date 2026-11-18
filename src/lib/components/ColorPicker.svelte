@@ -28,7 +28,11 @@
 		style="background: {custom ? value : 'conic-gradient(#d33, #e90, #dc3, #3a4, #29c, #63c, #c3a, #d33)'}"
 		style:color={custom ? contrastText(value) : '#fff'}
 	>
-		{#if custom}<Icon name="check" size={18} stroke={3} />{:else}<Icon name="plus" size={18} stroke={3} />{/if}
+		{#if custom}
+			<Icon name="check" size={18} stroke={3} />
+		{:else}
+			<span class="rounded-full bg-ink p-0.5"><Icon name="plus" size={18} stroke={3} /></span>
+		{/if}
 		<input
 			type="color"
 			aria-label="Vlastní barva"

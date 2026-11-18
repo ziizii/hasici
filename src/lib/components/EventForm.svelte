@@ -162,7 +162,7 @@
 	{#if showDate && !pickDate}
 		{@render dateField()}
 	{/if}
-	<div class="relative grid grid-cols-2 gap-2.5">
+	<div class="relative grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2.5">
 		<fieldset class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
 			<legend class="mb-1.5">Sraz</legend>
 			<div class="flex min-w-0 items-center gap-1">

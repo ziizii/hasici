@@ -21,6 +21,17 @@
 	let busy = $state(false);
 	let title = $state('');
 	let titleInput = $state<HTMLInputElement>();
+	let addButton = $state<HTMLButtonElement>();
+	let taskHeading = $state<HTMLHeadingElement>();
+	let formTrigger: HTMLElement | undefined;
+
+	async function closeForm() {
+		editing = null;
+		await tick();
+		const target = formTrigger?.isConnected ? formTrigger : addButton ?? taskHeading;
+		target?.focus();
+		formTrigger = undefined;
+	}
 	let target = $state<'none' | 'date' | 'event'>('none');
 	let linkedDate = $state('');
 	let linkedEvent = $state('');
@@ -48,8 +59,9 @@
 				a.title.localeCompare(b.title, 'cs'))
 	);
 
-	async function openForm(todo?: Todo) {
+	async function openForm(trigger: HTMLElement, todo?: Todo) {
 		if (!todo && eventId && (!scopedEvent || scopedEvent.date < todayKey())) return;
+		formTrigger = trigger;
 		editing = todo?.id ?? '';
 		originalEventId = todo?.eventId ?? '';
 		title = todo?.title ?? '';
@@ -88,7 +100,8 @@
 				await data.addTodo(fields);
 				completed = false;
 			}
-			editing = null;
+			busy = false;
+			await closeForm();
 		} catch {
 			toasts.error('Úkol se nepodařilo uložit. Zkuste to znovu.');
 		} finally {
@@ -103,7 +116,8 @@
 		busy = true;
 		try {
 			await data.deleteTodo(todo.id);
-			editing = null;
+			busy = false;
+			await closeForm();
 			toasts.show('Úkol smazán');
 		} catch {
 			toasts.error('Úkol se nepodařilo smazat.');
@@ -112,11 +126,17 @@
 		}
 	}
 
-	async function toggle(todo: Todo) {
+	async function toggle(todo: Todo, trigger: HTMLElement) {
 		if (busy) return;
 		busy = true;
 		try {
 			await data.updateTodo(todo.id, { completed: !todo.completed });
+			busy = false;
+			await tick();
+			if (document.activeElement === document.body) {
+				if (trigger.isConnected) trigger.focus();
+				else taskHeading?.focus();
+			}
 			toasts.show(todo.completed ? 'Úkol znovu otevřen' : 'Úkol dokončen');
 		} catch {
 			toasts.error('Stav úkolu se nepodařilo změnit.');
@@ -127,13 +147,13 @@
 </script>
 
 <svelte:head>
-	<title>Úkoly</title>
+	<title>{scopedEvent ? `Úkoly – ${scopedEvent.title}` : 'Úkoly'} | Dostupnost jednotky</title>
 </svelte:head>
 
 <section class="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 md:py-8">
 	<header class="flex flex-wrap items-center justify-between gap-3">
 		<div class="min-w-0">
-			<h1 class="text-[1.875rem] font-bold tracking-tight">Úkoly</h1>
+			<h1 tabindex="-1" bind:this={taskHeading} class="text-[1.875rem] font-bold tracking-tight">Úkoly</h1>
 			{#if eventId || date}
 				<p class="break-words text-muted">{eventId ? scopedEvent?.title ?? 'Úkoly k akci' : formatShort(date)}</p>
 				<a href="/ukoly" class="inline-flex min-h-11 items-center font-semibold text-accent-dark">Všechny úkoly</a>
@@ -141,7 +161,7 @@
 		</div>
 		{#if editing === null && canCreateHere}
 			<button type="button" class="{button} bg-accent text-white"
-				disabled={busy || data.todosStatus !== 'ready'} onclick={() => openForm()}>
+				disabled={busy || data.todosStatus !== 'ready'} bind:this={addButton} onclick={(event) => openForm(event.currentTarget)}>
 				<Icon name="plus" size={19} /> Nový úkol
 			</button>
 		{/if}
@@ -211,13 +231,13 @@
 						<Icon name="trash" size={18} /> Smazat úkol
 					</button>
 				{/if}
-				<button type="button" class="{button} border border-field text-ink" disabled={busy} onclick={() => (editing = null)}>Zrušit</button>
+				<button type="button" class="{button} border border-field text-ink" disabled={busy} onclick={closeForm}>Zrušit</button>
 				<button type="submit" class="{button} bg-accent text-white" disabled={busy || !title.trim()}>Uložit úkol</button>
 			</div>
 		</form>
 	{/if}
 
-	<div role="group" aria-label="Stav úkolů" class="flex gap-1 self-start rounded-xl border border-line bg-surface p-1">
+	<div role="group" aria-label="Stav úkolů" class="flex max-w-full flex-wrap gap-1 self-start rounded-xl border border-line bg-surface p-1">
 		{#each statuses as status (status.label)}
 			<button type="button" class="{button} {completed === status.value ? 'bg-ink text-white' : 'text-muted'}"
 				aria-pressed={completed === status.value} onclick={() => (completed = status.value)}>
@@ -242,7 +262,7 @@
 				<li class="flex items-start gap-2 rounded-2xl border border-line bg-surface p-2 sm:gap-3">
 					<button type="button" class="grid size-11 shrink-0 place-items-center rounded-xl"
 						aria-label={todo.completed ? `Znovu otevřít: ${todo.title}` : `Dokončit: ${todo.title}`}
-						disabled={busy} onclick={() => toggle(todo)}>
+						disabled={busy} onclick={(event) => toggle(todo, event.currentTarget)}>
 						<span class="grid size-6 place-items-center rounded-md border-2 {todo.completed ? 'border-ink bg-ink text-white' : 'border-muted'}">
 							{#if todo.completed}<Icon name="check" size={16} />{/if}
 						</span>
@@ -266,7 +286,7 @@
 						</div>
 					</div>
 					<button type="button" class="grid size-11 shrink-0 place-items-center rounded-xl text-muted"
-						aria-label={`Upravit: ${todo.title}`} disabled={busy || editing !== null} onclick={() => openForm(todo)}>
+						aria-label={`Upravit: ${todo.title}`} disabled={busy || editing !== null} onclick={(event) => openForm(event.currentTarget, todo)}>
 						<Icon name="pencil" size={18} />
 					</button>
 				</li>

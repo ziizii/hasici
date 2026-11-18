@@ -6,7 +6,7 @@
 	import { data } from '#lib/data.svelte.js';
 	import { configMissing } from '#lib/firebase.js';
 	import { contrastText, initials } from '#lib/colors.js';
-	import { toasts } from '#lib/toast.svelte.js';
+	import ToastNotice from '#lib/components/ToastNotice.svelte';
 	import Brand from '#lib/components/Brand.svelte';
 	import Icon, { type IconName } from '#lib/components/Icon.svelte';
 	import MemberPicker from '#lib/components/MemberPicker.svelte';
@@ -119,7 +119,7 @@
 
 {#snippet loading(text: string)}
 	<div class="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center text-muted">
-		<span class="size-8 animate-spin rounded-full border-[0.1875rem] border-line border-t-accent"></span>
+		<span aria-hidden="true" class="size-8 motion-safe:animate-spin rounded-full border-[0.1875rem] border-line border-t-accent"></span>
 		<span class="text-[1.0625rem]" aria-live="polite">{text}</span>
 	</div>
 {/snippet}
@@ -157,6 +157,11 @@
 	<MemberPicker />
 {:else}
 	<div class="flex min-h-dvh flex-col" style="--header-h: {headerH}px">
+		<a href="#main-content" class="fixed top-2 left-2 z-50 rounded-lg bg-ink px-4 py-3 text-white sr-only focus:not-sr-only"
+			onclick={(event) => {
+				event.preventDefault();
+				document.getElementById('main-content')?.focus();
+			}}>Přeskočit na obsah</a>
 		<!-- Desktop header -->
 		<header
 			bind:borderBoxSize={headerBox}
@@ -190,7 +195,7 @@
 			</div>
 		</header>
 
-		<main class="flex-1 pb-[5.25rem] md:pb-0">
+		<main id="main-content" tabindex="-1" class="flex-1 pb-[calc(var(--bottom-nav-clearance)+var(--toast-clearance,0px))]">
 			{@render children()}
 		</main>
 
@@ -215,21 +220,4 @@
 	</div>
 {/if}
 
-{#if toasts.current}
-	{@const t = toasts.current}
-	<div
-		role="status"
-		class="fixed inset-x-4 bottom-[6rem] z-50 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-1.5 pr-1.5 pl-4 text-[0.9375rem] text-white shadow-lg md:bottom-6"
-	>
-		<span class="py-2.5">{t.text}</span>
-		{#if t.action}
-			<button
-				class="min-h-11 rounded-lg px-3.5 font-bold text-[#FFB4A8]"
-				onclick={() => {
-					t.action?.();
-					toasts.dismiss();
-				}}>{t.actionLabel}</button
-			>
-		{/if}
-	</div>
-{/if}
+<ToastNotice />
