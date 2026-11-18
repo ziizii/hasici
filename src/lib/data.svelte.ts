@@ -151,6 +151,19 @@ function absenceFields(a: Omit<Absence, 'id'>) {
 	};
 }
 
+export interface TodoFields {
+	title: string;
+	date: DateKey | null;
+	eventId: string | null;
+	dueDate: DateKey | null;
+	assigneeId: string | null;
+}
+
+export interface Todo extends TodoFields {
+	id: string;
+	completed: boolean;
+}
+
 export interface Event {
 	id: string;
 	title: string;
@@ -254,6 +267,8 @@ class Data {
 	/** Bar labels of active members: nickname, first name, or first name + surname initial. */
 	labels = $derived(shortNames(this.members));
 	absences = $state<Absence[]>([]);
+	todos = $state<Todo[]>([]);
+	todosStatus = $state<'loading' | 'ready' | 'error'>('loading');
 	/** Events stored one by one (one-off, or a repeat edited on its own). */
 	stored = $state<Event[]>([]);
 	series = $state<Series[]>([]);
@@ -334,6 +349,7 @@ class Data {
 		defaultPlace?: string;
 	}) {
 		this.#demo = true;
+		this.todosStatus = 'ready';
 		this.defaultPlaces = sample.places ?? [];
 		this.defaultPlace = sample.defaultPlace ?? '';
 		this.allMembers = [...sample.members].sort(byLastName);
@@ -367,6 +383,19 @@ class Data {
 	start() {
 		if (this.#demo || this.#unsubs.length) return;
 		this.#loadCached();
+		this.#watch((onError) =>
+			onSnapshot(
+				collection(db, 'todos'),
+				(snap) => {
+					this.todos = snap.docs.map((d) => ({ ...(d.data() as Omit<Todo, 'id'>), id: d.id }));
+					this.todosStatus = 'ready';
+				},
+				(error) => {
+					this.todosStatus = 'error';
+					onError(error);
+				}
+			)
+		);
 		this.#watch((onError) =>
 			onSnapshot(
 				collection(db, 'members'),
@@ -715,6 +744,24 @@ class Data {
 	/** Skip (`on`) or restore one day of a repeating / open-ended absence. */
 	async setException(a: Absence, day: DateKey, on: boolean) {
 		await updateDoc(doc(db, 'absences', a.id), { except: withException(a, day, on) });
+	}
+
+	async addTodo(fields: TodoFields) {
+		const todo = { ...fields, title: fields.title.trim(), completed: false };
+		if (this.#demo) {
+			this.todos.push({ ...todo, id: crypto.randomUUID() });
+			return;
+		}
+		await addDoc(collection(db, 'todos'), todo);
+	}
+
+	async updateTodo(id: string, patch: TodoFields | { completed: boolean }) {
+		const fields = 'title' in patch ? { ...patch, title: patch.title.trim() } : patch;
+		if (this.#demo) {
+			this.todos = this.todos.map((todo) => (todo.id === id ? { ...todo, ...fields } : todo));
+			return;
+		}
+		await updateDoc(doc(db, 'todos', id), fields);
 	}
 
 	// --- events -----------------------------------------------------------

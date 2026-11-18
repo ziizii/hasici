@@ -107,6 +107,7 @@
 	const nav: { href: string; label: string; icon: IconName }[] = [
 		{ href: '/ja', label: 'Já', icon: 'user' },
 		{ href: '/', label: 'Plán', icon: 'calendar' },
+		{ href: '/ukoly', label: 'Úkoly', icon: 'list' },
 		{ href: '/jednotka', label: 'Jednotka', icon: 'users' }
 	];
 
@@ -195,7 +196,7 @@
 		<!-- Mobile bottom navigation -->
 		<nav
 			aria-label="Hlavní navigace"
-			class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-line bg-surface pb-[max(8px,env(safe-area-inset-bottom))] md:hidden"
+			class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface pb-[max(8px,env(safe-area-inset-bottom))] md:hidden"
 		>
 			{#each nav as item (item.href)}
 				<a
