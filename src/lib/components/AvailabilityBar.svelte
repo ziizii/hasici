@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '#lib/components/Icon.svelte';
 	import { contrastText } from '#lib/colors.js';
 	import { data, type DayAvailability, type Member } from '#lib/data.svelte.js';
 
@@ -10,12 +11,18 @@
 		availability: DayAvailability;
 		size?: 'sm' | 'md' | 'lg';
 		/** Makes each segment a button (e.g. flip that member's availability). */
-		ontoggle?: (member: Member) => void;
+		ontoggle?: (member: Member) => void | Promise<void>;
 	} = $props();
 
-	function onclick(e: MouseEvent, m: Member) {
+	let group = $state<HTMLElement>();
+
+	async function onclick(e: MouseEvent, m: Member) {
 		e.stopPropagation();
-		ontoggle?.(m);
+		const restore = document.activeElement === e.currentTarget;
+		await ontoggle?.(m);
+		if (restore && document.activeElement === document.body) {
+			group?.querySelector<HTMLElement>(`[data-member-id="${CSS.escape(m.id)}"]`)?.focus();
+		}
 	}
 
 	const total = $derived(availability.available.length + availability.away.length);
@@ -28,30 +35,32 @@
 	// Works for 3 members as well as 30.
 	const longest = $derived(Math.max(3, ...[...data.labels.values()].map((l) => l.length)));
 	const cols = $derived(
-		`grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(${longest}ch + 0.5rem)), 1fr))`
+		`grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(${longest}ch + 1.5rem)), 1fr))`
 	);
 </script>
 
 {#snippet segment(m: Member, away: boolean, title: string)}
 	<span
-		class="flex min-w-0 items-center justify-center overflow-hidden rounded-[5px] px-1 whitespace-nowrap {height} {away
+		class="flex min-w-0 items-center justify-center overflow-hidden rounded-[5px] gap-0.5 px-1 whitespace-nowrap {height} {away
 			? 'bg-off font-semibold text-muted'
 			: 'font-bold'}"
 		style:background-color={away ? undefined : m.color}
 		style:color={away ? undefined : contrastText(m.color)}
 		{title}
 	>
-		<span class="truncate">{data.shortName(m)}</span>
+		{#if away}<Icon name="x" size={12} class="shrink-0" />{/if}
+		<span class="truncate" aria-hidden={ontoggle ? undefined : true}>{data.shortName(m)}</span>
+		{#if !ontoggle}<span class="sr-only">{m.name}: {away ? 'nemůže' : 'může'}</span>{/if}
 	</span>
 {/snippet}
 
 {#snippet item(m: Member, away: boolean, title: string)}
 	{#if ontoggle}
-		<!-- Transparent padding makes the tap target 2.75rem tall without growing the bar. -->
 		<button
 			type="button"
-			class="-my-2 flex min-w-0 flex-col py-2"
-			aria-label="{m.name}: {away ? 'nemůže. Přepnout na může.' : 'může. Přepnout na nemůže.'}"
+			class="flex min-h-11 min-w-0 flex-col justify-center"
+			data-member-id={m.id}
+			aria-label="{data.shortName(m)}{data.shortName(m) === m.name ? '' : ` (${m.name})`}: {away ? 'nemůže. Přepnout na může.' : 'může. Přepnout na nemůže.'}"
 			onclick={(e) => onclick(e, m)}
 		>
 			{@render segment(m, away, title)}
@@ -67,9 +76,10 @@
 	>
 {:else}
 	<span
+		bind:this={group}
 		class="grid gap-[3px] {text}"
 		style={cols}
-		role={ontoggle ? 'group' : 'img'}
+		role="group"
 		aria-label="Může {availability.available.length} z {total}"
 	>
 		{#each availability.available as m (m.id)}

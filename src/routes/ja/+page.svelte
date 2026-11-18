@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { access } from '#lib/access.svelte.js';
 	import { contrastText, initials } from '#lib/colors.js';
 	import {
@@ -41,6 +42,15 @@
 	const past = $derived(mine.filter((a) => a.to < today).reverse().slice(0, 10));
 
 	let showForm = $state(false);
+	let absenceTrigger = $state<HTMLButtonElement>();
+	let absenceHeading = $state<HTMLHeadingElement>();
+	let listHeading = $state<HTMLHeadingElement>();
+
+	async function setForm(open: boolean) {
+		showForm = open;
+		await tick();
+		(open ? absenceHeading : absenceTrigger)?.focus();
+	}
 	let showPast = $state(false);
 	let showColors = $state(false);
 
@@ -93,11 +103,11 @@
 		busy = true;
 		try {
 			await data.addAbsence(access.memberId, from, end, note, repeat ?? undefined);
-			showForm = false;
 			note = '';
 			to = '';
 			repeat = null;
 			quick = 'custom';
+			await setForm(false);
 			toasts.show('Nepřítomnost uložena');
 		} catch (err) {
 			console.error(err);
@@ -111,6 +121,8 @@
 	async function remove(parts: Absence[]) {
 		try {
 			await Promise.all(parts.map((a) => data.deleteAbsence(a.id)));
+			await tick();
+			if (document.activeElement === document.body) listHeading?.focus();
 			toasts.show('Nepřítomnost smazána', {
 				actionLabel: 'Vrátit zpět',
 				action: () =>
@@ -130,6 +142,8 @@
 		return data.events.filter((e) => e.date >= today && covers(a, e.date)).slice(0, 3);
 	}
 </script>
+
+<svelte:head><title>Moje nepřítomnost | Dostupnost jednotky</title></svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col gap-4 px-5 pt-7 pb-8">
 	<header class="flex flex-col gap-2">
@@ -178,19 +192,20 @@
 		<button
 			type="button"
 			class="flex min-h-14 items-center justify-center gap-2.5 rounded-[14px] bg-accent text-lg font-bold text-white"
-			onclick={() => (showForm = true)}
+			bind:this={absenceTrigger}
+			onclick={() => setForm(true)}
 		>
 			<Icon name="plus" size={22} stroke={2.5} /> Naplánovat nepřítomnost
 		</button>
 	{:else}
 		<form class="flex flex-col gap-5 rounded-2xl border border-line bg-surface p-4" onsubmit={save}>
 			<div class="flex items-center justify-between">
-				<h2 class="text-lg font-bold">Nahlásit nepřítomnost</h2>
+				<h2 tabindex="-1" bind:this={absenceHeading} class="text-lg font-bold">Nahlásit nepřítomnost</h2>
 				<button
 					type="button"
 					aria-label="Zavřít"
 					class="-mr-2 flex size-11 items-center justify-center"
-					onclick={() => (showForm = false)}><Icon name="x" size={22} /></button
+					onclick={() => setForm(false)}><Icon name="x" size={22} /></button
 				>
 			</div>
 
@@ -208,7 +223,7 @@
 						>
 					{/each}
 				</div>
-				<div class="grid grid-cols-2 gap-2.5">
+				<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-2.5">
 					<label class="flex min-w-0 flex-col gap-1.5 text-[0.9375rem] font-semibold text-ink-2">
 						Od
 						<input
@@ -253,7 +268,7 @@
 					{/each}
 				</div>
 				<label>
-					<span class="sr-only">Poznámka</span>
+					<span class="block pb-1 text-sm font-semibold">Poznámka</span>
 					<input
 						bind:value={note}
 						maxlength="200"
@@ -277,7 +292,7 @@
 		</form>
 	{/if}
 
-	<h2 class="mt-1 text-[0.8125rem] font-bold tracking-[0.08em] text-muted uppercase">
+	<h2 tabindex="-1" bind:this={listHeading} class="mt-1 text-[0.8125rem] font-bold tracking-[0.08em] text-muted uppercase">
 		Nadcházející ({upcoming.length})
 	</h2>
 

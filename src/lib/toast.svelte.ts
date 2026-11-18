@@ -13,14 +13,17 @@ class Toasts {
 	show(text: string, opts: { actionLabel?: string; action?: () => void; ms?: number } = {}) {
 		if (this.#timer) clearTimeout(this.#timer);
 		this.current = { id: ++this.#seq, text, actionLabel: opts.actionLabel, action: opts.action };
-		this.#timer = setTimeout(() => (this.current = null), opts.ms ?? 6000);
+		if (!opts.action) {
+			this.#timer = setTimeout(() => (this.current = null), opts.ms ?? 6000);
+		}
 	}
 
 	error(text = 'Něco se nepovedlo. Zkuste to prosím znovu.') {
 		this.show(text, { ms: 5000 });
 	}
 
-	dismiss() {
+	dismiss(id: number) {
+		if (this.current?.id !== id) return;
 		if (this.#timer) clearTimeout(this.#timer);
 		this.current = null;
 	}

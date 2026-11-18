@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import ToastNotice from '#lib/components/ToastNotice.svelte';
 	import { data } from '#lib/data.svelte.js';
 	import {
 		addDays,
@@ -248,11 +249,12 @@
 		if (!jumpBar || !key) return;
 		const btn = jumpBar.querySelector<HTMLElement>(`[data-jump="${key}"]`);
 		if (!btn) return;
+		const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
 		const pad = 16;
 		const left = btn.offsetLeft - pad;
 		const right = btn.offsetLeft + btn.offsetWidth + pad - jumpBar.clientWidth;
-		if (jumpBar.scrollLeft > left) jumpBar.scrollTo({ left, behavior: 'smooth' });
-		else if (jumpBar.scrollLeft < right) jumpBar.scrollTo({ left: right, behavior: 'smooth' });
+		if (jumpBar.scrollLeft > left) jumpBar.scrollTo({ left, behavior });
+		else if (jumpBar.scrollLeft < right) jumpBar.scrollTo({ left: right, behavior });
 	});
 
 	// Loading more days or changing the filter moves rows without a scroll event.
@@ -262,7 +264,7 @@
 		tick().then(findTopDay);
 	});
 
-	async function jump(key: DateKey, smooth = true) {
+	async function jump(key: DateKey, smooth = true, moveFocus = false) {
 		if (key < start) start = key;
 		if (key > addDays(end, -21)) end = addDays(key, 45);
 		await tick();
@@ -279,7 +281,14 @@
 				.find((k) => k >= key);
 			el = target ? document.getElementById('d-' + target) : sentinel;
 		}
-		if (!smooth) {
+		if (moveFocus) {
+			const target = view === 'calendar' && !key.endsWith('-01')
+				? document.getElementById('c-' + key)
+				: el;
+			const focusTarget = view === 'calendar' ? target : target?.querySelector('button') ?? target;
+			focusTarget?.focus({ preventScroll: true });
+		}
+		if (!smooth || matchMedia('(prefers-reduced-motion: reduce)').matches) {
 			el?.scrollIntoView({ block: 'start' });
 			return endJump();
 		}
@@ -302,41 +311,62 @@
 		return isWeekend(key) || holiday(key) ? 'bg-weekend lg:bg-ground' : 'bg-ground lg:bg-surface';
 	}
 
-	function onkeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && !desktop) close();
+	let sheet = $state<HTMLDialogElement>();
+	let panel = $state<HTMLElement>();
+	let opener: HTMLElement | null = null;
+
+	$effect(() => {
+		if (sheet && !sheet.open) sheet.showModal();
+	});
+
+	async function focusPanel() {
+		await tick();
+		const heading = (sheet ?? panel)?.querySelector<HTMLElement>('[data-panel-heading]');
+		heading?.focus();
 	}
 
-	function close() {
+	async function close() {
 		selected = null;
 		planning = false;
+		sheet?.close();
+		await tick();
+		if (opener?.isConnected && opener.getClientRects().length) opener.focus();
+		else document.getElementById('plan-heading')?.focus();
+		opener = null;
 	}
 
-	function openDay(key: DateKey) {
+	function openDay(key: DateKey, trigger?: HTMLElement) {
+		if (trigger) opener = trigger;
 		planning = false;
 		selected = key;
+		void focusPanel();
 	}
 
-	function plan() {
+	function plan(event: MouseEvent) {
+		opener = event.currentTarget as HTMLButtonElement;
 		selected = null;
 		planning = true;
+		void focusPanel();
 	}
 
 	/** After saving, show the new event's day, so it is clear where it went. */
 	function planned(day: DateKey) {
 		openDay(day);
-		jump(day);
+		void jump(day, false);
 	}
 </script>
 
-<svelte:window {onkeydown} {onscroll} onscrollend={() => jumping && endJump()} />
+<svelte:window {onscroll} onscrollend={() => jumping && endJump()} />
+
+<svelte:head><title>Plán | Dostupnost jednotky</title></svelte:head>
 
 {#snippet viewSwitch(cls: string)}
-	<div role="group" aria-label="Zobrazení" class="flex gap-1 rounded-full border border-field bg-ground p-1 {cls}">
+	<div role="group" aria-label="Zobrazení" class="flex flex-wrap gap-1 rounded-xl border border-field bg-ground p-1 {cls}">
 		{#each views as v (v.value)}
 			<button
 				type="button"
 				aria-pressed={view === v.value}
-				class="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[0.9375rem] font-semibold whitespace-nowrap {view ===
+				class="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[0.9375rem] font-semibold {view ===
 				v.value
 					? 'bg-ink text-white'
 					: 'text-ink-2 hover:bg-surface'}"
@@ -370,11 +400,13 @@
 		class="flex w-full cursor-pointer items-center gap-2.5 border-b border-[#E7E2DA] px-4 py-2.5 text-left lg:gap-4 lg:border-line-soft lg:px-5 {rowBg(
 			key
 		)}"
-		onclick={() => openDay(key)}
+		onclick={(event) => openDay(key, event.currentTarget.querySelector('button') ?? undefined)}
 	>
 		<button
 			type="button"
-			aria-label="{DOW_LONG[wd]} {formatDayMonth(key)}: může {av.available.length} z {av.total}. Otevřít den."
+			aria-expanded={key === selected}
+			aria-label="{desktop ? DOW_LONG[wd] : DOW_SHORT[wd]} {formatDayMonth(key)}: může {av.available.length} z {av.total}. Otevřít den."
+			style:scroll-margin-block-start="var(--stick-day)"
 			class="flex min-h-11 w-10 shrink-0 flex-col items-center lg:w-[6.25rem] lg:flex-row lg:gap-2">
 			<span
 				class="text-xs font-bold tracking-[0.06em] lg:order-2 lg:text-sm lg:font-semibold lg:tracking-normal lg:normal-case {red
@@ -492,7 +524,7 @@
 					j.key
 						? 'bg-ink text-white'
 						: 'hover:bg-surface'}"
-					onclick={() => jump(j.key)}>{j.label}</button
+					onclick={() => jump(j.key, true, true)}>{j.label}</button
 				>
 			{/each}
 		</nav>
@@ -512,14 +544,14 @@
 
 	<!-- Timeline -->
 	<section
-		aria-label="Časová osa"
+		aria-labelledby="plan-heading"
 		style="--stick-month: calc(var(--header-h, 0px) + {navH}px - 1px); --stick-week: calc(var(--stick-month) + {monthH}px - 1px); --stick-day: calc(var(--stick-week) + {weekH}px)"
 		class="min-w-0 flex-[999_1_560px] lg:overflow-clip lg:rounded-2xl lg:border lg:border-line lg:bg-surface"
 	>
+		<h1 id="plan-heading" tabindex="-1" class="px-4 pt-4 text-[2rem] font-bold lg:px-5">Plán</h1>
 		<!-- Phone header: only the jump buttons stay pinned, so big text still leaves room -->
 		<div class="flex flex-col gap-1 bg-surface px-4 pt-5 pb-3 lg:hidden">
 			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-				<h1 class="tracking-tight text-[2rem] leading-none font-bold">Plán</h1>
 				{@render planButton()}
 			</div>
 			<span class="text-[0.9375rem] text-muted">Nebo klepněte na den v plánu.</span>
@@ -527,13 +559,13 @@
 			<div
 				role="group"
 				aria-label="Zobrazit dny"
-				class="mt-2 flex gap-1 rounded-full border border-field bg-ground p-1 {view === 'calendar' ? 'hidden' : ''}"
+				class="mt-2 flex flex-wrap gap-1 rounded-xl border border-field bg-ground p-1 {view === 'calendar' ? 'hidden' : ''}"
 			>
 				{#each filters as f (f.value)}
 					<button
 						type="button"
 						aria-pressed={filter === f.value}
-						class="inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-[0.9375rem] font-semibold whitespace-nowrap {filter ===
+						class="inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-[0.9375rem] font-semibold {filter ===
 						f.value
 							? 'bg-ink text-white'
 							: 'text-ink-2 hover:bg-surface'}"
@@ -559,7 +591,7 @@
 					j.key
 						? 'border-ink bg-ink text-white'
 						: 'border-field bg-ground'}"
-					onclick={() => jump(j.key)}>{j.label}</button
+					onclick={() => jump(j.key, true, true)}>{j.label}</button
 				>
 			{/each}
 		</nav>
@@ -662,6 +694,7 @@
 	{#if desktop}
 		<aside
 			aria-label="Vybraný den"
+			bind:this={panel}
 			class="sticky top-[5.5rem] max-h-[calc(100dvh-112px)] w-[22.5rem] shrink-0 overflow-y-auto rounded-2xl border border-line bg-surface p-5"
 		>
 			{#if planning}
@@ -682,25 +715,26 @@
 
 <!-- Bottom sheet (mobile) -->
 {#if (selected || planning) && !desktop}
-	<div class="fixed inset-0 z-40">
-		<button
-			type="button"
-			aria-label="Zavřít"
-			class="absolute inset-0 bg-ink/50"
-			onclick={close}
-		></button>
-		<div
-			role="dialog"
-			aria-modal="true"
-			aria-label={planning ? 'Nová akce' : 'Vybraný den'}
-			class="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[20px] bg-surface px-5 pt-2.5 pb-[max(24px,env(safe-area-inset-bottom))]"
-		>
+	<dialog
+		bind:this={sheet}
+		aria-labelledby="plan-panel-heading"
+		oncancel={(event) => {
+			event.preventDefault();
+			void close();
+		}}
+		onclick={(event) => {
+			if (event.target === event.currentTarget) void close();
+		}}
+		class="fixed inset-x-0 top-auto bottom-0 m-0 max-h-[88dvh] w-full max-w-none overflow-y-auto rounded-t-[20px] bg-surface text-ink backdrop:bg-ink/50"
+	>
+		<div class="px-5 pt-2.5 pb-[max(24px,env(safe-area-inset-bottom))]">
 			<div class="mx-auto mb-2 h-[5px] w-11 rounded-full bg-field" aria-hidden="true"></div>
 			{#if planning}
 				<NewEventPanel onclose={close} onsaved={planned} />
 			{:else if selected}
 				<DayPanel day={selected} onclose={close} />
 			{/if}
+			<ToastNotice inDialog />
 		</div>
-	</div>
+	</dialog>
 {/if}

@@ -43,7 +43,9 @@
 		<Brand large />
 
 		<form class="flex flex-col gap-3.5" onsubmit={submit}>
-			{#if mode === 'setup'}
+			{#if mode === 'unlock'}
+				<h1 class="text-lg font-bold">Přístup k jednotce</h1>
+			{:else}
 				<div class="flex flex-col gap-1">
 					<h1 class="text-lg font-bold">Vítejte! Nastavte heslo jednotky</h1>
 					<p class="text-[0.9375rem] leading-snug text-muted">
@@ -61,6 +63,7 @@
 					id="pw"
 					type={show ? 'text' : 'password'}
 					bind:value={password}
+					aria-describedby={error ? 'password-error' : undefined}
 					autocomplete={mode === 'setup' ? 'new-password' : 'current-password'}
 					required
 					class="h-14 w-full rounded-xl border-2 border-ink bg-surface pr-14 pl-3.5 text-xl tracking-wider"
@@ -81,6 +84,7 @@
 					id="pw2"
 					type={show ? 'text' : 'password'}
 					bind:value={confirm}
+					aria-describedby={error ? 'password-error' : undefined}
 					autocomplete="new-password"
 					required
 					class="h-14 w-full rounded-xl border border-field bg-surface px-3.5 text-xl tracking-wider"
@@ -88,7 +92,7 @@
 			{/if}
 
 			{#if error}
-				<p class="rounded-lg bg-warn-bg px-3 py-2 text-[0.9375rem] font-semibold text-warn-ink" role="alert">
+				<p id="password-error" class="rounded-lg bg-warn-bg px-3 py-2 text-[0.9375rem] font-semibold text-warn-ink" role="alert">
 					{error}
 				</p>
 			{/if}

@@ -235,6 +235,8 @@
 	}
 </script>
 
+<svelte:head><title>Jednotka | Dostupnost jednotky</title></svelte:head>
+
 <div class="mx-auto flex max-w-xl flex-col gap-4 px-5 pt-7 pb-8">
 	<h1 class="tracking-tight text-[2rem] leading-none font-bold">Jednotka</h1>
 
@@ -411,7 +413,7 @@
 				class="h-12 w-full rounded-xl border border-field bg-ground px-3 text-[0.9375rem] text-ink-2"
 			/>
 		</label>
-		<div class="grid grid-cols-2 gap-2">
+		<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
 			<button
 				type="button"
 				class="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent font-bold text-white"
@@ -665,11 +667,11 @@
 						<Icon name="pin" size={18} class="shrink-0 text-faint" />
 						<span class="min-w-0 font-medium break-words">{p}</span>
 					</span>
-					<span class="ml-auto flex shrink-0 items-center gap-1">
+					<span class="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1">
 						<button
 							type="button"
 							aria-pressed={isDefault}
-							class="flex min-h-11 items-center gap-1.5 rounded-[10px] px-3 text-[0.9375rem] font-bold {isDefault
+							class="flex min-h-11 min-w-0 max-w-full items-center gap-1.5 rounded-[10px] px-3 text-[0.9375rem] font-bold {isDefault
 								? 'bg-ink text-white'
 								: 'border border-field text-ink-2'}"
 							onclick={() => setDefaultPlace(p)}
@@ -685,7 +687,7 @@
 				</li>
 			{/each}
 		</ul>
-		<form class="flex gap-2 border-t border-line-soft pt-3" onsubmit={addPlace}>
+		<form class="flex flex-wrap items-end gap-2 border-t border-line-soft pt-3" onsubmit={addPlace}>
 			<label class="flex-1">
 				<span class="sr-only">Nové místo</span>
 				<input
