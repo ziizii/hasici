@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
-	import { initials } from '#lib/colors.js';
+	import { contrastText, initials } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Brand from './Brand.svelte';
@@ -57,8 +57,9 @@
 							onclick={() => access.setMember(m.id)}
 						>
 							<span
-								class="flex size-9 items-center justify-center rounded-[9px] text-sm font-bold text-white"
-								style="background: {m.color}">{initials(m.name)}</span
+								class="flex size-9 items-center justify-center rounded-[9px] text-sm font-bold"
+								style:background-color={m.color}
+								style:color={contrastText(m.color)}>{initials(m.name)}</span
 							>
 							<span class="flex-1 text-[1.0625rem] font-medium">{m.name}</span>
 							<Icon name="chevronRight" class="text-faint" />

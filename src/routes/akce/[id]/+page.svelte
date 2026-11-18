@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { access } from '#lib/access.svelte.js';
-	import { initials } from '#lib/colors.js';
+	import { contrastText, initials } from '#lib/colors.js';
 	import { data, type Todo } from '#lib/data.svelte.js';
 	import { formatLong, OPEN_END, formatShort, todayKey } from '#lib/dates.js';
 	import { describe, lastDay, nextAfter, WEEKLY } from '#lib/repeat.js';
@@ -256,8 +256,9 @@
 					<div class="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
 						<div class="flex items-center gap-2.5">
 							<span
-								class="flex size-8 items-center justify-center rounded-lg text-[0.8125rem] font-bold text-white"
-								style="background: {me.color}">{initials(me.name)}</span
+								class="flex size-8 items-center justify-center rounded-lg text-[0.8125rem] font-bold"
+								style:background-color={me.color}
+								style:color={contrastText(me.color)}>{initials(me.name)}</span
 							>
 							<div class="flex flex-col">
 								<span class="font-bold text-[#17402A]">Počítáme s vámi</span>
@@ -318,7 +319,10 @@
 					{/if}
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						{#each avail.available as m (m.id)}
-							<span class="rounded-lg px-2 py-1 text-sm font-semibold text-white" style="background: {m.color}"
+							<span
+								class="rounded-lg px-2 py-1 text-sm font-semibold"
+								style:background-color={m.color}
+								style:color={contrastText(m.color)}
 								>{m.name}</span
 							>
 						{/each}

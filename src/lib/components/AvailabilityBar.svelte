@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { contrastText } from '#lib/colors.js';
 	import { data, type DayAvailability, type Member } from '#lib/data.svelte.js';
 
 	let {
@@ -35,8 +36,9 @@
 	<span
 		class="flex min-w-0 items-center justify-center overflow-hidden rounded-[5px] px-1 whitespace-nowrap {height} {away
 			? 'bg-off font-semibold text-muted'
-			: 'font-bold text-white'}"
-		style={away ? undefined : `background: ${m.color}`}
+			: 'font-bold'}"
+		style:background-color={away ? undefined : m.color}
+		style:color={away ? undefined : contrastText(m.color)}
 		{title}
 	>
 		<span class="truncate">{data.shortName(m)}</span>

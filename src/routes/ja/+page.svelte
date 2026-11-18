@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { access } from '#lib/access.svelte.js';
-	import { initials } from '#lib/colors.js';
+	import { contrastText, initials } from '#lib/colors.js';
 	import {
 		covers,
 		data,
@@ -137,8 +137,9 @@
 		{#if me}
 			<div class="flex flex-wrap items-center gap-2 text-base">
 				<span
-					class="flex size-7 items-center justify-center rounded-[7px] text-xs font-bold text-white"
-					style="background: {me.color}">{initials(me.name)}</span
+					class="flex size-7 items-center justify-center rounded-[7px] text-xs font-bold"
+					style:background-color={me.color}
+					style:color={contrastText(me.color)}>{initials(me.name)}</span
 				>
 				<span class="font-semibold">{me.name}</span>
 				<span class="text-faint" aria-hidden="true">·</span>
