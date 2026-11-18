@@ -61,6 +61,11 @@
 		</button>
 	</header>
 
+	<a class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
+		href="/ukoly?den={day}">
+		<Icon name="list" size={18} /> Úkoly na tento den
+	</a>
+
 	<section class="flex flex-col gap-2">
 		<span class="text-[1.0625rem] font-bold">{avail.available.length} z {total} může</span>
 		<AvailabilityBar availability={avail} size="lg" ontoggle={(m) => toggleMemberDay(m, day)} />

@@ -202,6 +202,22 @@ service cloud.firestore {
         && request.resource.data.except is list && request.resource.data.except.size() <= 500;
     }
 
+    match /todos/{id} {
+      allow read: if hasSession();
+      allow create, update: if hasSession() && validTodo(request.resource.data);
+
+      function validTodo(d) {
+        return d.keys().hasOnly(['title', 'date', 'eventId', 'dueDate', 'assigneeId', 'completed'])
+          && isText(d.title, 1, 120)
+          && (d.date == null || isDate(d.date))
+          && (d.eventId == null || isText(d.eventId, 1, 100))
+          && (d.date == null || d.eventId == null)
+          && (d.dueDate == null || isDate(d.dueDate))
+          && (d.assigneeId == null || isText(d.assigneeId, 1, 64))
+          && d.completed is bool;
+      }
+    }
+
     match /events/{id} {
       allow read, delete: if hasSession();
       allow create, update: if hasSession()

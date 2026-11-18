@@ -183,6 +183,10 @@
 					<span class="flex items-center gap-2"><Icon name="pin" size={18} class="text-muted" />{ev.place}</span>
 				{/if}
 			</div>
+			<a class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
+				href="/ukoly?akce={encodeURIComponent(ev.id)}">
+				<Icon name="list" size={18} /> Úkoly k akci
+			</a>
 			{#if ev.note}
 				<p class="text-[0.9375rem] leading-snug whitespace-pre-line text-ink-2">{ev.note}</p>
 			{/if}
