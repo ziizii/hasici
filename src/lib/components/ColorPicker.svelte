@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PALETTE } from '#lib/colors.js';
+	import { contrastText, PALETTE } from '#lib/colors.js';
 	import Icon from '#lib/components/Icon.svelte';
 
 	/** The palette plus a last square for any custom colour (stored as uppercase #RRGGBB). */
@@ -15,16 +15,18 @@
 			type="button"
 			aria-label="Barva {c}"
 			aria-pressed={current === c}
-			class="flex size-11 items-center justify-center rounded-lg text-white"
-			style="background: {c}"
+			class="flex size-11 items-center justify-center rounded-lg"
+			style:background-color={c}
+			style:color={contrastText(c)}
 			onclick={() => onpick(c)}
 		>
 			{#if current === c}<Icon name="check" size={18} stroke={3} />{/if}
 		</button>
 	{/each}
 	<label
-		class="relative flex size-11 cursor-pointer items-center justify-center rounded-lg text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+		class="relative flex size-11 cursor-pointer items-center justify-center rounded-lg has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
 		style="background: {custom ? value : 'conic-gradient(#d33, #e90, #dc3, #3a4, #29c, #63c, #c3a, #d33)'}"
+		style:color={custom ? contrastText(value) : '#fff'}
 	>
 		{#if custom}<Icon name="check" size={18} stroke={3} />{:else}<Icon name="plus" size={18} stroke={3} />{/if}
 		<input

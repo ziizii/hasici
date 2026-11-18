@@ -49,6 +49,22 @@ export function nextColor(used: string[]): string {
 	return best;
 }
 
+/** Pick the higher WCAG contrast against an opaque sRGB hex colour. */
+export function contrastText(background: string): '#000' | '#fff' {
+	const hex = background.trim().slice(1);
+	const rgb = hex.length === 3 ? hex.replace(/./g, (digit) => digit.repeat(2)) : hex;
+	if (!background.trim().startsWith('#') || !/^[0-9a-f]{6}$/i.test(rgb)) return '#000';
+
+	const linear = (offset: number) => {
+		const channel = parseInt(rgb.slice(offset, offset + 2), 16) / 255;
+		return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+	};
+	const luminance = 0.2126 * linear(0) + 0.7152 * linear(2) + 0.0722 * linear(4);
+	const blackContrast = (luminance + 0.05) / 0.05;
+	const whiteContrast = 1.05 / (luminance + 0.05);
+	return blackContrast >= whiteContrast ? '#000' : '#fff';
+}
+
 export function initials(name: string): string {
 	const parts = name.trim().split(/\s+/).filter(Boolean);
 	if (parts.length === 0) return '?';

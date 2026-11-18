@@ -5,7 +5,7 @@
 	import { access } from '#lib/access.svelte.js';
 	import { data } from '#lib/data.svelte.js';
 	import { configMissing } from '#lib/firebase.js';
-	import { initials } from '#lib/colors.js';
+	import { contrastText, initials } from '#lib/colors.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Brand from '#lib/components/Brand.svelte';
 	import Icon, { type IconName } from '#lib/components/Icon.svelte';
@@ -180,8 +180,9 @@
 				{#if me}
 					<a href="/ja" class="flex items-center gap-2 text-[0.9375rem] text-muted">
 						<span
-							class="flex size-7 items-center justify-center rounded-[7px] text-xs font-bold text-white"
-							style="background: {me.color}">{initials(me.name)}</span
+							class="flex size-7 items-center justify-center rounded-[7px] text-xs font-bold"
+							style:background-color={me.color}
+							style:color={contrastText(me.color)}>{initials(me.name)}</span
 						>
 						{me.name}
 					</a>

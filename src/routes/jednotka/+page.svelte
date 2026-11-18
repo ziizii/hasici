@@ -2,7 +2,7 @@
 	import { version } from '$app/env';
 	import { perfReport } from '#lib/perf.js';
 	import { access } from '#lib/access.svelte.js';
-	import { initials } from '#lib/colors.js';
+	import { contrastText, initials } from '#lib/colors.js';
 	import { absenceWhen, data, groupAbsences, isSwitch, type Member } from '#lib/data.svelte.js';
 	import { formatShort, todayKey } from '#lib/dates.js';
 	import { everyLabel } from '#lib/repeat.js';
@@ -260,8 +260,9 @@
 			{#each unavailable as { member: m, absence: a } (m.id)}
 				<li class="flex min-h-[3.25rem] flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-soft py-1">
 					<span
-						class="flex size-8 items-center justify-center rounded-lg text-xs font-bold text-white"
-						style="background: {m.color}">{initials(m.name)}</span
+						class="flex size-8 items-center justify-center rounded-lg text-xs font-bold"
+						style:background-color={m.color}
+						style:color={contrastText(m.color)}>{initials(m.name)}</span
 					>
 					<span class="flex min-w-0 flex-1 flex-col">
 						<span class="font-medium">{m.name}</span>
@@ -284,8 +285,9 @@
 			{#each upcoming as { member: m, absence: a } (a.id)}
 				<li class="flex min-h-[3.25rem] items-center gap-3 border-t border-line-soft py-1.5">
 					<span
-						class="flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-						style="background: {m.color}">{initials(m.name)}</span
+						class="flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold"
+						style:background-color={m.color}
+						style:color={contrastText(m.color)}>{initials(m.name)}</span
 					>
 					<span class="flex min-w-0 flex-1 flex-col">
 						<span class="font-medium">{m.name}</span>
@@ -578,8 +580,9 @@
 							onclick={() => startEdit(m)}
 						>
 							<span
-								class="flex size-8 items-center justify-center rounded-lg text-xs font-bold text-white"
-								style="background: {m.color}">{initials(m.name)}</span
+								class="flex size-8 items-center justify-center rounded-lg text-xs font-bold"
+								style:background-color={m.color}
+								style:color={contrastText(m.color)}>{initials(m.name)}</span
 							>
 							<span class="flex min-w-0 flex-1 flex-col">
 								<span class="font-medium">{m.name}</span>
