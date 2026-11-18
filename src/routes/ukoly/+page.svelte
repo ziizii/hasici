@@ -10,6 +10,7 @@
 	const requestedDate = $derived(page.url.searchParams.get('den') ?? '');
 	const date = $derived(!eventId && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : '');
 	const scopedEvent = $derived(eventId ? data.event(eventId) : undefined);
+	const canCreateHere = $derived(!eventId || (scopedEvent && scopedEvent.date >= todayKey()));
 	const statuses = [
 		{ value: false, label: 'Otevřené' },
 		{ value: true, label: 'Hotové' }
@@ -23,6 +24,7 @@
 	let target = $state<'none' | 'date' | 'event'>('none');
 	let linkedDate = $state('');
 	let linkedEvent = $state('');
+	let originalEventId = $state('');
 	let dueDate = $state('');
 	let assignee = $state('');
 
@@ -30,8 +32,10 @@
 	const eventsLoaded = $derived(data.loaded.events && data.loaded.series);
 	const eventOptions = $derived.by(() => {
 		const selected = linkedEvent ? data.event(linkedEvent) : undefined;
-		const events = data.events;
-		return selected && !events.some((event) => event.id === selected.id)
+		const today = todayKey();
+		const events = data.events.filter((event) => event.date >= today);
+		return selected && (selected.id === originalEventId || selected.date >= today) &&
+			!events.some((event) => event.id === selected.id)
 			? [selected, ...events]
 			: events;
 	});
@@ -45,7 +49,9 @@
 	);
 
 	async function openForm(todo?: Todo) {
+		if (!todo && eventId && (!scopedEvent || scopedEvent.date < todayKey())) return;
 		editing = todo?.id ?? '';
+		originalEventId = todo?.eventId ?? '';
 		title = todo?.title ?? '';
 		linkedDate = todo ? todo.date ?? '' : date;
 		linkedEvent = todo ? todo.eventId ?? '' : eventId;
@@ -60,6 +66,14 @@
 		event.preventDefault();
 		if (busy || editing === null || !title.trim() ||
 			(target === 'date' && !linkedDate) || (target === 'event' && !linkedEvent)) return;
+		if (target === 'event' && linkedEvent !== originalEventId) {
+			const activity = data.event(linkedEvent);
+			if (!activity || activity.date < todayKey()) {
+				linkedEvent = '';
+				toasts.error('Vyberte akci, která se koná dnes nebo později.');
+				return;
+			}
+		}
 		const fields: TodoFields = {
 			title: title.trim(),
 			date: target === 'date' ? linkedDate : null,
@@ -77,6 +91,22 @@
 			editing = null;
 		} catch {
 			toasts.error('Úkol se nepodařilo uložit. Zkuste to znovu.');
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function removeTodo() {
+		if (busy || !editing) return;
+		const todo = data.todos.find((item) => item.id === editing);
+		if (!todo || !confirm(`Opravdu smazat úkol „${todo.title}“?`)) return;
+		busy = true;
+		try {
+			await data.deleteTodo(todo.id);
+			editing = null;
+			toasts.show('Úkol smazán');
+		} catch {
+			toasts.error('Úkol se nepodařilo smazat.');
 		} finally {
 			busy = false;
 		}
@@ -109,13 +139,17 @@
 				<a href="/ukoly" class="inline-flex min-h-11 items-center font-semibold text-accent-dark">Všechny úkoly</a>
 			{/if}
 		</div>
-		{#if editing === null}
+		{#if editing === null && canCreateHere}
 			<button type="button" class="{button} bg-accent text-white"
 				disabled={busy || data.todosStatus !== 'ready'} onclick={() => openForm()}>
 				<Icon name="plus" size={19} /> Nový úkol
 			</button>
 		{/if}
 	</header>
+
+	{#if scopedEvent && !canCreateHere}
+		<p class="text-sm text-muted">Nové úkoly lze přiřadit k akcím ode dneška.</p>
+	{/if}
 
 	{#if editing !== null}
 		<form onsubmit={save} aria-labelledby="todo-form-heading"
@@ -147,7 +181,7 @@
 							{#each eventOptions as event (event.id)}
 								<option value={event.id}>{formatShort(event.date)} {event.time} · {event.title}</option>
 							{/each}
-							{#if linkedEvent && !data.event(linkedEvent)}
+							{#if linkedEvent && linkedEvent === originalEventId && !data.event(linkedEvent)}
 								<option value={linkedEvent}>{eventsLoaded ? 'Nedostupná akce' : 'Načítám akci…'}</option>
 							{/if}
 						</select>
@@ -171,6 +205,12 @@
 				</label>
 			</fieldset>
 			<div class="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+				{#if editing}
+					<button type="button" class="{button} mr-auto text-accent-dark"
+						disabled={busy} onclick={removeTodo}>
+						<Icon name="trash" size={18} /> Smazat úkol
+					</button>
+				{/if}
 				<button type="button" class="{button} border border-field text-ink" disabled={busy} onclick={() => (editing = null)}>Zrušit</button>
 				<button type="submit" class="{button} bg-accent text-white" disabled={busy || !title.trim()}>Uložit úkol</button>
 			</div>
