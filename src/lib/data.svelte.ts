@@ -806,10 +806,11 @@ class Data {
 	}
 
 	/** Completing a task and adding its next occurrence are one write. */
-	async setTodoCompleted(id: string, completed: boolean, removeNextId?: string): Promise<boolean> {
+	async setTodoCompleted(id: string, completed: boolean, removeNextId?: string, doneBy?: string | null): Promise<boolean> {
+		const active = this.members.map((member) => member.id);
 		const today = todayKey();
 		const change = (nextId: string | null) => ({
-			completed, completedOn: completed ? today : null, nextId
+			completed, completedOn: completed ? today : null, nextId, doneBy: completed ? doneBy ?? null : null
 		});
 		if (this.#demo) {
 			const todo = this.todos.find((item) => item.id === id);
@@ -819,7 +820,7 @@ class Data {
 				(todo.nextId !== removeNextId ||
 					!this.todos.some((item) => item.id === todo.nextId && !item.completed))) return false;
 
-			const fields = completed ? nextTodoFields(todo, today) : undefined;
+			const fields = completed ? nextTodoFields(todo, today, doneBy, active) : undefined;
 			const next = fields ? { ...fields, id: crypto.randomUUID(), completed: false } : undefined;
 			const updated = { ...todo, ...change(next?.id ?? null) };
 			this.todos = this.todos
@@ -844,7 +845,7 @@ class Data {
 				transaction.delete(next);
 			}
 
-			const fields = completed ? nextTodoFields(todo, today) : undefined;
+			const fields = completed ? nextTodoFields(todo, today, doneBy, active) : undefined;
 			const next = fields ? doc(collection(db, 'todos')) : undefined;
 			if (next && fields) transaction.set(next, { ...fields, completed: false });
 			transaction.update(ref, change(next?.id ?? null));

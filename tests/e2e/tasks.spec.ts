@@ -1,4 +1,4 @@
-import { acceptDialog, day, expect, freezeDate, join, member, nav, otherMember, seedActivity, startTodo, test } from './fixtures';
+import { acceptDialog, day, expect, freezeDate, join, member, nav, otherMember, seedActivity, seedMember, startTodo, test } from './fixtures';
 
 test('creates, sorts, edits, completes, reopens and deletes shared tasks', async ({ signedIn: page, newDevice }) => {
 	const other = await newDevice();
@@ -229,4 +229,85 @@ test('editing a task keeps its repeat end, and shows a deleted activity and assi
 	await page.getByRole('button', { name: 'Upravit: Nachystat hadice' }).click();
 	await expect(page.getByRole('combobox', { name: 'Akce', exact: true }).locator('option:checked')).toHaveText('Nedostupná akce');
 	await expect(page.getByLabel('Řešitel').locator('option:checked')).toHaveText('Bývalý člen');
+});
+
+test('a pool of people takes turns on a repeating task', async ({ signedIn: page }) => {
+	await seedMember('karel', 'Karel Fiala', '#2E7D32');
+	await nav(page, 'Úkoly').click();
+	await startTodo(page, 'Vytřít klubovnu');
+	await page.getByLabel('Termín dokončení').fill('2026-11-19');
+	await expect(page.getByRole('option', { name: 'Střídá se víc lidí' })).toHaveCount(0);
+	await page.getByLabel('Opakování úkolu').selectOption('calendar');
+	await page.getByLabel('Řešitel').selectOption({ label: 'Střídá se víc lidí' });
+	const pool = page.getByRole('group', { name: 'Kdo se střídá' });
+	await pool.getByLabel(member).check();
+	await expect(page.getByText('Vyberte aspoň dva lidi.')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Uložit úkol' })).toBeDisabled();
+	await pool.getByLabel(otherMember).check();
+	await pool.getByLabel('Karel Fiala').check();
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+
+	const list = page.getByRole('list', { name: 'Seznam úkolů' });
+	await expect(list).toContainText('Na řadě: Petr, Karel, Jana');
+	const who = page.getByRole('dialog', { name: 'Kdo to udělal?' });
+	const done = async (name: string) => {
+		await page.getByRole('button', { name: 'Dokončit: Vytřít klubovnu' }).click();
+		await who.getByRole('button', { name: new RegExp(name) }).click();
+		await expect(who).toBeHidden();
+	};
+
+	await page.getByRole('button', { name: 'Dokončit: Vytřít klubovnu' }).click();
+	await expect(who.getByRole('button').first()).toHaveText(/Jana Nováková \(já\)/);
+	await who.getByRole('button', { name: 'Zrušit' }).click();
+	await expect(list).toContainText('Na řadě: Petr, Karel, Jana');
+
+	await done(member);
+	await expect(list).toContainText('Na řadě: Petr, Karel');
+	await expect(list).not.toContainText('Jana');
+	await done(otherMember);
+	await expect(list).toContainText('Na řadě: Karel');
+	// Jana stands in for Karel: the next round skips her and Karel is due twice.
+	await page.getByRole('button', { name: 'Dokončit: Vytřít klubovnu' }).click();
+	await expect(who.getByRole('button', { name: /Karel Fiala/ })).toContainText('na řadě');
+	await who.getByRole('button', { name: /Jana Nováková/ }).click();
+	await expect(list).toContainText('Na řadě: Karel 2×, Petr');
+	await expect(list).toContainText('Termín Čt 10. 12.');
+
+	await page.getByRole('button', { name: 'Hotové', exact: true }).click();
+	await expect(list.getByText(`Hotovo Čt 19. 11. (${otherMember})`)).toBeVisible();
+	await expect(list.getByText(`Hotovo Čt 19. 11. (${member})`)).toHaveCount(2);
+	acceptDialog(page);
+	await list.getByRole('button', { name: 'Znovu otevřít: Vytřít klubovnu' }).last().click();
+	await page.getByRole('button', { name: 'Otevřené', exact: true }).click();
+	await expect(list).toContainText('Na řadě: Karel');
+	await expect(list).not.toContainText('2×');
+
+	// The checklist in the day panel asks too.
+	await nav(page, 'Plán').click();
+	await day(page, '2026-12-03').click();
+	const checkbox = page.getByRole('checkbox', { name: /Vytřít klubovnu/ });
+	await expect(page.getByText('Na řadě: Karel')).toBeVisible();
+	await checkbox.check();
+	await who.getByRole('button', { name: 'Zrušit' }).click();
+	await expect(checkbox).not.toBeChecked();
+	await checkbox.check();
+	await who.getByRole('button', { name: /Karel Fiala/ }).click();
+	await expect(checkbox).toBeChecked();
+	await expect(page.locator('label', { has: checkbox })).toContainText('Karel Fiala');
+
+	// Editing keeps the round; without repetition the pool is dropped.
+	await nav(page, 'Úkoly').click();
+	await page.getByRole('button', { name: 'Upravit: Vytřít klubovnu' }).click();
+	await expect(page.getByLabel('Řešitel')).toHaveValue('*');
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await expect(list).toContainText('Na řadě: Petr, Karel, Jana');
+	await page.getByRole('button', { name: 'Upravit: Vytřít klubovnu' }).click();
+	await page.getByLabel('Opakování úkolu').selectOption({ label: 'Neopakovat' });
+	await expect(page.getByLabel('Řešitel')).toHaveValue('');
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await expect(list).not.toContainText('Na řadě');
+	await page.getByRole('button', { name: 'Dokončit: Vytřít klubovnu' }).click();
+	await expect(who).toBeHidden();
+	await page.getByRole('button', { name: 'Hotové', exact: true }).click();
+	await expect(list.getByRole('listitem')).toHaveCount(4);
 });

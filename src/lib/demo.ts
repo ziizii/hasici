@@ -96,7 +96,12 @@ export function demoData(count = 10): {
 	];
 	const todos: Todo[] = [
 		{ id: 't1', title: 'Zkontrolovat lékárničku', date: null, eventId: null, dueDate: d(0), assigneeId: 'm2', completed: false },
-		{ id: 't2', title: 'Připravit hadice na cvičení', date: null, eventId: 'e1', dueDate: d(10), assigneeId: 'm4', completed: false }
+		{ id: 't2', title: 'Připravit hadice na cvičení', date: null, eventId: 'e1', dueDate: d(10), assigneeId: 'm4', completed: false },
+		{
+			id: 't3', title: 'Vytřít klubovnu', date: null, eventId: null, dueDate: d(0), assigneeId: null, completed: false,
+			recurrence: { mode: 'completion', freq: 'week', every: 1 },
+			rotation: { members: ['m1', 'm2', 'm4', 'm6', 'm7'], owed: { m1: 0, m2: 1, m4: 2, m6: 0, m7: 1 } }
+		}
 	];
 	const places = ['Hasičská zbrojnice', 'Klubovna', 'Hřiště u školy'];
 	return { members, absences, events, series, todos, places, defaultPlace: places[0] };

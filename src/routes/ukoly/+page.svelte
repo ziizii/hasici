@@ -5,8 +5,8 @@
 	import { data } from '#lib/data.svelte.js';
 	import { formatShort, OPEN_END, todayKey } from '#lib/dates.js';
 	import { isEmpty, normalize, WEEKLY, type Freq, type Repeat } from '#lib/repeat.js';
-	import { describeTodoRepeat, firstTodoDate, type Todo, type TodoFields } from '#lib/todo.js';
-	import { toggleTodo } from '#lib/todo-actions.js';
+	import { describeTodoRepeat, editRotation, firstTodoDate, type Todo, type TodoFields } from '#lib/todo.js';
+	import { memberName, toggleTodo, turnsText } from '#lib/todo-actions.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
 	import RepeatPicker from '#lib/components/RepeatPicker.svelte';
@@ -49,6 +49,16 @@
 	let repeatUntil = $state('');
 	let interval = $state<number | undefined>(1);
 	let intervalUnit = $state<Freq>('year');
+	/** Řešitel value for "the people in the pool take turns". */
+	const ROTATION = '*';
+	let rotationMembers = $state<string[]>([]);
+	const rotating = $derived(repeatMode !== 'none' && assignee === ROTATION);
+	const activeInRotation = $derived(data.members.filter((member) => rotationMembers.includes(member.id)).length);
+	const validRotation = $derived(!rotating || activeInRotation >= 2);
+
+	$effect(() => {
+		if (repeatMode === 'none' && assignee === ROTATION) assignee = '';
+	});
 
 	const calendarFrom = $derived(
 		original?.recurrence?.mode === 'calendar' && dueDate === original.dueDate
@@ -95,8 +105,9 @@
 		linkedEvent = todo ? todo.eventId ?? '' : eventId;
 		target = linkedEvent ? 'event' : linkedDate ? 'date' : 'none';
 		dueDate = todo?.dueDate ?? '';
-		assignee = todo?.assigneeId ?? '';
 		const recurrence = todo?.completed ? null : todo?.recurrence;
+		assignee = recurrence && todo?.rotation ? ROTATION : todo?.assigneeId ?? '';
+		rotationMembers = todo?.rotation?.members ?? [];
 		repeatMode = recurrence?.mode ?? 'none';
 		calendarRule = recurrence?.mode === 'calendar' ? recurrence.rule : null;
 		repeatUntil = recurrence?.mode === 'calendar' && recurrence.until !== OPEN_END ? recurrence.until : '';
@@ -118,14 +129,21 @@
 				return;
 			}
 		}
-		if ((repeatMode === 'calendar' && !firstDueDate) || (repeatMode === 'completion' && !validInterval)) return;
+		if ((repeatMode === 'calendar' && !firstDueDate) || (repeatMode === 'completion' && !validInterval) || !validRotation) return;
 		const fields: TodoFields = {
 			title: title.trim(),
 			date: target === 'date' ? linkedDate : null,
 			eventId: target === 'event' ? linkedEvent : null,
 			dueDate: firstDueDate ?? (dueDate || null),
-			assigneeId: assignee || null
+			assigneeId: rotating ? null : assignee || null
 		};
+		if (rotating) {
+			// Plan order (by surname), then members archived since.
+			const active = data.members.map((member) => member.id).filter((id) => rotationMembers.includes(id));
+			const others = rotationMembers.filter((id) => !active.includes(id));
+			fields.rotation = editRotation(original?.rotation, [...active, ...others]);
+		}
+		else if (original?.rotation && !original.completed) fields.rotation = null;
 		if (repeatMode === 'calendar' && calendarRule) {
 			fields.recurrence = {
 				mode: 'calendar',
@@ -259,6 +277,9 @@
 					Řešitel
 					<select class="todo-field" bind:value={assignee}>
 						<option value="">Nepřiřazeno</option>
+						{#if repeatMode !== 'none'}
+							<option value={ROTATION}>Střídá se víc lidí</option>
+						{/if}
 						{#each data.members as member (member.id)}
 							<option value={member.id}>{member.name}</option>
 						{/each}
@@ -301,6 +322,26 @@
 							</select>
 						</label>
 					{/if}
+					{#if rotating}
+						<fieldset class="flex min-w-0 flex-col gap-1 sm:col-span-2">
+							<legend class="text-[0.9375rem] font-semibold text-ink-2">Kdo se střídá</legend>
+							<p class="text-sm text-muted">
+								Kdo úkol udělá, je na řadě až po ostatních. Kdo ho udělá místo jiného, příště vynechá.
+							</p>
+							<div class="grid gap-x-4 sm:grid-cols-2">
+								{#each data.members as member (member.id)}
+									<label class="flex min-h-11 items-center gap-3">
+										<input type="checkbox" class="size-5 shrink-0 accent-accent-dark"
+											value={member.id} bind:group={rotationMembers} />
+										<span class="break-words">{member.name}</span>
+									</label>
+								{/each}
+							</div>
+							{#if !validRotation}
+								<p class="text-sm text-accent-dark">Vyberte aspoň dva lidi.</p>
+							{/if}
+						</fieldset>
+					{/if}
 				{/if}
 			</fieldset>
 			<div class="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
@@ -313,7 +354,7 @@
 				<button type="button" class="{button} border border-field text-ink" disabled={busy} onclick={closeForm}>Zrušit</button>
 				<button type="submit" class="{button} bg-accent text-white"
 					disabled={busy || !title.trim() || (repeatMode === 'calendar' && !firstDueDate) ||
-						(repeatMode === 'completion' && !validInterval)}>Uložit úkol</button>
+						(repeatMode === 'completion' && !validInterval) || !validRotation}>Uložit úkol</button>
 			</div>
 		</form>
 	{/if}
@@ -339,7 +380,6 @@
 		<ul class="grid gap-2" aria-label="Seznam úkolů">
 			{#each visible as todo (todo.id)}
 				{@const event = todo.eventId ? data.event(todo.eventId) : undefined}
-				{@const member = data.allMembers.find((member) => member.id === todo.assigneeId)}
 				<li class="flex items-start gap-2 rounded-2xl border border-line bg-surface p-2 sm:gap-3">
 					<button type="button" class="grid size-11 shrink-0 place-items-center rounded-xl"
 						aria-label={todo.completed ? `Znovu otevřít: ${todo.title}` : `Dokončit: ${todo.title}`}
@@ -363,8 +403,11 @@
 									Termín {formatShort(todo.dueDate)}
 								</span>
 							{/if}
-							{#if todo.assigneeId}<span>{member?.name ?? 'Bývalý člen'}</span>{/if}
-							{#if todo.completedOn}<span>Hotovo {formatShort(todo.completedOn)}</span>{/if}
+							{#if todo.assigneeId}<span>{memberName(todo.assigneeId)}</span>{/if}
+							{#if todo.completedOn}
+								<span>Hotovo {formatShort(todo.completedOn)}{todo.doneBy ? ` (${memberName(todo.doneBy)})` : ''}</span>
+							{/if}
+							{#if !todo.completed && todo.rotation}<span>{turnsText(todo.rotation)}</span>{/if}
 							{#if !todo.completed && todo.recurrence}<span>{describeTodoRepeat(todo.recurrence)}</span>{/if}
 						</div>
 					</div>
