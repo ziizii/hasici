@@ -247,7 +247,7 @@ MIT licensed. Nothing is tied to one unit: the Firebase project comes from `.env
 project; `.firebaserc` is not committed. CI uses the repo variables set by
 `make setup-ci` and skips itself in copies where they are missing. The Czech
 README is the setup guide for non-technical units; its screenshots in
-`docs/screenshots/` come from `?demo` (plan, calendar, day, event, me) and the emulators
+`docs/screenshots/` come from `?demo` (plan, calendar, day, event, me, tasks with a rotation, "Kdo to udělal?") and the emulators
 (password, member picker, share link). Retake them with `make screenshots`.
 The Jednotka page links to the GitHub repo at the bottom.
 
