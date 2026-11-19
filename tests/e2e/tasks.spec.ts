@@ -1,43 +1,38 @@
 import { acceptDialog, day, expect, freezeDate, join, member, nav, otherMember, seedActivity, startTodo, test } from './fixtures';
 
-test('creates, sorts, edits, completes, reopens and deletes shared tasks', async ({ signedIn: page, browser }, info) => {
-	const device = await browser.newContext({ baseURL: info.project.use.baseURL });
-	try {
-		const other = await device.newPage();
-		await freezeDate(other);
-		await join(other, '/ukoly', otherMember);
-		await nav(page, 'Úkoly').click();
-		await expect(page.getByText('Žádné otevřené úkoly.')).toBeVisible();
-		await startTodo(page, 'Úklid');
-		await page.getByRole('button', { name: 'Zrušit', exact: true }).click();
-		await expect(page.getByText('Žádné otevřené úkoly.')).toBeVisible();
+test('creates, sorts, edits, completes, reopens and deletes shared tasks', async ({ signedIn: page, newDevice }) => {
+	const other = await newDevice();
+	await freezeDate(other);
+	await join(other, '/ukoly', otherMember);
+	await nav(page, 'Úkoly').click();
+	await expect(page.getByText('Žádné otevřené úkoly.')).toBeVisible();
+	await startTodo(page, 'Úklid');
+	await page.getByRole('button', { name: 'Zrušit', exact: true }).click();
+	await expect(page.getByText('Žádné otevřené úkoly.')).toBeVisible();
 
-		await startTodo(page, 'Úklid');
-		await page.getByRole('button', { name: 'Uložit úkol' }).click();
-		await startTodo(page, 'Revize');
-		await page.getByLabel('Termín dokončení').fill('2026-11-18');
-		await page.getByLabel('Řešitel').selectOption({ label: otherMember });
-		await page.getByRole('button', { name: 'Uložit úkol' }).click();
-		const list = page.getByRole('list', { name: 'Seznam úkolů' });
-		await expect(list.getByRole('listitem').first()).toContainText('Revize');
-		await expect(list.getByRole('listitem').first()).toContainText(otherMember);
-		await expect(list.getByText('Termín St 18. 11.')).toHaveClass(/font-bold/);
-		await other.getByRole('button', { name: 'Upravit: Revize' }).click();
-		await other.getByLabel('Název', { exact: true }).fill('Revize auta');
-		await other.getByRole('button', { name: 'Uložit úkol' }).click();
-		await page.getByRole('button', { name: 'Dokončit: Revize auta' }).click();
-		await page.getByRole('button', { name: 'Hotové', exact: true }).click();
-		await expect(list.getByText('Hotovo Čt 19. 11.')).toBeVisible();
-		await page.getByRole('button', { name: 'Znovu otevřít: Revize auta' }).click();
-		await page.getByRole('button', { name: 'Otevřené', exact: true }).click();
-		await page.getByRole('button', { name: 'Upravit: Revize auta' }).click();
-		acceptDialog(page);
-		await page.getByRole('button', { name: 'Smazat úkol' }).click();
-		await expect(other.getByRole('button', { name: 'Dokončit: Revize auta' })).toHaveCount(0);
-		await expect(other.getByRole('button', { name: 'Dokončit: Úklid' })).toBeVisible();
-	} finally {
-		await device.close();
-	}
+	await startTodo(page, 'Úklid');
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await startTodo(page, 'Revize');
+	await page.getByLabel('Termín dokončení').fill('2026-11-18');
+	await page.getByLabel('Řešitel').selectOption({ label: otherMember });
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	const list = page.getByRole('list', { name: 'Seznam úkolů' });
+	await expect(list.getByRole('listitem').first()).toContainText('Revize');
+	await expect(list.getByRole('listitem').first()).toContainText(otherMember);
+	await expect(list.getByText('Termín St 18. 11.')).toHaveClass(/font-bold/);
+	await other.getByRole('button', { name: 'Upravit: Revize' }).click();
+	await other.getByLabel('Název', { exact: true }).fill('Revize auta');
+	await other.getByRole('button', { name: 'Uložit úkol' }).click();
+	await page.getByRole('button', { name: 'Dokončit: Revize auta' }).click();
+	await page.getByRole('button', { name: 'Hotové', exact: true }).click();
+	await expect(list.getByText('Hotovo Čt 19. 11.')).toBeVisible();
+	await page.getByRole('button', { name: 'Znovu otevřít: Revize auta' }).click();
+	await page.getByRole('button', { name: 'Otevřené', exact: true }).click();
+	await page.getByRole('button', { name: 'Upravit: Revize auta' }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: 'Smazat úkol' }).click();
+	await expect(other.getByRole('button', { name: 'Dokončit: Revize auta' })).toHaveCount(0);
+	await expect(other.getByRole('button', { name: 'Dokončit: Úklid' })).toBeVisible();
 });
 
 test('shows a task on its assigned day and due day, with one checklist item when the dates coincide', async ({ signedIn: page }) => {
@@ -110,44 +105,39 @@ test('activity tasks appear in activity and due-day checklists, and successors a
 	await expect(page.getByRole('button', { name: 'Nový úkol' })).toHaveCount(0);
 });
 
-test('two devices completing the same recurring task create only one successor', async ({ signedIn: page, browser }, info) => {
+test('two devices completing the same recurring task create only one successor', async ({ signedIn: page, newDevice }) => {
 	await nav(page, 'Úkoly').click();
 	await startTodo(page, 'Kontrola světel');
 	await page.getByLabel('Opakování úkolu').selectOption('completion');
 	await page.getByLabel('Jednotka').selectOption('day');
 	await page.getByRole('button', { name: 'Uložit úkol' }).click();
 
-	const second = await browser.newContext({ baseURL: info.project.use.baseURL });
-	try {
-		const other = await second.newPage();
-		await freezeDate(other);
-		await join(other, '/ukoly', otherMember);
-		const button = { name: 'Dokončit: Kontrola světel' };
-		// Release both actual transaction requests together so the second device still has
-		// the original row in its UI when the user clicks.
-		let release!: () => void;
-		const bothRequests = new Promise<void>((resolve) => { release = resolve; });
-		const reads: string[] = [];
-		for (const client of [page, other]) {
-			await client.route('**/documents:batchGet*', async (route) => {
-				reads.push(route.request().postData() ?? '');
-				if (reads.length === 2) release();
-				await bothRequests;
-				await route.continue();
-			});
-		}
-		await Promise.all([page.getByRole('button', button).click(), other.getByRole('button', button).click()]);
-		await expect(page.getByText('Termín Pá 20. 11.')).toBeVisible();
-		await expect(page.getByRole('button', button)).toHaveCount(1);
-		await expect(other.getByRole('button', button)).toHaveCount(1);
-		await expect(other.getByText('Termín Pá 20. 11.')).toBeVisible();
-		expect(reads.length).toBeGreaterThanOrEqual(2);
-		expect(reads[0]).toBe(reads[1]);
-		await page.getByRole('button', { name: 'Hotové', exact: true }).click();
-		await expect(page.getByRole('button', { name: 'Znovu otevřít: Kontrola světel' })).toHaveCount(1);
-	} finally {
-		await second.close();
+	const other = await newDevice();
+	await freezeDate(other);
+	await join(other, '/ukoly', otherMember);
+	const button = { name: 'Dokončit: Kontrola světel' };
+	// Release both actual transaction requests together so the second device still has
+	// the original row in its UI when the user clicks.
+	let release!: () => void;
+	const bothRequests = new Promise<void>((resolve) => { release = resolve; });
+	const reads: string[] = [];
+	for (const client of [page, other]) {
+		await client.route('**/documents:batchGet*', async (route) => {
+			reads.push(route.request().postData() ?? '');
+			if (reads.length === 2) release();
+			await bothRequests;
+			await route.continue();
+		});
 	}
+	await Promise.all([page.getByRole('button', button).click(), other.getByRole('button', button).click()]);
+	await expect(page.getByText('Termín Pá 20. 11.')).toBeVisible();
+	await expect(page.getByRole('button', button)).toHaveCount(1);
+	await expect(other.getByRole('button', button)).toHaveCount(1);
+	await expect(other.getByText('Termín Pá 20. 11.')).toBeVisible();
+	expect(reads.length).toBeGreaterThanOrEqual(2);
+	expect(reads[0]).toBe(reads[1]);
+	await page.getByRole('button', { name: 'Hotové', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Znovu otevřít: Kontrola světel' })).toHaveCount(1);
 });
 
 test('a dated recurring task carries its day offset forward and deleting it ends the chain', async ({ signedIn: page }) => {

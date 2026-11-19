@@ -9,7 +9,9 @@ process.env.VITE_USE_EMULATORS = '1';
 process.env.VITE_EMULATOR_AUTH_PORT = '9099';
 process.env.VITE_EMULATOR_FIRESTORE_PORT = '8080';
 
-const builder = await createBuilder();
+const builder = await createBuilder({
+	build: { sourcemap: process.env.HASICI_COVERAGE === '1' }
+});
 await builder.buildApp();
 
 const config = JSON.parse(await readFile(new URL('../firebase.json', import.meta.url), 'utf8'));

@@ -22,7 +22,7 @@ test.describe('uninitialized unit', () => {
 	});
 });
 
-test('rejects a wrong password, throttles guesses, and accepts the password on a new device', async ({ page, browser }) => {
+test('rejects a wrong password, throttles guesses, and accepts the password on a new device', async ({ page, newDevice }) => {
 	await page.goto('/');
 	await page.getByLabel('Heslo jednotky').fill('chybné heslo');
 	await page.getByRole('button', { name: 'Vstoupit' }).click();
@@ -30,17 +30,12 @@ test('rejects a wrong password, throttles guesses, and accepts the password on a
 	await page.getByRole('button', { name: 'Vstoupit' }).click();
 	await expect(page.getByRole('alert')).toContainText('Moc pokusů');
 
-	const device = await browser.newContext({ baseURL: page.url() });
-	try {
-		const newPage = await device.newPage();
-		await newPage.goto('/');
-		await newPage.getByLabel('Heslo jednotky').fill(password);
-		await newPage.getByRole('button', { name: 'Vstoupit' }).click();
-		await newPage.getByRole('button', { name: new RegExp(member) }).click();
-		await expect(nav(newPage, 'Plán')).toBeVisible();
-	} finally {
-		await device.close();
-	}
+	const newPage = await newDevice();
+	await newPage.goto('/');
+	await newPage.getByLabel('Heslo jednotky').fill(password);
+	await newPage.getByRole('button', { name: 'Vstoupit' }).click();
+	await newPage.getByRole('button', { name: new RegExp(member) }).click();
+	await expect(nav(newPage, 'Plán')).toBeVisible();
 });
 
 test('remembers a shared-link session and lets the device pick another member', async ({ signedIn: page }) => {
@@ -53,8 +48,8 @@ test('remembers a shared-link session and lets the device pick another member', 
 });
 
 test('copies and rotates the share link, changes the password, and signs out other devices', async ({
-	signedIn: page, context, browser
-}, info) => {
+	signedIn: page, context, newDevice
+}) => {
 	await nav(page, 'Jednotka').click();
 	const link = page.getByLabel('Odkaz', { exact: true });
 	await expect(link).toHaveValue(/\?k=/);
@@ -63,47 +58,35 @@ test('copies and rotates the share link, changes the password, and signs out oth
 	await page.getByRole('button', { name: 'Kopírovat' }).click();
 	await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(previous);
 
-	const device = await browser.newContext({ baseURL: info.project.use.baseURL });
-	const fresh = await browser.newContext({ baseURL: info.project.use.baseURL });
-	try {
-		const other = await device.newPage();
-		await join(other, '/', otherMember);
-		page.once('dialog', (dialog) => dialog.accept());
-		await page.getByRole('button', { name: 'Vytvořit nový odkaz' }).click();
-		await expect(link).not.toHaveValue(previous);
-		const rotated = await link.inputValue();
-		// An already signed-in device keeps its session during ordinary rotation.
-		await other.reload();
-		await expect(nav(other, 'Plán')).toBeVisible();
-		const rejected = await fresh.newPage();
-		await rejected.goto(previous);
-		await expect(rejected.getByRole('heading', { name: 'Přístup k jednotce' })).toBeVisible();
+	const other = await newDevice();
+	await join(other, '/', otherMember);
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'Vytvořit nový odkaz' }).click();
+	await expect(link).not.toHaveValue(previous);
+	const rotated = await link.inputValue();
+	// An already signed-in device keeps its session during ordinary rotation.
+	await other.reload();
+	await expect(nav(other, 'Plán')).toBeVisible();
+	const rejected = await newDevice();
+	await rejected.goto(previous);
+	await expect(rejected.getByRole('heading', { name: 'Přístup k jednotce' })).toBeVisible();
 
-		await page.getByRole('button', { name: 'Změnit', exact: true }).click();
-		await page.getByLabel('Nové heslo', { exact: true }).fill('nové-heslo');
-		await page.getByRole('button', { name: 'Uložit heslo' }).click();
-		await expect(page.getByRole('status')).toHaveText('Heslo změněno');
+	await page.getByRole('button', { name: 'Změnit', exact: true }).click();
+	await page.getByLabel('Nové heslo', { exact: true }).fill('nové-heslo');
+	await page.getByRole('button', { name: 'Uložit heslo' }).click();
+	await expect(page.getByRole('status')).toHaveText('Heslo změněno');
 
-		await page.getByRole('button', { name: 'Odhlásit…' }).click();
-		await page.getByRole('button', { name: 'Odhlásit ostatní', exact: true }).click();
-		await expect(other.getByRole('heading', { name: 'Přístup k jednotce' })).toBeVisible();
-		await expect(link).not.toHaveValue(rotated);
-		await expect(nav(page, 'Jednotka')).toBeVisible();
-		const joinedAgain = await browser.newContext({ baseURL: info.project.use.baseURL });
-		try {
-			const newPage = await joinedAgain.newPage();
-			await newPage.goto('/');
-			await newPage.getByLabel('Heslo jednotky').fill('nové-heslo');
-			await newPage.getByRole('button', { name: 'Vstoupit' }).click();
-			await newPage.getByRole('button', { name: new RegExp(otherMember) }).click();
-			await expect(nav(newPage, 'Plán')).toBeVisible();
-		} finally {
-			await joinedAgain.close();
-		}
-	} finally {
-		await fresh.close();
-		await device.close();
-	}
+	await page.getByRole('button', { name: 'Odhlásit…' }).click();
+	await page.getByRole('button', { name: 'Odhlásit ostatní', exact: true }).click();
+	await expect(other.getByRole('heading', { name: 'Přístup k jednotce' })).toBeVisible();
+	await expect(link).not.toHaveValue(rotated);
+	await expect(nav(page, 'Jednotka')).toBeVisible();
+	const newPage = await newDevice();
+	await newPage.goto('/');
+	await newPage.getByLabel('Heslo jednotky').fill('nové-heslo');
+	await newPage.getByRole('button', { name: 'Vstoupit' }).click();
+	await newPage.getByRole('button', { name: new RegExp(otherMember) }).click();
+	await expect(nav(newPage, 'Plán')).toBeVisible();
 });
 
 test('passes the current invite to the native share sheet', async ({ signedIn: page }) => {

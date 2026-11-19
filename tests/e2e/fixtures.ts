@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { expect, test as base, type Page } from '@playwright/test';
+import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
+import { startPageCoverage } from './coverage';
 
 export { expect };
 export const today = '2026-11-19';
@@ -79,7 +80,12 @@ export function acceptDialog(page: Page) {
 	page.once('dialog', (dialog) => dialog.accept());
 }
 
-export const test = base.extend<{ emptyUnit: boolean; signedIn: Page; databaseReady: void }>({
+export const test = base.extend<{
+	emptyUnit: boolean;
+	signedIn: Page;
+	databaseReady: void;
+	newDevice: () => Promise<Page>;
+}>({
 	emptyUnit: [false, { option: true }],
 	databaseReady: [async ({ emptyUnit }, use) => {
 		if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080' ||
@@ -103,7 +109,33 @@ export const test = base.extend<{ emptyUnit: boolean; signedIn: Page; databaseRe
 	}, { auto: true }],
 	page: async ({ page }, use) => {
 		await freezeDate(page);
-		await use(page);
+		const stop = await startPageCoverage(page);
+		try {
+			await use(page);
+		} finally {
+			await stop?.();
+		}
+	},
+	newDevice: async ({ browser, baseURL }, use) => {
+		const devices: { context: BrowserContext; stop?: () => Promise<void> }[] = [];
+		try {
+			await use(async () => {
+				const context = await browser.newContext({ baseURL });
+				const device: (typeof devices)[number] = { context };
+				devices.push(device);
+				const page = await context.newPage();
+				device.stop = await startPageCoverage(page);
+				return page;
+			});
+		} finally {
+			for (const { context, stop } of devices) {
+				try {
+					await stop?.();
+				} finally {
+					await context.close();
+				}
+			}
+		}
 	},
 	signedIn: async ({ page }, use) => {
 		await join(page);

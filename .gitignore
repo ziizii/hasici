@@ -34,3 +34,6 @@ vite.config.ts.timestamp-*
 /.firebase-test.json
 /playwright-report/
 /test-results/
+
+# Code coverage
+/coverage/
