@@ -1,8 +1,8 @@
 import { appendFile, readFile } from 'node:fs/promises';
 
 const suites = [
-	{ label: 'Unit', directory: 'unit', minimum: { lines: 97, branches: 88 } },
-	{ label: 'E2E (Chromium)', directory: 'e2e', minimum: { lines: 94, branches: 84 } }
+	{ label: 'Unit', directory: 'unit', minimum: { lines: 95, branches: 90 } },
+	{ label: 'E2E (Chromium)', directory: 'e2e', minimum: { lines: 95, branches: 85 } }
 ];
 const metrics = ['lines', 'branches', 'functions', 'statements'];
 const summary = [
