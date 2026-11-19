@@ -122,24 +122,19 @@ test('the same device can try again after the guess limit has passed', async ({ 
 	await expect(nav(page, 'Plán')).toBeVisible();
 });
 
-test('a device whose member was archived elsewhere asks who it is again', async ({ signedIn: page, browser }, info) => {
-	const second = await browser.newContext({ baseURL: info.project.use.baseURL });
-	try {
-		const other = await second.newPage();
-		await join(other, '/', otherMember);
-		await nav(page, 'Jednotka').click();
-		await page.getByRole('button', { name: new RegExp(otherMember) }).click();
-		await page.getByRole('button', { name: 'Archivovat' }).click();
-		await expect(other.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
-		await expect(other.getByRole('button', { name: new RegExp(otherMember) })).toHaveCount(0);
-		await other.getByRole('button', { name: new RegExp(member) }).click();
-		await expect(nav(other, 'Plán')).toBeVisible();
-	} finally {
-		await second.close();
-	}
+test('a device whose member was archived elsewhere asks who it is again', async ({ signedIn: page, newDevice }) => {
+	const other = await newDevice();
+	await join(other, '/', otherMember);
+	await nav(page, 'Jednotka').click();
+	await page.getByRole('button', { name: new RegExp(otherMember) }).click();
+	await page.getByRole('button', { name: 'Archivovat' }).click();
+	await expect(other.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
+	await expect(other.getByRole('button', { name: new RegExp(otherMember) })).toHaveCount(0);
+	await other.getByRole('button', { name: new RegExp(member) }).click();
+	await expect(nav(other, 'Plán')).toBeVisible();
 });
 
-test('a too short new password is refused, and signing out others can set a new password', async ({ signedIn: page, browser }, info) => {
+test('a too short new password is refused, and signing out others can set a new password', async ({ signedIn: page, newDevice }) => {
 	await nav(page, 'Jednotka').click();
 	await page.getByRole('button', { name: 'Změnit', exact: true }).click();
 	const newPassword = page.getByLabel('Nové heslo', { exact: true });
@@ -157,16 +152,11 @@ test('a too short new password is refused, and signing out others can set a new 
 	await page.getByRole('button', { name: 'Odhlásit ostatní', exact: true }).click();
 	await expect(page.getByRole('status')).toHaveText('Ostatní jsou odhlášení. Pošlete členům nový odkaz.');
 	for (const [tried, accepted] of [[password, false], ['po-odhlášení', true]] as const) {
-		const device = await browser.newContext({ baseURL: info.project.use.baseURL });
-		try {
-			const newPage = await device.newPage();
-			await newPage.goto('/');
-			await newPage.getByLabel('Heslo jednotky').fill(tried);
-			await newPage.getByRole('button', { name: 'Vstoupit' }).click();
-			if (accepted) await expect(newPage.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
-			else await expect(newPage.getByRole('alert')).toContainText('Špatné heslo');
-		} finally {
-			await device.close();
-		}
+		const newPage = await newDevice();
+		await newPage.goto('/');
+		await newPage.getByLabel('Heslo jednotky').fill(tried);
+		await newPage.getByRole('button', { name: 'Vstoupit' }).click();
+		if (accepted) await expect(newPage.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
+		else await expect(newPage.getByRole('alert')).toContainText('Špatné heslo');
 	}
 });

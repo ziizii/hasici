@@ -256,27 +256,22 @@ test('tapping a teammate on an upcoming activity page marks them away', async ({
 	await expect(day(page, '2026-11-25')).toHaveAccessibleName(/může 1 z 2/);
 });
 
-test('an absence saved offline reaches another phone after reconnecting, and live changes sync', async ({ signedIn: page, browser }, info) => {
-	const second = await browser.newContext({ baseURL: info.project.use.baseURL });
-	try {
-		const other = await second.newPage();
-		await freezeDate(other);
-		await join(other, '/', otherMember);
-		await day(page, '2026-11-20').click();
-		await page.getByRole('button', { name: 'Tento den nemůžu' }).click();
-		await expect(day(other, '2026-11-20')).toHaveAccessibleName(/může 1 z 2/);
+test('an absence saved offline reaches another phone after reconnecting, and live changes sync', async ({ signedIn: page, newDevice }) => {
+	const other = await newDevice();
+	await freezeDate(other);
+	await join(other, '/', otherMember);
+	await day(page, '2026-11-20').click();
+	await page.getByRole('button', { name: 'Tento den nemůžu' }).click();
+	await expect(day(other, '2026-11-20')).toHaveAccessibleName(/může 1 z 2/);
 
-		await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-		await page.context().setOffline(true);
-		await day(page, '2026-11-21').click();
-		await page.getByRole('button', { name: 'Tento den nemůžu' }).click();
-		await expect(day(page, '2026-11-21')).toHaveAccessibleName(/může 1 z 2/);
-		await expect(day(other, '2026-11-21')).toHaveAccessibleName(/může 2 z 2/);
-		await page.context().setOffline(false);
-		await expect(day(other, '2026-11-21')).toHaveAccessibleName(/může 1 z 2/, { timeout: 15_000 });
-		await other.reload();
-		await expect(day(other, '2026-11-21')).toHaveAccessibleName(/může 1 z 2/);
-	} finally {
-		await second.close();
-	}
+	await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+	await page.context().setOffline(true);
+	await day(page, '2026-11-21').click();
+	await page.getByRole('button', { name: 'Tento den nemůžu' }).click();
+	await expect(day(page, '2026-11-21')).toHaveAccessibleName(/může 1 z 2/);
+	await expect(day(other, '2026-11-21')).toHaveAccessibleName(/může 2 z 2/);
+	await page.context().setOffline(false);
+	await expect(day(other, '2026-11-21')).toHaveAccessibleName(/může 1 z 2/, { timeout: 15_000 });
+	await other.reload();
+	await expect(day(other, '2026-11-21')).toHaveAccessibleName(/může 1 z 2/);
 });
