@@ -48,17 +48,23 @@
 		!start.initial ? (start.allowNone ? 'none' : 0) : quickIndex >= 0 ? quickIndex : 'custom'
 	);
 
-	// The custom rule, starting from the event's day like Apple's editor (or the rule being edited).
-	const d0 = parseKey(start.date);
+	// Custom choices start from the selected day or the rule being edited.
 	const r0: Partial<Repeat> = start.initial ?? {};
 	let freq = $state<Freq>(r0.freq ?? 'week');
 	let every = $state(r0.every ?? 1);
-	let weekdays = $state(r0.weekdays ?? [weekdayIndex(start.date)]);
+	// Until the user picks a value, defaults follow the start date.
+	let selectedWeekdays = $state(r0.weekdays);
+	let selectedDays = $state(r0.days);
+	let selectedNth = $state(r0.nth);
+	let selectedKind = $state(r0.kind);
+	let selectedMonths = $state(r0.months);
+	const anchor = $derived(parseKey(date));
+	const weekdays = $derived(selectedWeekdays ?? [weekdayIndex(date)]);
+	const days = $derived(selectedDays ?? [anchor.getDate()]);
+	const nth = $derived(selectedNth ?? Math.ceil(anchor.getDate() / 7));
+	const kind = $derived(selectedKind ?? weekdayIndex(date));
+	const months = $derived(selectedMonths ?? [anchor.getMonth() + 1]);
 	let monthNth = $state(r0.freq === 'month' && !!r0.nth);
-	let days = $state(r0.days ?? [d0.getDate()]);
-	let nth = $state(r0.nth ?? Math.ceil(d0.getDate() / 7));
-	let kind = $state(r0.kind ?? weekdayIndex(start.date));
-	let months = $state(r0.months ?? [d0.getMonth() + 1]);
 	let yearNth = $state(r0.freq === 'year' && !!r0.nth);
 
 	const custom = $derived.by((): Repeat => {
@@ -106,10 +112,18 @@
 
 {#snippet nthPicker()}
 	<div class="flex gap-2">
-		<select bind:value={nth} aria-label="Kolikátý" class="{select} flex-1">
+		<select
+			bind:value={() => nth, (value) => (selectedNth = value)}
+			aria-label="Kolikátý"
+			class="{select} flex-1"
+		>
 			{#each NTH_NAMES as [n, name] (n)}<option value={n}>{name}</option>{/each}
 		</select>
-		<select bind:value={kind} aria-label="Den" class="{select} flex-1">
+		<select
+			bind:value={() => kind, (value) => (selectedKind = value)}
+			aria-label="Den"
+			class="{select} flex-1"
+		>
 			{#each KIND_NAMES as name, k (k)}<option value={k}>{name}</option>{/each}
 		</select>
 	</div>
@@ -165,7 +179,7 @@
 						type="button"
 						aria-pressed={weekdays.includes(w)}
 						class={cell(weekdays.includes(w))}
-						onclick={() => (weekdays = toggle(weekdays, w))}>{name}</button
+						onclick={() => (selectedWeekdays = toggle(weekdays, w))}>{name}</button
 					>
 				{/each}
 			</div>
@@ -189,7 +203,7 @@
 							type="button"
 							aria-pressed={days.includes(i + 1)}
 							class={cell(days.includes(i + 1))}
-							onclick={() => (days = toggle(days, i + 1))}>{i + 1}</button
+							onclick={() => (selectedDays = toggle(days, i + 1))}>{i + 1}</button
 						>
 					{/each}
 				</div>
@@ -201,7 +215,7 @@
 						type="button"
 						aria-pressed={months.includes(i + 1)}
 						class={cell(months.includes(i + 1))}
-						onclick={() => (months = toggle(months, i + 1))}>{name}</button
+						onclick={() => (selectedMonths = toggle(months, i + 1))}>{name}</button
 					>
 				{/each}
 			</div>

@@ -155,13 +155,15 @@
 					: { repeat: null, until: '' }}
 				oncancel={finishEdit}
 				onsave={async (d, { following, repeat, until }) => {
+					const original = ev;
+					if (!original) return;
 					try {
-						let id = ev.id;
-						if (repeat !== undefined) id = await data.updateRepeat(ev, d, repeat, until);
-						else if (following) id = await data.updateFollowing(ev, d);
-						else await data.updateEvent(ev, d);
+						let id = original.id;
+						if (repeat !== undefined) id = await data.updateRepeat(original, d, repeat, until);
+						else if (following) id = await data.updateFollowing(original, d);
+						else await data.updateEvent(original, d);
 						editing = false;
-						if (id !== ev.id) goto(`/akce/${id}`, { replaceState: true });
+						if (id !== original.id) goto(`/akce/${id}`, { replaceState: true });
 					} catch (e) {
 						console.error(e);
 						toasts.error();

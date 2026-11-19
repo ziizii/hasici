@@ -22,7 +22,7 @@
 		weekdayIndex
 	} from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
-	import { describe, isEmpty, type Repeat } from '#lib/repeat.js';
+	import { describe, repeatDays, type Repeat } from '#lib/repeat.js';
 	import ColorPicker from '#lib/components/ColorPicker.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import RepeatPicker from '#lib/components/RepeatPicker.svelte';
@@ -89,6 +89,7 @@
 
 	// Repeating without an end date lasts until it is deleted.
 	const end = $derived(to && to >= from ? to : repeat ? OPEN_END : from);
+	const invalidRepeat = $derived(!!repeat && !repeatDays(repeat, from, end, from, end, 1).length);
 	const summary = $derived(
 		repeat
 			? `${describe(repeat, from)}, ${end === OPEN_END ? `od ${formatShort(from)} do odvolání` : formatRange(from, end)}`
@@ -99,7 +100,7 @@
 
 	async function save(e: SubmitEvent) {
 		e.preventDefault();
-		if (!access.memberId || !from || (repeat && isEmpty(repeat))) return;
+		if (!access.memberId || !from || invalidRepeat) return;
 		busy = true;
 		try {
 			await data.addAbsence(access.memberId, from, end, note, repeat ?? undefined);
@@ -285,7 +286,7 @@
 
 			<button
 				type="submit"
-				disabled={busy}
+				disabled={busy || invalidRepeat}
 				class="min-h-14 rounded-[14px] bg-accent text-lg font-bold text-white disabled:opacity-60"
 				>{busy ? 'Ukládám…' : 'Uložit'}</button
 			>

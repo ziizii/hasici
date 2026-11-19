@@ -15,12 +15,13 @@
 	async function add(e: SubmitEvent) {
 		e.preventDefault();
 		if (!name.trim()) return;
+		const firstMember = empty;
 		busy = true;
 		try {
 			const id = await data.addMember(name);
 			name = '';
 			adding = false;
-			if (empty) access.setMember(id);
+			if (firstMember) access.setMember(id);
 		} catch (err) {
 			console.error(err);
 			toasts.error();

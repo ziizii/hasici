@@ -388,6 +388,8 @@ Pro malou jednotku se vejdete do bezplatného limitu.
 
 ## Pro vývojáře
 
+Seznam funkcí, pokrytí testy a návod ke spuštění najdete v [TESTING.md](TESTING.md).
+
 - SvelteKit (Svelte 5, statická SPA), Tailwind CSS 4, Firebase (Firestore, anonymní
   Auth, Hosting). Podrobný popis návrhu, datového modelu a kódu je v
   [HANDOVER.md](HANDOVER.md).

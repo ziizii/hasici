@@ -162,17 +162,23 @@ export function repeatDays(
 	return out;
 }
 
-/** About 10 years: rules like "every 12 months on the 5th Thursday" can skip years. */
-const HORIZON = 3700;
-
 /** The first day of the series after `day`, if any. */
 export function nextAfter(r: Repeat | undefined, from: DateKey, to: DateKey, day: DateKey): DateKey | undefined {
-	return repeatDays(r, from, to, addDays(day, 1), addDays(day, HORIZON), 1)[0];
+	if (day >= to) return undefined;
+	return repeatDays(r, from, to, addDays(day, 1), to, 1)[0];
 }
 
 /** The last day of a series with an end. */
 export function lastDay(r: Repeat | undefined, from: DateKey, to: DateKey): DateKey | undefined {
-	return repeatDays(r, from, to, addDays(to, -HORIZON), to).at(-1);
+	const span = daysBetween(from, to);
+	if (!Number.isFinite(span) || span < 0 || (r && isEmpty(r))) return undefined;
+	// Start with a short window for dense rules, and reach back farther for sparse ones.
+	let distance = Math.min(366, span);
+	for (;;) {
+		const last = repeatDays(r, from, to, addDays(to, -distance), to).at(-1);
+		if (last || distance === span) return last;
+		distance = Math.min(distance * 2, span);
+	}
 }
 
 /** Only the fields that matter for its frequency; undefined for the plain weekly repeat. */
