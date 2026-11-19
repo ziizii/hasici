@@ -65,6 +65,13 @@ async function demoShots(browser) {
 	await p.locator('nav a[href="/ja"]').last().click();
 	await p.waitForTimeout(1000);
 	await p.screenshot({ path: OUT + 'telefon-ja.png' });
+	await p.locator('nav a[href="/ukoly"]').last().click();
+	await p.getByText('Vytřít klubovnu').waitFor();
+	await p.waitForTimeout(500);
+	await p.screenshot({ path: OUT + 'telefon-ukoly.png' });
+	await p.getByRole('button', { name: 'Dokončit: Vytřít klubovnu' }).click();
+	await p.waitForTimeout(500);
+	await p.screenshot({ path: OUT + 'telefon-kdo-to-udelal.png' });
 
 	const desk = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'cs-CZ' });
 	await desk.addInitScript(init, UNIT);
