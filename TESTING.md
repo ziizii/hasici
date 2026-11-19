@@ -1,4 +1,4 @@
-# Feature inventory and end-to-end tests
+# Feature inventory, tests and coverage
 
 Playwright drives the production SvelteKit build in Chromium against local Firebase Hosting, Auth and Firestore with the repository's rules. Test accounts, documents, dates and browser state are isolated from deployed units. Each test resets the throwaway Firestore database. The test dates use Europe/Prague time.
 
@@ -13,7 +13,7 @@ npm run check
 npm test
 ```
 
-Close `make dev` first. The suite starts its own Auth and Firestore emulators on ports 9099 and 8080 and serves the build through the Hosting emulator on port 4173. It runs the Firestore rules assertions and then Playwright. The first run downloads the Firebase CLI and emulator binaries. The suite uses a demo project and writes its build to `.output/test-hosting`.
+Close `make dev` first. The suite starts its own Auth and Firestore emulators on ports 9099 and 8080 and serves the build through the Hosting emulator on port 4173. Vitest runs the unit tests first. The emulator run then checks the Firestore rules and runs Playwright. The first run downloads the Firebase CLI and emulator binaries. The suite uses a demo project and writes its build to `.output/test-hosting`.
 
 ### Run one browser spec
 
@@ -23,7 +23,19 @@ npx --yes firebase-tools@15.36.0 emulators:exec --config .firebase-test.json --p
   'npm run test:e2e -- recurrence.spec.ts'
 ```
 
-The [Test workflow](.github/workflows/test.yml) runs on pull requests, pushes to `main` and manual dispatch. It builds and checks the app, runs both suites, and saves the Playwright HTML report and failure traces as an artifact when available.
+## Code coverage
+
+```sh
+npm run test:coverage
+npm run coverage:check
+```
+
+These commands generate separate HTML, LCOV and JSON reports in `coverage/unit` and `coverage/e2e`, then check the [minimum line and branch coverage](scripts/check-coverage.mjs). To measure one suite, use `npm run test:unit -- --coverage` or `npm run test:coverage:e2e`.
+
+- **Unit coverage** includes the calendar, recurrence, task and color modules in the [Vitest config](vitest.config.ts).
+- **End-to-end coverage** maps executed Chromium page scripts back to TypeScript and Svelte sources. It includes the extra browser sessions used in multi-device tests. The Firestore rules, service worker and native device features have separate behavioral checks outside these percentages.
+
+The [Test workflow](.github/workflows/test.yml) runs on pull requests, pushes to `main` and manual dispatch. It uploads the two reports in the `code-coverage` artifact and evaluates them in the `coverage` job. The job summary shows each suite's percentages and thresholds. The workflow also uploads the Playwright report and traces on test failure when available.
 
 ## Feature coverage
 
