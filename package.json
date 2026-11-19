@@ -13,7 +13,7 @@
 		"setup": "node scripts/setup.mjs",
 		"deploy": "node scripts/setup.mjs --deploy",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"test": "npm run test:build && npx --yes firebase-tools@15.36.0 emulators:exec --project demo-hasici --only auth,firestore,hosting \"node scripts/test-rules.mjs && npm run test:e2e\"",
+		"test": "npm run test:build && npx --yes firebase-tools@15.36.0 emulators:exec --config .firebase-test.json --project demo-hasici --only auth,firestore,hosting \"node scripts/test-rules.mjs && npm run test:e2e\"",
 		"test:e2e": "playwright test",
 		"test:build": "node scripts/build-test.mjs"
 	},

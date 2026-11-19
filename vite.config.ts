@@ -13,6 +13,8 @@ function gitVersion(): string {
 	}
 }
 
+const outputDir = process.env.HASICI_BUILD_DIR ?? 'build';
+
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
@@ -23,7 +25,7 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 			// Single page app: Firebase Hosting serves 200.html for every route.
-			adapter: adapter({ fallback: '200.html' }),
+			adapter: adapter({ fallback: '200.html', pages: outputDir, assets: outputDir }),
 			version: { name: gitVersion(), pollInterval: 60_000 },
 			// One JS file instead of chunks fetched in 3 rounds (layout -> page -> deps).
 			output: { bundleStrategy: 'single' }

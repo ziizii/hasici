@@ -13,13 +13,13 @@ npm run check
 npm test
 ```
 
-Close `make dev` first. The suite starts its own Auth and Firestore emulators on ports 9099 and 8080 and serves the build through the Hosting emulator on port 4173. It runs the Firestore rules assertions and then Playwright. The first run downloads the Firebase CLI and emulator binaries. The suite uses a demo project and local Firebase settings.
+Close `make dev` first. The suite starts its own Auth and Firestore emulators on ports 9099 and 8080 and serves the build through the Hosting emulator on port 4173. It runs the Firestore rules assertions and then Playwright. The first run downloads the Firebase CLI and emulator binaries. The suite uses a demo project and writes its build to `.output/test-hosting`.
 
-To run an individual browser spec with the same setup:
+### Run one browser spec
 
 ```sh
 npm run test:build
-npx --yes firebase-tools@15.36.0 emulators:exec --project demo-hasici --only auth,firestore,hosting \
+npx --yes firebase-tools@15.36.0 emulators:exec --config .firebase-test.json --project demo-hasici --only auth,firestore,hosting \
   'npm run test:e2e -- recurrence.spec.ts'
 ```
 
@@ -36,7 +36,7 @@ The [Test workflow](.github/workflows/test.yml) runs on pull requests, pushes to
 | Day detail | Read who can attend, absence reasons and long-term unavailability, toggle a whole day or a member's availability, open activities and use the day task checklist, plan an activity for the selected day | [Availability](tests/e2e/availability.spec.ts), [Activities](tests/e2e/activities.spec.ts), [Tasks](tests/e2e/tasks.spec.ts), [Unit](tests/e2e/unit.spec.ts) |
 | Activities | Plan on an arbitrary date, set or clear meeting time, set the place and note, edit and delete, set or withdraw attendance, share that attendance with other activities on the same date | [Activities](tests/e2e/activities.spec.ts) |
 | Repeating activities | Weekly legacy and open-ended series, calendar-based rules, inclusive end, move or cancel one occurrence, split and replace later dates, stop repeating, convert a one-off, delete this and later occurrences | [Activities](tests/e2e/activities.spec.ts), [Recurrence](tests/e2e/recurrence.spec.ts) |
-| Shared tasks | Create, cancel editing, assign a member, sort by term, flag overdue tasks, edit, complete, reopen and delete with live updates between devices | [Tasks](tests/e2e/tasks.spec.ts) |
+| Shared tasks | Create, cancel editing, assign a member, sort by due date, flag overdue tasks, edit, complete, reopen and delete with live updates between devices | [Tasks](tests/e2e/tasks.spec.ts) |
 | Tasks in context | Link to a day or activity, show on assigned and due days with no duplicate for an identical date, see tasks in list and calendar, use the day and activity checklists and filtered lists, restrict assignment to future or current activities | [Tasks](tests/e2e/tasks.spec.ts) |
 | Calendar recurrence across tasks and activities | Compare preview, persisted activity occurrences and task successors for daily intervals across DST, alternate weeks and multiple weekdays, the 31st, dates every other month, a fifth weekday, and the last workday in selected months. Cover inclusive ends, empty or impossible rules, and sparse leap-day series | [Recurrence](tests/e2e/recurrence.spec.ts) |
 | Task progression | One open successor, completion-based intervals, leap-month clamping, late and early completion, confirmation and rollback on reopen, protection when the successor is finished, disabling recurrence, standalone successors of activity tasks, preservation of an assigned-day offset, deletion of the last open task, concurrent completion | [Recurrence](tests/e2e/recurrence.spec.ts), [Tasks](tests/e2e/tasks.spec.ts) |
