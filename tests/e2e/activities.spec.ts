@@ -1,4 +1,4 @@
-import { acceptDialog, day, expect, join, nav, seedActivity, seedSeries, test } from './fixtures';
+import { acceptDialog, day, expect, join, nav, seedActivity, seedSeries, test, today } from './fixtures';
 
 test('plans an activity, edits its details, and shares attendance across the whole day', async ({ page }) => {
 	await seedActivity('second', '2026-11-20', 'Druhá akce', '18:00');
@@ -231,4 +231,99 @@ test('deletes one date of a repeat from the edit form and cancels a moved date',
 	await expect(day(page, '2026-12-10').locator('..')).toContainText('Výcvik');
 	await page.goto('/akce/weekly_2026-12-03');
 	await expect(page.getByRole('heading', { name: 'Akce už neexistuje.' })).toBeVisible();
+});
+
+test('"this and later" on the first date edits the whole series, and deleting from there removes it', async ({ page }) => {
+	await seedSeries('first', { from: '2026-11-19', to: '2026-12-17' });
+	await join(page, '/akce/first_2026-11-19');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	await page.getByRole('radio', { name: 'Tento i všechny další' }).check();
+	await page.getByLabel('Název', { exact: true }).fill('Celá série');
+	await page.getByRole('button', { name: 'Uložit změny' }).click();
+	await expect(page.getByRole('heading', { name: 'Celá série' })).toBeVisible();
+	await expect(page).toHaveURL(/\/akce\/first_2026-11-19$/);
+	await page.goto('/akce/first_2026-12-17');
+	await expect(page.getByRole('heading', { name: 'Celá série' })).toBeVisible();
+
+	await page.goto('/akce/first_2026-11-19');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: 'Smazat tuto i všechny další' }).click();
+	await expect(page.getByRole('heading', { name: 'Plán' })).toBeVisible();
+	for (const gone of ['2026-11-19', '2026-12-10']) {
+		await page.goto(`/akce/first_${gone}`);
+		await expect(page.getByRole('heading', { name: 'Akce už neexistuje.' })).toBeVisible();
+	}
+});
+
+test('a new rule from the first date replaces the whole series', async ({ page }) => {
+	await seedSeries('rule', { from: '2026-11-19', to: '2026-12-17' });
+	await join(page, '/akce/rule_2026-11-19');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	await page.getByRole('radio', { name: 'Tento i všechny další' }).check();
+	await page.getByRole('radio', { name: 'Vlastní' }).check();
+	await page.getByLabel('Frekvence').selectOption('day');
+	await page.getByRole('spinbutton', { name: /Jednou za/ }).fill('3');
+	await page.getByRole('button', { name: 'Uložit změny' }).click();
+	await expect(page).not.toHaveURL(/\/akce\/rule_/);
+	const series = page.url().slice(0, -10);
+	await page.goto(series + '2026-11-22');
+	await expect(page.getByRole('heading', { name: 'Výcvik' })).toBeVisible();
+	await page.goto('/akce/rule_2026-11-26');
+	await expect(page.getByRole('heading', { name: 'Akce už neexistuje.' })).toBeVisible();
+});
+
+test('ending a series also drops later dates that were moved on their own', async ({ page }) => {
+	await seedSeries('weekly', { from: '2026-11-19', to: '2026-12-17' });
+	await join(page, '/akce/weekly_2026-12-03');
+	await page.getByRole('button', { name: 'Změnit jen tento termín' }).click();
+	await page.getByLabel('Datum', { exact: true }).fill('2026-12-05');
+	await page.getByRole('button', { name: 'Uložit změny' }).click();
+	await expect(page.getByText(/přesunutý z Čt 3\. 12\./)).toBeVisible();
+	await page.goto('/akce/weekly_2026-11-26');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: 'Smazat tuto i všechny další' }).click();
+	await expect(page.getByRole('heading', { name: 'Plán' })).toBeVisible();
+	await expect(day(page, '2026-12-05').locator('..')).not.toContainText('Výcvik');
+	await expect(day(page, today).locator('..')).toContainText('Výcvik');
+	await page.goto('/akce/weekly_2026-12-03');
+	await expect(page.getByRole('heading', { name: 'Akce už neexistuje.' })).toBeVisible();
+});
+
+test('moving a date of a custom monthly series with "this and later" keeps the other dates on their days', async ({ page }) => {
+	await seedSeries('monthly', {
+		from: '2026-11-20', to: '2027-03-20', repeat: { freq: 'month', every: 1, days: [5, 20] }
+	});
+	await join(page, '/akce/monthly_2026-12-20');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	await page.getByRole('radio', { name: 'Tento i všechny další' }).check();
+	await expect(page.getByRole('radio', { name: 'Vlastní' })).toBeChecked();
+	await page.getByLabel('Datum', { exact: true }).fill('2026-12-22');
+	await page.getByLabel('Název', { exact: true }).fill('Revize');
+	await page.getByRole('button', { name: 'Uložit změny' }).click();
+	await expect(page.getByRole('heading', { name: 'Revize' })).toBeVisible();
+	await expect(page.getByText(/přesunutý z Ne 20\. 12\./)).toBeVisible();
+	await expect(page).toHaveURL(/_2026-12-20$/);
+	const series = page.url().slice(0, -10);
+	for (const later of ['2027-01-05', '2027-01-20']) {
+		await page.goto(series + later);
+		await expect(page.getByRole('heading', { name: 'Revize' })).toBeVisible();
+	}
+	await page.goto('/akce/monthly_2026-12-05');
+	await expect(page.getByRole('heading', { name: 'Výcvik' })).toBeVisible();
+	await nav(page, 'Plán').click();
+	await expect(day(page, '2026-12-22').locator('..')).toContainText('Revize');
+	await expect(day(page, '2026-12-20').locator('..')).not.toContainText('Revize');
+});
+
+test('a repeating activity can be planned from the day panel', async ({ signedIn: page }) => {
+	await day(page, '2026-11-20').click();
+	await page.getByLabel('Název', { exact: true }).fill('Páteční jízdy');
+	await page.getByRole('radio', { name: /Opakovat každý týden/ }).check();
+	await page.getByRole('button', { name: 'Uložit akci' }).click();
+	await expect(page.getByRole('status')).toHaveText('Opakovaná akce uložena');
+	for (const friday of ['2026-11-20', '2026-11-27', '2026-12-04']) {
+		await expect(day(page, friday).locator('..')).toContainText('Páteční jízdy');
+	}
 });

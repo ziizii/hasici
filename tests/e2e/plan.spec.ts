@@ -1,5 +1,5 @@
 import { devices } from '@playwright/test';
-import { day, expect, freezeDate, join, nav, seedActivity, test, today } from './fixtures';
+import { day, expect, freezeDate, join, nav, seedAbsence, seedActivity, seedMember, test, today } from './fixtures';
 import type { Locator } from '@playwright/test';
 
 test('filters weekends, Czech holidays and activity days, and jumps and extends the timeline', async ({ page }) => {
@@ -147,4 +147,69 @@ test('a Czech movable holiday is included in the weekend filter', async ({ page 
 	await page.getByRole('button', { name: 'Víkendy' }).click();
 	await expect(day(page, '2027-03-26').locator('..')).toContainText('Velký pátek');
 	await expect(day(page, '2027-03-29').locator('..')).toContainText('Velikonoční pondělí');
+});
+
+test.describe('phone sheets', () => {
+	test.use({
+		viewport: devices['Pixel 7'].viewport,
+		isMobile: true,
+		hasTouch: true,
+		deviceScaleFactor: 1
+	});
+
+	test('"Naplánovat akci" in a bottom sheet saves and opens the day', async ({ signedIn: page }) => {
+		await page.getByRole('button', { name: 'Naplánovat akci' }).click();
+		const sheet = page.getByRole('dialog');
+		await sheet.getByLabel('Datum', { exact: true }).fill('2026-11-24');
+		await sheet.getByLabel('Název', { exact: true }).fill('Kontrola hydrantů');
+		await sheet.getByRole('button', { name: 'Uložit akci' }).click();
+		await expect(sheet.getByRole('heading', { level: 2 })).toHaveText('Úterý 24. 11. 2026');
+		await expect(sheet.getByRole('link', { name: /Kontrola hydrantů/ })).toBeVisible();
+	});
+
+	test('tapping outside the sheet closes it, and a place is picked by touch', async ({ page }) => {
+		await seedActivity('used', '2026-11-10', 'Starší akce', '09:00', 'Hasičská louka');
+		await join(page);
+		await day(page, today).tap();
+		const sheet = page.getByRole('dialog');
+		const place = sheet.getByRole('combobox', { name: 'Místo' });
+		await place.tap();
+		await sheet.getByRole('option', { name: 'Hasičská louka' }).tap();
+		await expect(place).toHaveValue('Hasičská louka');
+		await expect(sheet.getByRole('listbox', { name: 'Uložená místa' })).toHaveCount(0);
+		await page.mouse.click(20, 20);
+		await expect(sheet).toHaveCount(0);
+	});
+});
+
+test('calendar jumps to today and next week', async ({ signedIn: page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.getByRole('button', { name: 'Kalendář', exact: true }).click();
+	const jumps = page.getByRole('navigation', { name: 'Přeskočit na' });
+	await jumps.getByRole('button', { name: 'Příští týden' }).click();
+	await expect(day(page, '2026-11-23', true)).toBeFocused();
+	await jumps.getByRole('button', { name: 'Dnes', exact: true }).click();
+	await expect(day(page, today, true)).toBeFocused();
+});
+
+test('the activity filter says when nothing is planned for a year', async ({ signedIn: page }) => {
+	await page.getByRole('group', { name: 'Zobrazit dny' }).getByRole('button', { name: 'Akce', exact: true }).click();
+	await expect(page.getByText('Na rok dopředu žádné akce.')).toBeVisible();
+});
+
+test('the count is coloured by how many can come', async ({ page }) => {
+	await Promise.all([
+		seedMember('m3', 'Karel Malý', '#1E6B45'),
+		seedMember('m4', 'Eva Malá', '#6B3FA0'),
+		seedMember('m5', 'Josef Velký', '#0F6E73')
+	]);
+	const away = async (date: string, ids: string[]) => Promise.all(ids.map((memberId) =>
+		seedAbsence(`${memberId}-${date}`, { memberId, from: date, to: date })));
+	await away('2026-11-20', ['m3']);
+	await away('2026-11-21', ['m3', 'm4']);
+	await away('2026-11-22', ['m3', 'm4', 'm5']);
+	await join(page);
+	for (const [date, color] of [['2026-11-20', 'text-good'], ['2026-11-21', 'text-ink-2'], ['2026-11-22', 'text-warn']]) {
+		await expect(day(page, date).locator('..').locator(`span.${color}.lg\\:block`)).toBeVisible();
+	}
 });

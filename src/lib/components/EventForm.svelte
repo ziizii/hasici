@@ -9,9 +9,9 @@
 	type Draft = Omit<Event, 'id' | 'series'>;
 	/**
 	 * `repeat`: how it repeats, until `until` (none = until cancelled); when editing, null = stop
-	 * repeating and undefined = leave the repeat as it is. `following`: apply to later events of the repeat too.
+	 * repeating and undefined = leave the repeat as it is (just this date of a repeat).
 	 */
-	export type SaveOptions = { repeat?: Repeat | null; until?: DateKey; following?: boolean };
+	export type SaveOptions = { repeat?: Repeat | null; until?: DateKey };
 
 	let {
 		date,
@@ -107,8 +107,7 @@
 				{ title, date: showDate || pickDate ? day : date, time, place, note },
 				{
 					repeat: !showRepeat ? undefined : repeatable ? repeat || undefined : repeat,
-					until: showRepeat && repeat && until ? until : undefined,
-					following: inSeries && following
+					until: showRepeat && repeat && until ? until : undefined
 				}
 			);
 			if (!initial) {

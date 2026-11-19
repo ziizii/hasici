@@ -1,4 +1,4 @@
-import { acceptDialog, day, expect, join, member, nav, otherMember, seedActivity, seedMember, test, today } from './fixtures';
+import { acceptDialog, day, expect, join, member, nav, otherMember, seedActivity, seedMember, startTodo, test, today } from './fixtures';
 
 test('renames the unit and manages member names, nicknames, colors and the archive', async ({ signedIn: page }) => {
 	await nav(page, 'Jednotka').click();
@@ -217,4 +217,85 @@ test('archived members leave the plan bar and the assignee picker', async ({ sig
 	await page.getByRole('button', { name: 'Nový úkol', exact: true }).click();
 	await expect(page.getByLabel('Řešitel').getByRole('option', { name: otherMember })).toHaveCount(0);
 	await expect(page.getByLabel('Řešitel').getByRole('option', { name: member })).toHaveCount(1);
+});
+
+test('dismissing a confirmation leaves things as they were', async ({ page }) => {
+	await seedActivity('kept', '2026-11-25', 'Údržba stříkačky');
+	await join(page, '/akce/kept');
+	const dismiss = () => page.once('dialog', (dialog) => dialog.dismiss());
+
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	dismiss();
+	await page.getByRole('button', { name: 'Smazat akci' }).click();
+	await page.goto('/akce/kept');
+	await expect(page.getByRole('heading', { name: 'Údržba stříkačky' })).toBeVisible();
+
+	await nav(page, 'Jednotka').click();
+	const link = page.getByLabel('Odkaz', { exact: true });
+	await expect(link).toHaveValue(/\?k=/);
+	const before = await link.inputValue();
+	dismiss();
+	await page.getByRole('button', { name: 'Vytvořit nový odkaz' }).click();
+	await page.reload();
+	await expect(link).toHaveValue(before);
+
+	await page.getByRole('button', { name: new RegExp(otherMember) }).click();
+	await page.getByRole('button', { name: 'Archivovat' }).click();
+	await page.getByRole('button', { name: 'Archiv (1)' }).click();
+	dismiss();
+	await page.getByRole('button', { name: `Trvale smazat ${otherMember}` }).click();
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Archiv (1)' })).toBeVisible();
+
+	await nav(page, 'Úkoly').click();
+	await startTodo(page, 'Zkontrolovat hydranty');
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await page.getByRole('button', { name: 'Upravit: Zkontrolovat hydranty' }).click();
+	dismiss();
+	await page.getByRole('button', { name: 'Smazat úkol' }).click();
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Dokončit: Zkontrolovat hydranty' })).toBeVisible();
+});
+
+test('without a share sheet, "Sdílet" copies the link', async ({ signedIn: page, context }) => {
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	await page.evaluate(() => {
+		Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+	});
+	await nav(page, 'Jednotka').click();
+	const link = page.getByLabel('Odkaz', { exact: true });
+	await expect(link).toHaveValue(/\?k=/);
+	await page.getByRole('button', { name: 'Sdílet', exact: true }).click();
+	await expect(page.getByRole('status')).toHaveText('Odkaz zkopírován');
+	await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(await link.inputValue());
+});
+
+test('tapping "Výchozí" again clears the default place', async ({ signedIn: page }) => {
+	await nav(page, 'Jednotka').click();
+	const places = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Místa akcí' }) });
+	await places.getByLabel('Nové místo').fill('Zbrojnice');
+	await places.getByRole('button', { name: 'Přidat', exact: true }).click();
+	await places.getByRole('button', { name: 'Nastavit výchozí' }).click();
+	const current = places.getByRole('button', { name: 'Výchozí', exact: true });
+	await expect(current).toHaveAttribute('aria-pressed', 'true');
+	await current.click();
+	await expect(places.getByRole('button', { name: 'Nastavit výchozí' })).toBeVisible();
+	await nav(page, 'Plán').click();
+	await day(page, today).click();
+	await expect(page.getByRole('combobox', { name: 'Místo' })).toHaveValue('');
+});
+
+test('more than ten past activities can be expanded', async ({ signedIn: page }) => {
+	await Promise.all(Array.from({ length: 11 }, (_, i) =>
+		seedActivity(`past-${i + 1}`, `2026-10-${String(i + 10).padStart(2, '0')}`, `Zásah ${i + 1}`)
+	));
+	await nav(page, 'Jednotka').click();
+	await page.getByRole('button', { name: /Proběhlé akce/ }).click();
+	const oldest = page.getByRole('link', { name: /^Zásah 1 / });
+	await expect(page.getByRole('link', { name: /^Zásah 11 / })).toBeVisible();
+	await expect(oldest).toHaveCount(0);
+	await page.getByRole('button', { name: 'Zobrazit všechny (11)' }).click();
+	await expect(oldest).toBeVisible();
+	await page.getByRole('button', { name: 'Zobrazit méně' }).click();
+	await expect(oldest).toHaveCount(0);
 });
