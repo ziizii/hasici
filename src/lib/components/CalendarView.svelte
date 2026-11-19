@@ -76,6 +76,7 @@
 {#snippet day(key: DateKey)}
 	{@const av = data.availability(key)}
 	{@const evs = data.eventsOn(key)}
+	{@const todos = data.todosOn(key)}
 	{@const hol = holiday(key)}
 	{@const wd = weekdayIndex(key)}
 	{@const pct = av.total ? (av.available.length / av.total) * 100 : 0}
@@ -141,8 +142,19 @@
 				{evs.length}<span class="sr-only">, akce: {evs.map((event) => event.title).join(', ')}</span>
 			</span>
 		{/if}
+		{#if todos.length}
+			<span class="flex items-center gap-0.5 text-xs font-semibold text-ink-2 lg:hidden" aria-hidden="true">
+				<Icon name="list" size={12} /> {todos.length}
+			</span>
+			<span class="hidden w-full items-center gap-1 rounded-md bg-ground px-1 text-left text-xs font-semibold text-ink-2 lg:flex" aria-hidden="true">
+				<Icon name="list" size={12} />
+				<span class="min-w-0 flex-1 truncate" class:line-through={todos[0].completed}>{todos[0].title}</span>
+				{#if todos.length > 1}<span>+{todos.length - 1}</span>{/if}
+			</span>
+		{/if}
 		<span class="sr-only">
 			{DOW_LONG[wd]} {formatDayMonth(key)}. Dostupní členové: {av.available.length} z {av.total}.
+			{#if todos.length}Úkoly: {todos.map((todo) => todo.title).join(', ')}.{/if}
 		</span>
 	</button>
 {/snippet}

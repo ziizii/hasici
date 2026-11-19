@@ -387,6 +387,7 @@
 {#snippet dayRow(key: DateKey)}
 	{@const av = data.availability(key)}
 	{@const evs = data.eventsOn(key)}
+	{@const todos = data.todosOn(key)}
 	{@const hol = holiday(key)}
 	{@const wd = weekdayIndex(key)}
 	{@const red = wd >= 5 || !!hol}
@@ -405,7 +406,9 @@
 		<button
 			type="button"
 			aria-expanded={key === selected}
-			aria-label="{desktop ? DOW_LONG[wd] : DOW_SHORT[wd]} {formatDayMonth(key)}: může {av.available.length} z {av.total}. Otevřít den."
+			aria-label="{desktop ? DOW_LONG[wd] : DOW_SHORT[wd]} {formatDayMonth(key)}: může {av.available.length} z {av.total}.{todos.length
+				? ` Úkoly: ${todos.map((todo) => todo.title).join(', ')}.`
+				: ''} Otevřít den."
 			style:scroll-margin-block-start="var(--stick-day)"
 			class="flex min-h-11 w-10 shrink-0 flex-col items-center lg:w-[6.25rem] lg:flex-row lg:gap-2">
 			<span
@@ -447,6 +450,12 @@
 								><span class="font-semibold">{ev.title}</span
 								>{#if ev.place}<span class="font-normal">{` · ${ev.place}`}</span>{/if}</span
 							>
+						</span>
+					{/each}
+					{#each todos as todo (todo.id)}
+						<span class="flex max-w-full items-center gap-2 self-start rounded-lg border border-line bg-ground px-2.5 py-1 text-ink-2">
+							<Icon name="list" size={16} />
+							<span class="line-clamp-2 text-sm leading-snug font-semibold" class:line-through={todo.completed}>{todo.title}</span>
 						</span>
 					{/each}
 				</span>
@@ -623,6 +632,7 @@
 				<span class="flex items-center gap-1.5"
 					><span class="size-3.5 rounded-full border border-line bg-weekend"></span>víkend a svátek</span
 				>
+				<span class="flex items-center gap-1.5"><Icon name="list" size={16} /> úkoly</span>
 			{:else}
 				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-[#1F4E8C]"></span>může</span>
 				<span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-off"></span>nepřítomen</span>
