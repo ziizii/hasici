@@ -71,7 +71,7 @@ export function covers(a: Absence, day: DateKey): boolean {
 
 /** The next `n` days the pattern falls on from `day` on (exceptions included). */
 export function occurrences(a: Absence, day: DateKey, n: number): DateKey[] {
-	return repeatDays(a.repeat ?? { freq: 'day', every: 1 }, a.from, a.to, day, addDays(day, 3700), n);
+	return repeatDays(a.repeat ?? { freq: 'day', every: 1 }, a.from, a.to, day, a.to, n);
 }
 
 /** The "Nejsem k dispozici" switch: every day, no end. */
@@ -889,7 +889,8 @@ class Data {
 		const moved = !!s.repeat && date !== slot;
 		const shift = s.repeat ? 0 : daysBetween(slot, date);
 		const from = s.repeat ? slot : date;
-		const except = s.except.filter((d) => d >= slot).map((d) => addDays(d, shift));
+		// This slot is being replaced, so only copy exceptions from later slots.
+		const except = s.except.filter((d) => d > slot).map((d) => addDays(d, shift));
 		if (moved) except.push(slot);
 		const batch = writeBatch(db);
 		let id = s.id;
@@ -963,7 +964,7 @@ class Data {
 		}
 		await batch.commit();
 		if (!repeat) return ref.id;
-		const first = repeatDays(rule, date, to, date, addDays(date, 3700), 1)[0];
+		const first = repeatDays(rule, date, to, date, to, 1)[0];
 		return `${ref.id}_${first ?? date}`;
 	}
 

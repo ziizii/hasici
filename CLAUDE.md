@@ -9,7 +9,9 @@ model, code map and open tasks.
   must be at least 44px (`min-h-11`).
 - Absences are whole days. "Nemůžu přijít" = create a one-day absence; don't
   add a separate opt-out structure.
-- Before finishing: `npm run check` and `npm run build`.
+- Add automated coverage for every new feature. Cover user-facing features in
+  Playwright and update [TESTING.md](TESTING.md).
+- Before finishing: `npm run check`, `npm run build` and `npm test`.
 - Local dev: `make dev` (app + Firebase emulators, data kept in
   `.emulator-data/`, `make reset-emu` wipes it). `make dev-prod` uses the
   real project from `.env`. UI without Firebase: `make demo` (`/?demo`, or

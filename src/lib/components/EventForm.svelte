@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { data, type Event } from '#lib/data.svelte.js';
-	import { type DateKey } from '#lib/dates.js';
-	import { isEmpty, type Repeat } from '#lib/repeat.js';
+	import { OPEN_END, type DateKey } from '#lib/dates.js';
+	import { repeatDays, type Repeat } from '#lib/repeat.js';
 	import PlaceInput from './PlaceInput.svelte';
 	import RepeatPicker from './RepeatPicker.svelte';
 
@@ -91,11 +91,16 @@
 	/** The repeat can be set: new events, a one-off being edited, or "this and all later". */
 	const showRepeat = $derived(repeatable || (!!editRepeat && (!inSeries || following)));
 
+	const recurrenceStart = $derived((showDate || pickDate) && day ? day : date);
+	const invalidRepeat = $derived(
+		showRepeat && !!repeat &&
+			!repeatDays(repeat, recurrenceStart, until || OPEN_END, recurrenceStart, until || OPEN_END, 1).length
+	);
 	const uid = Math.random().toString(36).slice(2, 8);
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!title.trim() || (showRepeat && repeat && isEmpty(repeat))) return;
+		if (!title.trim() || invalidRepeat) return;
 		busy = true;
 		try {
 			await onsave(
@@ -205,7 +210,7 @@
 	{#if showRepeat}
 		{#key saved}
 			<RepeatPicker
-				date={(showDate || pickDate) && day ? day : date}
+				date={recurrenceStart}
 				initial={editRepeat?.repeat ?? null}
 				bind:value={repeat}
 				bind:until
@@ -222,7 +227,7 @@
 		{/if}
 		<button
 			type="submit"
-			disabled={busy}
+			disabled={busy || invalidRepeat}
 			class="min-h-[3.25rem] flex-[2] rounded-xl bg-accent text-[1.0625rem] font-bold text-white disabled:opacity-60"
 			>{busy ? 'Ukládám…' : saveLabel}</button
 		>
