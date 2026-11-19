@@ -8,6 +8,7 @@
 	import AvailabilityBar from './AvailabilityBar.svelte';
 	import EventForm, { type SaveOptions } from './EventForm.svelte';
 	import Icon from './Icon.svelte';
+	import TodoChecklist from './TodoChecklist.svelte';
 
 	let { day, onclose }: { day: DateKey; onclose: () => void } = $props();
 
@@ -60,11 +61,6 @@
 			<Icon name="x" size={22} stroke={2.2} />
 		</button>
 	</header>
-
-	<a class="flex min-h-11 items-center gap-2 self-start font-semibold text-accent-dark"
-		href="/ukoly?den={day}">
-		<Icon name="list" size={18} /> Úkoly na tento den
-	</a>
 
 	<section class="flex flex-col gap-2">
 		<span class="text-[1.0625rem] font-bold">{avail.available.length} z {total} může</span>
@@ -120,6 +116,14 @@
 			{/each}
 		</section>
 	{/if}
+
+	<TodoChecklist
+		title="Úkoly na tento den"
+		heading="h3"
+		href="/ukoly?den={day}"
+		empty="Na tento den nejsou žádné úkoly."
+		todos={data.todosOn(day)}
+	/>
 
 	<section class="flex flex-col gap-3 border-t border-line-soft pt-3.5">
 		<h3 class="text-[1.0625rem] font-bold">Nová akce v tento den</h3>

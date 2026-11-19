@@ -258,6 +258,19 @@ class Data {
 	absences = $state<Absence[]>([]);
 	todos = $state<Todo[]>([]);
 	todosStatus = $state<'loading' | 'ready' | 'error'>('loading');
+	#todosByDay = $derived.by(() => {
+		const byDay = new Map<DateKey, Todo[]>();
+		const sorted = [...this.todos].sort((a, b) => a.title.localeCompare(b.title, 'cs'));
+		for (const todo of sorted) {
+			for (const day of new Set([todo.date, todo.dueDate])) {
+				if (!day) continue;
+				const items = byDay.get(day);
+				if (items) items.push(todo);
+				else byDay.set(day, [todo]);
+			}
+		}
+		return byDay;
+	});
 	/** Events stored one by one (one-off, or a repeat edited on its own). */
 	stored = $state<Event[]>([]);
 	series = $state<Series[]>([]);
@@ -334,10 +347,12 @@ class Data {
 		absences: Absence[];
 		events: Event[];
 		series: Series[];
+		todos: Todo[];
 		places?: string[];
 		defaultPlace?: string;
 	}) {
 		this.#demo = true;
+		this.todos = sample.todos;
 		this.todosStatus = 'ready';
 		this.defaultPlaces = sample.places ?? [];
 		this.defaultPlace = sample.defaultPlace ?? '';
@@ -524,6 +539,10 @@ class Data {
 			...this.stored.filter((e) => e.date === day),
 			...this.series.filter((s) => occurs(s, day)).map((s) => occurrence(s, day))
 		].sort(byDateTime);
+	}
+
+	todosOn(day: DateKey): readonly Todo[] {
+		return this.#todosByDay.get(day) ?? [];
 	}
 
 	/** The weekly repeat `ev` belongs to, if it is still part of it. */

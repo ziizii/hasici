@@ -72,10 +72,12 @@
 			? [selected, ...events]
 			: events;
 	});
+	const scopedTodos = $derived(
+		eventId ? data.todos.filter((todo) => todo.eventId === eventId) : date ? data.todosOn(date) : data.todos
+	);
 	const visible = $derived(
-		data.todos
-			.filter((todo) => todo.completed === completed &&
-				(eventId ? todo.eventId === eventId : date ? todo.date === date : true))
+		scopedTodos
+			.filter((todo) => todo.completed === completed)
 			.sort((a, b) =>
 				(a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31') ||
 				a.title.localeCompare(b.title, 'cs'))

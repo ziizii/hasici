@@ -4,6 +4,7 @@
 import { PALETTE } from './colors.js';
 import type { Absence, Event, Member, Series } from './data.svelte.js';
 import { addDays, OPEN_END, todayKey } from './dates.js';
+import type { Todo } from './todo.js';
 
 export function isDemo(url: URL): boolean {
 	return import.meta.env.DEV && url.searchParams.has('demo');
@@ -14,6 +15,7 @@ export function demoData(count = 10): {
 	absences: Absence[];
 	events: Event[];
 	series: Series[];
+	todos: Todo[];
 	places: string[];
 	defaultPlace: string;
 } {
@@ -92,6 +94,10 @@ export function demoData(count = 10): {
 			repeat: { freq: 'month', every: 1, nth: 1, kind: 4 }
 		}
 	];
+	const todos: Todo[] = [
+		{ id: 't1', title: 'Zkontrolovat lékárničku', date: null, eventId: null, dueDate: d(0), assigneeId: 'm2', completed: false },
+		{ id: 't2', title: 'Připravit hadice na cvičení', date: null, eventId: 'e1', dueDate: d(10), assigneeId: 'm4', completed: false }
+	];
 	const places = ['Hasičská zbrojnice', 'Klubovna', 'Hřiště u školy'];
-	return { members, absences, events, series, places, defaultPlace: places[0] };
+	return { members, absences, events, series, todos, places, defaultPlace: places[0] };
 }

@@ -60,10 +60,11 @@ mají červené kolečko; když je v jeden den víc akcí, kolečko se rozdělí
 akce má svou barvu (stejná barevná tečka je u názvu akce v přehledu dne). Dnešek je
 v rámečku. Víkendy a státní svátky mají podbarvený
 vnitřek kroužku a červené číslo, na počítači je u svátku i jeho název. Klepnutím na den se otevře jeho přehled.
-Telefon si zvolené zobrazení zapamatuje.
+U dnů s úkoly je ikona seznamu. Telefon si zvolené zobrazení zapamatuje.
 
 **Den.** Klepnutím na den se otevře přehled: kdo může, kdo ne a proč (např.
 „Dovolená“). Tady jde jedním tlačítkem zapsat „Tento den nemůžu“ a založit novou akci.
+Úkoly můžete označit za hotové přímo v přehledu dne i v detailu akce.
 
 <p>
   <img src="docs/screenshots/telefon-den.png" width="260" alt="Detail dne">
@@ -78,7 +79,8 @@ každý měsíc, nebo podle vlastního pravidla (např. každý první pátek v 
 opakované akce jde přesunout nebo zrušit zvlášť. U akce je vidět, kdo přijde a kdo ne,
 a každý může klepnout na „Nemůžu přijít“.
 
-**Úkoly.** Úkolu můžete přiřadit termín, řešitele, den nebo akci. V poli
+**Úkoly.** Úkolu můžete přiřadit termín, řešitele, den nebo akci. V plánu se úkol
+zobrazí u termínu dokončení i u přiřazeného dne. V poli
 **Opakování úkolu** vyberte **Podle kalendáře** pro stejná pravidla jako u
 nepřítomností (např. každý první pátek v měsíci). Nebo vyberte **Po dokončení**
 a zadejte odstup, třeba 2 roky od poslední výměny oleje. Z každé řady je otevřený
