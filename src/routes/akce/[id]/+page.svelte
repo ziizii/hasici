@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { clock } from '#lib/clock.svelte.js';
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { access } from '#lib/access.svelte.js';
 	import { contrastText, initials } from '#lib/colors.js';
 	import { data } from '#lib/data.svelte.js';
-	import { formatLong, OPEN_END, formatShort, todayKey } from '#lib/dates.js';
+	import { formatLong, OPEN_END, formatShort } from '#lib/dates.js';
 	import { describe, lastDay, nextAfter, WEEKLY } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import AvailabilityBar from '#lib/components/AvailabilityBar.svelte';
@@ -25,7 +26,7 @@
 	const myAbsence = $derived(ev && me ? data.absenceOn(me.id, ev.date) : undefined);
 	const total = $derived(avail?.total ?? 0);
 	/** Past events show who was there; the bar still corrects it. */
-	const past = $derived(!!ev && ev.date < todayKey());
+	const past = $derived(!!ev && ev.date < clock.today);
 
 	const series = $derived(ev ? data.seriesOf(ev) : undefined);
 	/** Later repeats exist, so "this and all later" choices make sense. */

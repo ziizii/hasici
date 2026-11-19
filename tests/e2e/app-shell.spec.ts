@@ -1,4 +1,4 @@
-import { day, expect, join, nav, seedActivity, test, today } from './fixtures';
+import { day, expect, join, nav, seedAbsence, seedActivity, startTodo, test, today } from './fixtures';
 
 test('the installable app opens the last synced plan offline', async ({ page, context }) => {
 	await seedActivity('cached', today, 'Databázová zkouška');
@@ -73,4 +73,40 @@ test('keyboard users can skip the navigation straight to the content', async ({ 
 	await expect(skip).toBeVisible();
 	await page.keyboard.press('Enter');
 	await expect(page.locator('#main-content')).toBeFocused();
+});
+
+test('an app left open overnight moves today on at midnight', async ({ page }) => {
+	const tomorrow = '2026-11-20';
+	await seedActivity('evening', today, 'Večerní cvičení', '22:00');
+	await seedAbsence('tonight', { memberId: 'jana', from: today, to: today, note: 'Služba' });
+	await page.clock.install({ time: new Date(`${today}T23:58:00+01:00`) });
+	await join(page, '/ukoly');
+	await startTodo(page, 'Doplnit vodu');
+	await page.getByLabel('Termín dokončení').fill(today);
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	const due = page.getByText('Termín Čt 19. 11.');
+	await expect(due).not.toHaveClass(/font-bold/);
+
+	await page.clock.fastForward('03:00');
+	await expect(due).toHaveClass(/font-bold/);
+	await nav(page, 'Plán').click();
+	await expect(day(page, tomorrow).locator('..')).toContainText('Dnes');
+	await page.getByRole('navigation', { name: 'Přeskočit na' }).getByRole('button', { name: 'Dnes', exact: true }).click();
+	await expect(day(page, tomorrow)).toBeFocused();
+	await page.getByRole('button', { name: 'Kalendář', exact: true }).click();
+	await expect(day(page, tomorrow, true)).toHaveAttribute('aria-current', 'date');
+	await nav(page, 'Já').click();
+	await expect(page.getByRole('heading', { name: 'Nadcházející (0)' })).toBeVisible();
+	await page.goto('/akce/evening');
+	await expect(page.getByText('Přišlo 1 z 2')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Přece jen přijdu' })).toHaveCount(0);
+});
+
+test('a phone coming back from the background picks up the new day at once', async ({ signedIn: page }) => {
+	await expect(day(page, today).locator('..')).toContainText('Dnes');
+	// Timers don't run while the phone sleeps: only the clock moves on.
+	await page.clock.setFixedTime(new Date('2026-11-20T07:00:00+01:00'));
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect(day(page, '2026-11-20').locator('..')).toContainText('Dnes');
+	await expect(day(page, today).locator('..')).not.toContainText('Dnes');
 });

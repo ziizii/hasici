@@ -15,13 +15,13 @@
 	async function add(e: SubmitEvent) {
 		e.preventDefault();
 		if (!name.trim()) return;
-		const firstMember = empty;
 		busy = true;
 		try {
 			const id = await data.addMember(name);
 			name = '';
 			adding = false;
-			if (firstMember) access.setMember(id);
+			// Whoever adds a name here is adding themselves ("Nejsem v seznamu").
+			access.setMember(id);
 		} catch (err) {
 			console.error(err);
 			toasts.error();
@@ -86,7 +86,7 @@
 					disabled={busy}
 					class="flex min-h-12 items-center justify-center rounded-xl bg-accent font-bold text-white disabled:opacity-60"
 				>
-					{empty ? 'Přidat a pokračovat' : 'Přidat člena'}
+					Přidat a pokračovat
 				</button>
 			</form>
 		{:else}

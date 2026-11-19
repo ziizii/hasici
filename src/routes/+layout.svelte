@@ -14,6 +14,7 @@
 	import favicon from '#lib/assets/favicon.svg';
 	import { demoData, isDemo } from '#lib/demo.js';
 	import { mark } from '#lib/perf.js';
+	import { clock } from '#lib/clock.svelte.js';
 
 	mark('aplikace spuštěna');
 
@@ -35,6 +36,9 @@
 			access.startDemo('m2');
 		} else if (!configMissing) access.init(url);
 	});
+
+	// Moves "today" on at midnight for an app left open overnight.
+	$effect(() => clock.watch());
 
 	$effect(() => {
 		if (access.state === 'ready') data.start();

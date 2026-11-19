@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { clock } from '#lib/clock.svelte.js';
 	import { data } from '#lib/data.svelte.js';
-	import { todayKey, type DateKey } from '#lib/dates.js';
+	import { type DateKey } from '#lib/dates.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import EventForm, { type SaveOptions } from './EventForm.svelte';
 	import Icon from './Icon.svelte';
@@ -33,5 +34,5 @@
 			<Icon name="x" size={22} stroke={2.2} />
 		</button>
 	</header>
-	<EventForm date={todayKey()} pickDate repeatable onsave={create} />
+	<EventForm date={clock.today} pickDate repeatable onsave={create} />
 </div>

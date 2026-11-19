@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { clock } from '#lib/clock.svelte.js';
 	import { tick } from 'svelte';
 	import { access } from '#lib/access.svelte.js';
 	import { contrastText, initials } from '#lib/colors.js';
@@ -28,7 +29,7 @@
 	import RepeatPicker from '#lib/components/RepeatPicker.svelte';
 	import UnavailableSwitch from '#lib/components/UnavailableSwitch.svelte';
 
-	const today = todayKey();
+	const today = $derived(clock.today);
 	const me = $derived(data.member(access.memberId));
 
 	const mine = $derived(
@@ -61,7 +62,7 @@
 	// --- form ---
 	type Quick = 'today' | 'tomorrow' | 'weekend' | 'custom';
 	let quick = $state<Quick>('custom');
-	let from = $state(today);
+	let from = $state(todayKey());
 	let to = $state('');
 	let note = $state('');
 	/** Repeating on the rule's days from `from`; null = every day in the range. */

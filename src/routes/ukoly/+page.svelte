@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { clock } from '#lib/clock.svelte.js';
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { data } from '#lib/data.svelte.js';
@@ -14,7 +15,7 @@
 	const requestedDate = $derived(page.url.searchParams.get('den') ?? '');
 	const date = $derived(!eventId && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : '');
 	const scopedEvent = $derived(eventId ? data.event(eventId) : undefined);
-	const canCreateHere = $derived(!eventId || (scopedEvent && scopedEvent.date >= todayKey()));
+	const canCreateHere = $derived(!eventId || (scopedEvent && scopedEvent.date >= clock.today));
 	const statuses = [
 		{ value: false, label: 'Otevřené' },
 		{ value: true, label: 'Hotové' }
@@ -65,7 +66,7 @@
 	const eventsLoaded = $derived(data.loaded.events && data.loaded.series);
 	const eventOptions = $derived.by(() => {
 		const selected = linkedEvent ? data.event(linkedEvent) : undefined;
-		const today = todayKey();
+		const today = clock.today;
 		const events = data.events.filter((event) => event.date >= today);
 		return selected && (selected.id === originalEventId || selected.date >= today) &&
 			!events.some((event) => event.id === selected.id)
@@ -358,7 +359,7 @@
 								<span>Den {formatShort(todo.date)}</span>
 							{/if}
 							{#if todo.dueDate}
-								<span class={!todo.completed && todo.dueDate < todayKey() ? 'font-bold text-accent-dark' : ''}>
+								<span class={!todo.completed && todo.dueDate < clock.today ? 'font-bold text-accent-dark' : ''}>
 									Termín {formatShort(todo.dueDate)}
 								</span>
 							{/if}
