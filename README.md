@@ -88,6 +88,12 @@ jen jeden úkol. Po dokončení se objeví nejbližší další termín, pokud o
 ještě trvá. Splněné úkoly najdete v **Hotové**. U úkolu přiřazeného k akci se
 další termín objeví v přehledu **Úkoly** jako samostatný úkol.
 
+**Střídání.** U opakovaného úkolu (třeba vytírání klubovny) můžete v poli **Řešitel**
+vybrat **Střídá se víc lidí** a zaškrtnout, kdo se střídá. U úkolu je pak vidět, kdo je
+**na řadě**. Při odškrtnutí aplikace zeptá **Kdo to udělal?** Kdo to udělal, z řady
+vypadne; když se vystřídají všichni, začne se znovu. Kdo to udělá místo jiného, v dalším
+kole vynechá, a kdo to neudělal, je v dalším kole na řadě dvakrát (u jména „2×“).
+
 **Moje nepřítomnost.** Každý si zapíše, kdy nemůže: jeden den, několik dní za sebou
 (dovolená), nebo pravidelně (např. „každé úterý – práce“). Přepínač „Nejsem
 k dispozici“ platí do odvolání, třeba při nemoci nebo zranění. Kdo ho má zapnutý,

@@ -214,6 +214,13 @@ await expect('reopen the task and remove its pending successor atomically', true
 	b.delete(nextTodoRef);
 	await b.commit();
 });
+const rotation = { members: [memberId, 'other'], owed: { [memberId]: 0, other: 1 } };
+await expect('add a pool that takes turns', true, () => updateDoc(todoRef, { rotation, assigneeId: null }));
+await expect('reject a pool without people', false, () => updateDoc(todoRef, { rotation: { members: [], owed: {} } }));
+await expect('reject unknown pool fields', false, () => updateDoc(todoRef, { rotation: { ...rotation, extra: 1 } }));
+await expect('reject who did it on an open task', false, () => updateDoc(todoRef, { doneBy: memberId }));
+await expect('complete a pool task with who did it', true, () =>
+	updateDoc(todoRef, { completed: true, completedOn: '2026-07-11', doneBy: memberId }));
 
 await expect('a batch of 40 writes (rules look up the session and access docs once)', true, async () => {
 	const b = writeBatch(db);

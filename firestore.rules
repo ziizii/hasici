@@ -220,9 +220,16 @@ service cloud.firestore {
         ));
       }
 
+      function validRotation(r) {
+        return r == null || (r is map
+          && r.keys().hasOnly(['members', 'owed'])
+          && r.members is list && r.members.size() >= 1 && r.members.size() <= 100
+          && r.owed is map && r.owed.size() <= 100);
+      }
+
       function validTodo(d) {
         return d.keys().hasOnly(['title', 'date', 'eventId', 'dueDate', 'assigneeId', 'completed',
-            'recurrence', 'completedOn', 'nextId'])
+            'recurrence', 'completedOn', 'nextId', 'rotation', 'doneBy'])
           && isText(d.title, 1, 120)
           && (d.date == null || isDate(d.date))
           && (d.eventId == null || isText(d.eventId, 1, 100))
@@ -231,6 +238,8 @@ service cloud.firestore {
           && (d.assigneeId == null || isText(d.assigneeId, 1, 64))
           && d.completed is bool
           && validRecurrence(d.get('recurrence', null), d.dueDate)
+          && validRotation(d.get('rotation', null))
+          && (d.get('doneBy', null) == null || (d.completed && isText(d.doneBy, 1, 64)))
           && (d.get('completedOn', null) == null || (d.completed && isDate(d.completedOn)))
           && (d.get('nextId', null) == null
             || (d.completed && d.nextId is string && d.nextId.matches('^[a-zA-Z0-9]{20}$')));

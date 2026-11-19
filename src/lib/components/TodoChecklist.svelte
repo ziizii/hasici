@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { data } from '#lib/data.svelte.js';
 	import { formatShort } from '#lib/dates.js';
-	import { toggleTodo } from '#lib/todo-actions.js';
+	import { memberName, toggleTodo, turnsText } from '#lib/todo-actions.js';
 	import type { Todo } from '#lib/todo.js';
 	import Icon from './Icon.svelte';
 
@@ -46,7 +46,6 @@
 		<ul class="divide-y divide-line border-t border-line">
 			{#each todos as todo (todo.id)}
 				{@const completed = pending[todo.id] ?? todo.completed}
-				{@const member = data.allMembers.find((member) => member.id === todo.assigneeId)}
 				<li>
 					<label class="flex min-h-12 items-center gap-3 py-2">
 						<input type="checkbox" checked={completed} disabled={todo.id in pending}
@@ -54,10 +53,13 @@
 							onchange={(event) => setCompleted(todo, event.currentTarget)} />
 						<span class="min-w-0">
 							<span class="block break-words font-semibold" class:line-through={completed} class:text-muted={completed}>{todo.title}</span>
-							{#if todo.dueDate || todo.assigneeId}
+							{#if todo.dueDate || todo.assigneeId || todo.rotation}
 								<span class="flex flex-wrap gap-x-3 text-sm text-muted">
 									{#if todo.dueDate}<span>Termín {formatShort(todo.dueDate)}</span>{/if}
-									{#if todo.assigneeId}<span>{member?.name ?? 'Bývalý člen'}</span>{/if}
+									{#if todo.assigneeId}<span>{memberName(todo.assigneeId)}</span>{/if}
+									{#if todo.rotation}
+										<span>{todo.completed ? memberName(todo.doneBy) : turnsText(todo.rotation)}</span>
+									{/if}
 								</span>
 							{/if}
 						</span>

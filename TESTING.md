@@ -32,7 +32,7 @@ npm run coverage:check
 
 These commands generate separate HTML, LCOV and JSON reports in `coverage/unit` and `coverage/e2e`, then check the [minimum line and branch coverage](scripts/check-coverage.mjs). To measure one suite, use `npm run test:unit -- --coverage` or `npm run test:coverage:e2e`.
 
-- **Unit coverage** includes the calendar, recurrence, task and color modules in the [Vitest config](vitest.config.ts).
+- **Unit coverage** includes the calendar, recurrence, task (with the rotation counts) and color modules in the [Vitest config](vitest.config.ts).
 - **End-to-end coverage** maps executed Chromium page scripts back to TypeScript and Svelte sources. It includes the extra browser sessions used in multi-device tests. The Firestore rules, service worker and native device features have separate behavioral checks outside these percentages.
 
 The [Test workflow](.github/workflows/test.yml) runs on pull requests, pushes to `main` and manual dispatch. It uploads the two reports in the `code-coverage` artifact and evaluates them in the `coverage` job. The job summary shows each suite's percentages and thresholds. The workflow also uploads the Playwright report and traces on test failure when available.
@@ -168,6 +168,7 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | Tasks on a day or an activity, in the day panel, on the activity page and in the calendar | ✅ | [Tasks] |
 | Repeating tasks, intervals after completion, the reopen rules, two devices completing at once | ✅ | [Tasks], [Recurrence] |
 | "Všechny úkoly" from a day or activity view | ✅ | [Tasks] |
+| A pool takes turns on a repeating task: "Kdo to udělal?" (list and day checklist, cancel), standing in for someone skips them next round and doubles who didn't, reopening restores the round, editing keeps it, "Neopakovat" drops it | ✅ | [Tasks] |
 | The linked activity was deleted ("Nedostupná akce"), also when editing the task | ✅ | [Tasks] |
 | Editing a repeating task keeps its end date | ✅ | [Tasks] |
 | The assignee was archived (name kept) or deleted ("Bývalý člen"), also when editing the task | ✅ | [Tasks] |

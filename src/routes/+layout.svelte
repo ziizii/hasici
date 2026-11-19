@@ -7,6 +7,7 @@
 	import { configMissing } from '#lib/firebase.js';
 	import { contrastText, initials } from '#lib/colors.js';
 	import ToastNotice from '#lib/components/ToastNotice.svelte';
+	import WhoDidDialog from '#lib/components/WhoDidDialog.svelte';
 	import Brand from '#lib/components/Brand.svelte';
 	import Icon, { type IconName } from '#lib/components/Icon.svelte';
 	import MemberPicker from '#lib/components/MemberPicker.svelte';
@@ -225,3 +226,4 @@
 {/if}
 
 <ToastNotice />
+<WhoDidDialog />

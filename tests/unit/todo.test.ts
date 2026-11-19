@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { describeTodoRepeat, firstTodoDate, nextTodoFields, type Todo, type TodoRecurrence } from '../../src/lib/todo';
+import {
+	describeTodoRepeat, editRotation, firstTodoDate, nextTodoFields, rotationAfter, rotationOwed, rotationTurns,
+	type Todo, type TodoRecurrence
+} from '../../src/lib/todo';
 
 const task: Todo = {
 	id: 'test', title: 'Výměna oleje', completed: false,
@@ -53,5 +56,46 @@ describe('task recurrence', () => {
 		expect(nextTodoFields({ ...task, recurrence }, '9999-12-31')).toBeUndefined();
 		expect(nextTodoFields({ ...task, recurrence, dueDate: '9999-12-25', date: '9999-12-28' }, '9999-12-30'))
 			.toMatchObject({ date: '9999-12-31', dueDate: '9999-12-31' });
+	});
+});
+
+describe('task rotation', () => {
+	const pool = (owed: Record<string, number> = {}) => ({ members: ['a', 'b', 'c'], owed });
+	const all = ['a', 'b', 'c'];
+	const done = (rotation: ReturnType<typeof pool>, ...by: string[]) =>
+		by.reduce((current, id) => rotationAfter(current, id, all), rotation);
+
+	it('takes everyone out once, then fills the pool again', () => {
+		expect(rotationTurns(pool(), all)).toEqual([{ id: 'a', times: 1 }, { id: 'b', times: 1 }, { id: 'c', times: 1 }]);
+		expect(rotationTurns(done(pool(), 'a', 'b'), all)).toEqual([{ id: 'c', times: 1 }]);
+		expect(done(pool(), 'a', 'b', 'c').owed).toEqual({ a: 1, b: 1, c: 1 });
+	});
+
+	it('skips who did it twice and puts in twice who did not do it', () => {
+		const next = done(pool(), 'a', 'b', 'a');
+		expect(next.owed).toEqual({ a: 0, b: 1, c: 2 });
+		expect(rotationTurns(next, all)).toEqual([{ id: 'c', times: 2 }, { id: 'b', times: 1 }]);
+		expect(done(next, 'b', 'a').owed).toEqual({ a: -1, b: 0, c: 2 });
+		expect(done(next, 'b', 'a', 'a').owed).toEqual({ a: -1, b: 1, c: 3 });
+		expect(rotationTurns(done(next, 'b', 'a', 'a'), all)).toEqual([{ id: 'c', times: 3 }, { id: 'b', times: 1 }]);
+	});
+
+	it('ignores people outside the pool and archived members', () => {
+		expect(done(pool({ a: 0 }), 'x').owed).toEqual({ a: 0, b: 1, c: 1 });
+		expect(rotationAfter(pool(), null, all).owed).toEqual({ a: 1, b: 1, c: 1 });
+		expect(rotationOwed(pool({ a: -3, b: 1 }), ['a', 'b'])).toEqual({ a: -1, b: 3 });
+		expect(rotationTurns(pool({ c: 2 }), ['a', 'b'])).toEqual([{ id: 'a', times: 1 }, { id: 'b', times: 1 }]);
+		expect(rotationTurns(pool(), [])).toEqual([]);
+	});
+
+	it('keeps the counts of who stays when the pool changes', () => {
+		expect(editRotation(pool({ a: 0, b: 2, c: 1 }), ['b', 'd'])).toEqual({ members: ['b', 'd'], owed: { b: 2 } });
+		expect(editRotation(null, ['a', 'b'])).toEqual({ members: ['a', 'b'], owed: {} });
+	});
+
+	it('passes the pool on to the next task with who did it', () => {
+		const recurrence = { mode: 'completion', freq: 'week', every: 1 } as const;
+		expect(nextTodoFields({ ...task, recurrence, rotation: pool() }, '2027-01-09', 'b', all)?.rotation)
+			.toEqual({ members: ['a', 'b', 'c'], owed: { a: 1, b: 0, c: 1 } });
 	});
 });

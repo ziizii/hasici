@@ -126,6 +126,17 @@ direction; older rows are superseded.
     day's events, a "Tento den nemůžu" toggle, and the new-event form. On
     phones this is a bottom sheet; on desktop (≥1024px) it is the right
     column.
+- **Tasks (`/ukoly`)** have a due date, an assignee, a day or activity, and can
+  repeat by calendar or after completion; completing one creates the next
+  (`nextId`), reopening deletes it again.
+- **Rotation on repeating tasks** ("Střídá se víc lidí" in Řešitel): a pool of
+  members instead of one assignee, no fixed shifts. `rotation.owed` holds how
+  many times each still has to do it this round (missing = 1). Completing asks
+  "Kdo to udělal?" (`WhoDidDialog`, `whoDid.ask`), stores `doneBy` and lowers
+  that person's count, below zero when standing in for someone. When the counts
+  add up to zero everyone gets +1, so whoever did it twice skips the next round
+  and whoever didn't is due twice ("2×"). Logic in `lib/todo.ts`
+  (`rotationOwed/After/Turns`); archived members are left out and come back due once.
 - **Pull-only:** no notifications or e-mails, by design.
 - **Auto-update:** the build's version is the git commit (`vite.config.ts`).
   SvelteKit polls `/_app/version.json` every minute and on tab focus; the
@@ -195,6 +206,7 @@ don't (`#lib/components/Icon.svelte`).
 | `sessions/{uid}` | `key`, `createdAt` | Created (or re-created) when `key` equals `linkKey` or `passwordHash` and the device's `attempts` doc holds that key. `createdAt` must be the server time; valid while `createdAt >= config/access.revokedAt` |
 | `members/{id}` | `name`, `nickname?` (≤ 30), `color`, `archived`, `createdAt` | `nickname` replaces the first name in the bar |
 | `absences/{id}` | `memberId`, `from`, `to` (`YYYY-MM-DD`, inclusive), `note`, `weekdays?` or `repeat?`, `except?`, `createdAt` | Whole days. `weekdays` (0 = Mon … 6 = Sun) makes it repeat every week within the range; any other rule is stored as `repeat` (same shape as on `series`); both are read as `Absence.repeat`. `to = 9999-12-31` = no end; `except` = skipped days |
+| `todos/{id}` | `title`, `date`, `eventId`, `dueDate`, `assigneeId`, `completed`, `recurrence?`, `completedOn?`, `nextId?`, `rotation?` (`{members, owed}`), `doneBy?` | See tasks above |
 | `events/{id}` | `title`, `date`, `time` (`HH:MM` or ''), `place`, `note`, `series?`, `createdAt` | One-off events. A repeat edited on its own is stored here with id `<seriesId>_<day>` and `series` set |
 | `series/{id}` | `title`, `time`, `place`, `note`, `from`, `to` (`9999-12-31` = until cancelled), `except`, `repeat?`, `createdAt` | Repeating event; occurrences are computed in `data.events`/`eventsOn`. Without `repeat`: every week on `from`'s weekday. `repeat` (`lib/repeat.ts`): `{freq: day/week/month/year, every, weekdays?, days?, nth?, kind?, months?}`. `except` = cancelled or individually edited days. "This and later" edits split the series; a plain weekly one moves with a new date, other rules keep their days and only the edited day moves |
 
