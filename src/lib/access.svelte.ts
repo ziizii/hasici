@@ -81,7 +81,9 @@ class Access {
 		const unitExists = new Promise<boolean>((resolve, reject) => ((setUp = resolve), (failed = reject)));
 		onSnapshot(
 			doc(db, 'config', 'public'),
+			{ includeMetadataChanges: true },
 			(snap) => {
+				if (snap.metadata.fromCache && !snap.exists()) return;
 				this.unitName = (snap.data()?.name as string) ?? '';
 				writeStored(UNIT_NAME_KEY, this.unitName);
 				if (!snap.metadata.fromCache) setUp(snap.exists());

@@ -140,18 +140,23 @@
 
 	// --- places ---
 	let newPlace = $state('');
+	let addingPlace = $state(false);
 
 	async function addPlace(e: SubmitEvent) {
 		e.preventDefault();
 		const p = newPlace.trim();
-		if (!p) return;
-		if (data.defaultPlaces.includes(p)) return void (newPlace = '');
+		if (!p || addingPlace) return;
+		newPlace = '';
+		if (data.defaultPlaces.includes(p)) return;
+		addingPlace = true;
 		try {
 			await data.setDefaultPlaces([...data.defaultPlaces, p]);
-			newPlace = '';
 		} catch (err) {
+			if (!newPlace) newPlace = p;
 			console.error(err);
 			toasts.error();
+		} finally {
+			addingPlace = false;
 		}
 	}
 
@@ -699,7 +704,8 @@
 			</label>
 			<button
 				type="submit"
-				class="flex min-h-12 items-center gap-1.5 rounded-xl bg-accent px-4 font-bold text-white"
+				disabled={addingPlace}
+				class="flex min-h-12 items-center gap-1.5 rounded-xl bg-accent px-4 font-bold text-white disabled:opacity-60"
 				><Icon name="plus" size={18} stroke={2.5} /> Přidat</button
 			>
 		</form>

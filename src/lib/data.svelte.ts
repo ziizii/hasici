@@ -10,7 +10,9 @@ import {
 	setDoc,
 	updateDoc,
 	writeBatch,
+	type DocumentSnapshot,
 	type FirestoreError,
+	type QuerySnapshot,
 	type Unsubscribe
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -228,6 +230,18 @@ function eventFields(e: Omit<Event, 'id'>) {
  */
 const CACHE_KEY = 'hasici.cache.v2';
 
+/** Keep the stored plan until this listener has caught up with the server. */
+function afterInitialSync<T extends DocumentSnapshot | QuerySnapshot>(
+	hasCachedPlan: boolean,
+	update: (snapshot: T) => void
+): (snapshot: T) => void {
+	let ready = !hasCachedPlan;
+	return (snapshot) => {
+		if (!snapshot.metadata.fromCache) ready = true;
+		if (ready) update(snapshot);
+	};
+}
+
 export function clearCachedData() {
 	try {
 		localStorage.removeItem(CACHE_KEY);
@@ -297,7 +311,7 @@ class Data {
 	#loadCached() {
 		try {
 			const c = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null');
-			if (!c) return;
+			if (!c) return false;
 			this.allMembers = c.members;
 			this.absences = c.absences;
 			this.stored = c.events;
@@ -306,8 +320,10 @@ class Data {
 			this.defaultPlace = c.defaultPlace ?? '';
 			this.loaded = { members: true, absences: true, events: true, series: true };
 			mark('data z paměti zařízení');
+			return true;
 		} catch {
 			// unreadable cache: wait for Firestore as before
+			return false;
 		}
 	}
 
@@ -386,7 +402,7 @@ class Data {
 	/** Realtime subscriptions. The whole unit is small, so everything is synced. */
 	start() {
 		if (this.#demo || this.#unsubs.length) return;
-		this.#loadCached();
+		const hasCachedPlan = this.#loadCached();
 		this.#watch((onError) =>
 			onSnapshot(
 				collection(db, 'todos'),
@@ -403,7 +419,8 @@ class Data {
 		this.#watch((onError) =>
 			onSnapshot(
 				collection(db, 'members'),
-				(snap) => {
+				{ includeMetadataChanges: true },
+				afterInitialSync<QuerySnapshot>(hasCachedPlan, (snap) => {
 					this.allMembers = snap.docs
 						.map((d) => {
 							const x = d.data();
@@ -421,14 +438,15 @@ class Data {
 					this.loaded.members = true;
 					mark('živá data: členové');
 					this.#saveSoon();
-				},
+				}),
 				onError
 			)
 		);
 		this.#watch((onError) =>
 			onSnapshot(
 				collection(db, 'absences'),
-				(snap) => {
+				{ includeMetadataChanges: true },
+				afterInitialSync<QuerySnapshot>(hasCachedPlan, (snap) => {
 					this.absences = snap.docs.map((d) => {
 						const x = d.data();
 						return {
@@ -448,27 +466,29 @@ class Data {
 					this.loaded.absences = true;
 					mark('živá data: nepřítomnosti');
 					this.#saveSoon();
-				},
+				}),
 				onError
 			)
 		);
 		this.#watch((onError) =>
 			onSnapshot(
 				doc(db, 'config', 'places'),
-				(snap) => {
+				{ includeMetadataChanges: true },
+				afterInitialSync<DocumentSnapshot>(hasCachedPlan, (snap) => {
 					const list = snap.data()?.list;
 					this.defaultPlaces = Array.isArray(list) ? list : [];
 					const def = snap.data()?.default;
 					this.defaultPlace = typeof def === 'string' ? def : '';
 					this.#saveSoon();
-				},
+				}),
 				onError
 			)
 		);
 		this.#watch((onError) =>
 			onSnapshot(
 				collection(db, 'events'),
-				(snap) => {
+				{ includeMetadataChanges: true },
+				afterInitialSync<QuerySnapshot>(hasCachedPlan, (snap) => {
 					this.stored = snap.docs
 						.map((d) => {
 							const x = d.data();
@@ -490,14 +510,15 @@ class Data {
 					this.loaded.events = true;
 					mark('živá data: akce');
 					this.#saveSoon();
-				},
+				}),
 				onError
 			)
 		);
 		this.#watch((onError) =>
 			onSnapshot(
 				collection(db, 'series'),
-				(snap) => {
+				{ includeMetadataChanges: true },
+				afterInitialSync<QuerySnapshot>(hasCachedPlan, (snap) => {
 					this.series = snap.docs.map((d) => {
 						const x = d.data();
 						return {
@@ -514,7 +535,7 @@ class Data {
 					});
 					this.loaded.series = true;
 					this.#saveSoon();
-				},
+				}),
 				onError
 			)
 		);

@@ -29,6 +29,11 @@ test('the installable app opens the last synced plan offline', async ({ page, co
 	await expect(page.getByRole('link', { name: /Databázová zkouška/ })).toBeVisible();
 	await page.goto('/akce/cached');
 	await expect(page.getByRole('heading', { name: 'Databázová zkouška' })).toBeVisible();
+	await expect(page.getByRole('banner').getByText('SDH Zkouška')).toBeVisible();
+
+	await seedActivity('cached', today, 'Změněný výcvik');
+	await context.setOffline(false);
+	await expect(page.getByRole('heading', { name: 'Změněný výcvik' })).toBeVisible({ timeout: 15_000 });
 });
 
 test.describe('version polling', () => {
