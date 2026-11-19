@@ -156,3 +156,79 @@ test('rescheduling from an already moved weekly occurrence keeps that occurrence
 	await page.goto('/akce/moved_2026-11-19');
 	await expect(page.getByRole('heading', { name: 'Výcvik' })).toBeVisible();
 });
+
+test('a new activity needs a date and a title, opens its day after saving, and editing can be cancelled', async ({ signedIn: page }) => {
+	await page.getByRole('button', { name: 'Naplánovat akci' }).click();
+	const save = page.getByRole('button', { name: 'Uložit akci' });
+	const title = page.getByLabel('Název', { exact: true });
+	await save.click();
+	await expect(page.getByLabel('Datum', { exact: true })).toHaveJSProperty('validity.valueMissing', true);
+	await page.getByLabel('Datum', { exact: true }).fill('2026-11-27');
+	await save.click();
+	await expect(title).toHaveJSProperty('validity.valueMissing', true);
+	await title.fill('Školení');
+	await save.click();
+	const panel = page.getByRole('complementary', { name: 'Vybraný den' });
+	await expect(panel.getByRole('heading', { level: 2 })).toHaveText('Pátek 27. 11. 2026');
+	await panel.getByRole('link', { name: /Školení/ }).click();
+
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	await page.getByLabel('Název', { exact: true }).fill('Jiný název');
+	await page.getByRole('button', { name: 'Zrušit', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Školení' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Upravit', exact: true })).toBeFocused();
+	await page.reload();
+	await expect(page.getByRole('heading', { name: 'Školení' })).toBeVisible();
+});
+
+test('the monthly preset and an activity repeating until cancelled', async ({ signedIn: page }) => {
+	for (const [title, preset] of [['Měsíční revize', /Opakovat 20\. každého měsíce/], ['Týdenní jízdy', /Opakovat každý týden/]] as const) {
+		await page.getByRole('button', { name: 'Naplánovat akci' }).click();
+		await page.getByLabel('Datum', { exact: true }).fill('2026-11-20');
+		await page.getByLabel('Název', { exact: true }).fill(title);
+		await page.getByRole('radio', { name: preset }).check();
+		await expect(page.getByLabel(/Opakovat do/)).toHaveValue('');
+		await page.getByRole('button', { name: 'Uložit akci' }).click();
+		await expect(page.getByRole('status')).toHaveText('Opakovaná akce uložena');
+	}
+	await nav(page, 'Jednotka').click();
+	const seriesOf = async (title: string) =>
+		(await page.getByRole('link', { name: new RegExp(title) }).first().getAttribute('href'))!.slice(0, -10);
+	const monthly = await seriesOf('Měsíční revize');
+	const weekly = await seriesOf('Týdenní jízdy');
+	for (const [path, heading] of [
+		[monthly + '2026-12-20', 'Měsíční revize'], [monthly + '2028-02-20', 'Měsíční revize'],
+		[weekly + '2027-11-19', 'Týdenní jízdy'], [weekly + '2031-01-03', 'Týdenní jízdy']
+	]) {
+		await page.goto(path);
+		await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+	}
+	await page.goto(monthly + '2026-12-27');
+	await expect(page.getByRole('heading', { name: 'Akce už neexistuje.' })).toBeVisible();
+	await page.goto(weekly + '2027-11-19');
+	await expect(page.getByText('Každý týden v pátek', { exact: true })).toBeVisible();
+});
+
+test('deletes one date of a repeat from the edit form and cancels a moved date', async ({ page }) => {
+	await seedSeries('weekly', { from: '2026-11-19', to: '2026-12-17' });
+	await join(page, '/akce/weekly_2026-11-26');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: 'Smazat jen tuto akci' }).click();
+	await expect(page.getByRole('status')).toHaveText('Termín zrušen');
+	await page.goto('/akce/weekly_2026-11-26');
+	await expect(page.getByRole('heading', { name: 'Akce už neexistuje.' })).toBeVisible();
+	await page.goto('/akce/weekly_2026-12-03');
+	await page.getByRole('button', { name: 'Změnit jen tento termín' }).click();
+	await page.getByLabel('Datum', { exact: true }).fill('2026-12-05');
+	await page.getByRole('button', { name: 'Uložit změny' }).click();
+	await expect(page.getByText(/přesunutý z Čt 3\. 12\./)).toBeVisible();
+	acceptDialog(page);
+	await page.getByRole('button', { name: 'Zrušit tento termín' }).click();
+	await expect(page.getByRole('status')).toHaveText('Termín zrušen');
+	await expect(page.getByRole('heading', { name: 'Plán' })).toBeVisible();
+	for (const gone of ['2026-12-03', '2026-12-05']) await expect(day(page, gone).locator('..')).not.toContainText('Výcvik');
+	await expect(day(page, '2026-12-10').locator('..')).toContainText('Výcvik');
+	await page.goto('/akce/weekly_2026-12-03');
+	await expect(page.getByRole('heading', { name: 'Akce už neexistuje.' })).toBeVisible();
+});

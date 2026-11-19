@@ -65,3 +65,12 @@ test.describe('version polling', () => {
 		await expect(nav(page, 'Plán')).toBeVisible();
 	});
 });
+
+test('keyboard users can skip the navigation straight to the content', async ({ signedIn: page }) => {
+	await page.keyboard.press('Tab');
+	const skip = page.getByRole('link', { name: 'Přeskočit na obsah' });
+	await expect(skip).toBeFocused();
+	await expect(skip).toBeVisible();
+	await page.keyboard.press('Enter');
+	await expect(page.locator('#main-content')).toBeFocused();
+});

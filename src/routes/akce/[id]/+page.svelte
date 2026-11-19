@@ -98,16 +98,18 @@
 
 	async function remove(all: boolean) {
 		if (!ev) return;
+		// Read before deleting: afterwards the occurrence and its series are gone.
+		const inSeries = !!series;
 		const question = all
 			? `Opravdu smazat akci „${ev.title}“ a všechna další opakování?`
-			: series
+			: inSeries
 				? `Zrušit akci „${ev.title}“ ${formatShort(ev.date)}? Další opakování zůstanou.`
 				: `Opravdu smazat akci „${ev.title}“?`;
 		if (!confirm(question)) return;
 		try {
 			if (all) await data.deleteFollowing(ev);
 			else await data.deleteEvent(ev);
-			toasts.show(all ? 'Akce smazány' : series ? 'Termín zrušen' : 'Akce smazána');
+			toasts.show(all ? 'Akce smazány' : inSeries ? 'Termín zrušen' : 'Akce smazána');
 			goto('/');
 		} catch (e) {
 			console.error(e);

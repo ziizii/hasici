@@ -1,5 +1,6 @@
 import { devices } from '@playwright/test';
 import { day, expect, freezeDate, join, nav, seedActivity, test, today } from './fixtures';
+import type { Locator } from '@playwright/test';
 
 test('filters weekends, Czech holidays and activity days, and jumps and extends the timeline', async ({ page }) => {
 	await seedActivity('future', '2026-11-23', 'Kontrola výzbroje');
@@ -85,6 +86,59 @@ test.describe('phone layout', () => {
 		await nav(page, 'Úkoly').click();
 		await expect(page.getByRole('heading', { name: 'Úkoly' })).toBeVisible();
 	});
+
+	test('the calendar works on a phone and opens a day as a bottom sheet', async ({ signedIn: page }) => {
+		await page.getByRole('button', { name: 'Kalendář', exact: true }).click();
+		const cell = day(page, '2026-11-26', true);
+		await cell.click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog).toBeVisible();
+		await expect(dialog.getByRole('heading', { level: 2 })).toHaveText('Čtvrtek 26. 11. 2026');
+		await dialog.getByRole('button', { name: 'Tento den nemůžu' }).click();
+		await dialog.getByRole('button', { name: 'Zavřít', exact: true }).click();
+		await expect(cell).toHaveAccessibleName(/Dostupní členové: 1 z 2/);
+		await expect.poll(() => page.evaluate(() =>
+			document.documentElement.scrollWidth <= document.documentElement.clientWidth
+		)).toBe(true);
+	});
+});
+
+async function inView(row: Locator) {
+	await expect.poll(async () => {
+		const box = await row.boundingBox();
+		const height = row.page().viewportSize()!.height;
+		return !!box && box.y >= 0 && box.y < height / 2;
+	}).toBe(true);
+}
+
+test('later jump buttons, endless scrolling, and switching views keep the place', async ({ signedIn: page }) => {
+	// Instant jumps: switching views mid-scroll would keep the place passed through.
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	const jumps = page.getByRole('navigation', { name: 'Přeskočit na' });
+	await jumps.getByRole('button', { name: 'Za 2 týdny' }).click();
+	await expect(day(page, '2026-11-30')).toBeFocused();
+	await expect(jumps.getByRole('button', { name: 'Za 2 týdny' })).toHaveAttribute('aria-current', 'true');
+	// The calendar keeps the month that was at the top of the list.
+	await page.getByRole('button', { name: 'Kalendář', exact: true }).click();
+	await inView(page.locator('#cm-2026-11'));
+	await jumps.getByRole('button', { name: 'Březen 2027' }).click();
+	await inView(page.locator('#cm-2027-03'));
+	await expect(jumps.getByRole('button', { name: 'Březen 2027' })).toHaveAttribute('aria-current', 'true');
+	await page.getByRole('button', { name: 'Seznam', exact: true }).click();
+	await inView(day(page, '2027-03-01'));
+
+	// Scrolling to the end keeps loading days, also in the calendar.
+	await expect(day(page, '2027-06-01')).toHaveCount(0);
+	for (let i = 0; i < 20 && !(await day(page, '2027-06-01').count()); i++) {
+		await page.keyboard.press('End');
+		await page.mouse.wheel(0, 20_000);
+	}
+	await expect(day(page, '2027-06-01')).toBeAttached();
+	await page.getByRole('button', { name: 'Kalendář', exact: true }).click();
+	for (let i = 0; i < 20 && !(await day(page, '2027-10-01', true).count()); i++) {
+		await page.mouse.wheel(0, 20_000);
+	}
+	await expect(day(page, '2027-10-01', true)).toBeAttached();
 });
 
 test('a Czech movable holiday is included in the weekend filter', async ({ page }) => {

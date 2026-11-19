@@ -32,18 +32,18 @@ direction; older rows are superseded.
   yesterday, or deletes it if it started today (`data.setUnavailable`).
 - **Repeating absences** ("every Tuesday", "weekends", "1st Friday") are normal
   absences with a repeat rule, picked with the same `RepeatPicker` as events
-  (plus "o víkendech"); without an end date they last until deleted. Use
+  (weekends: Vlastní with So + Ne, shown as "o víkendech"); without an end date
+  they last until deleted. Use
   `covers(a, day)` instead of comparing `from`/`to` directly.
 - **Exceptions:** freeing one day of a repeating or open-ended absence (member
   segment tap, "Přece jen přijdu", chips on `/ja`) adds it to `except` instead of
   splitting; marking the day away again removes it. Plain dated absences
   are still split.
 - **Repeating events:** the new-event form offers radios: Neopakovat, every
-  week on that weekday, the nth weekday of the month (plus "poslední" when it
-  is the last one), the same day each month, and Vlastní (Apple-Reminders-like
-  editor: every n days / weeks on weekdays / months on days or the nth
-  weekday / years in months), with an optional end date and a preview of the
-  next dates. Months without the chosen day (31st, 5th Thursday) are skipped.
+  week on that weekday, the same day each month (`quickRepeats`), and Vlastní
+  (Apple-Reminders-like editor: every n days / weeks on weekdays / months on
+  days or the nth or last weekday / years in months), with an optional end date
+  and a preview of the next dates. Months without the chosen day (31st, 5th Thursday) are skipped.
 - **One date of a repeat** can be moved or changed on its own (event page:
   "Změnit jen tento termín", or Upravit with "Co změnit: Jen tento termín",
   the default). It is stored as its own event and shows "přesunutý z …".
