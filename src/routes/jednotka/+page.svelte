@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { clock } from '#lib/clock.svelte.js';
 	import { version } from '$app/env';
 	import { perfReport } from '#lib/perf.js';
 	import { access } from '#lib/access.svelte.js';
@@ -43,7 +44,7 @@
 	}
 
 	// --- who's away ---
-	const today = todayKey();
+	const today = $derived(clock.today);
 	const unavailable = $derived(
 		data.members.flatMap((m) => {
 			const a = data.openAbsence(m.id);

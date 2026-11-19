@@ -163,7 +163,7 @@ src/
       RepeatPicker.svelte    "Opakování" radios + custom rule editor (like Apple's "Custom")
       PlaceInput.svelte      Free-text place with a suggestion list of saved places (data.places)
       ColorPicker.svelte     Member colour: palette squares + custom <input type="color">
-      MemberPicker.svelte    "Kdo jste?" screen (adds the first member on an empty unit)
+      MemberPicker.svelte    "Kdo jste?" screen; "Nejsem v seznamu" adds you and continues as you
       PasswordScreen.svelte  First-run setup / unlock
       Brand.svelte, Icon.svelte
   routes/

@@ -1,4 +1,4 @@
-import { expect, join, member, nav, otherMember, password, test } from './fixtures';
+import { expect, join, linkKey, member, nav, otherMember, password, test } from './fixtures';
 
 test.describe('uninitialized unit', () => {
 	test.use({ emptyUnit: true });
@@ -159,4 +159,18 @@ test('a too short new password is refused, and signing out others can set a new 
 		if (accepted) await expect(newPage.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
 		else await expect(newPage.getByRole('alert')).toContainText('Špatné heslo');
 	}
+});
+
+test('a newcomer who is not in the list adds themselves and continues as that member', async ({ page }) => {
+	await page.goto(`/?k=${linkKey}`);
+	await expect(page.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
+	await page.getByRole('button', { name: 'Nejsem v seznamu' }).click();
+	await page.getByLabel('Jméno a příjmení').fill('Karel Nováček');
+	await page.getByRole('button', { name: 'Přidat a pokračovat' }).click();
+	await expect(nav(page, 'Plán')).toBeVisible();
+	await page.reload();
+	await nav(page, 'Já').click();
+	await expect(page.getByText('Karel Nováček', { exact: true })).toBeVisible();
+	await nav(page, 'Jednotka').click();
+	await expect(page.getByRole('heading', { name: 'Členové (3)' })).toBeVisible();
 });

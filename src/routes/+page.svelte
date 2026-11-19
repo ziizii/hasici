@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { clock } from '#lib/clock.svelte.js';
 	import { tick } from 'svelte';
 	import ToastNotice from '#lib/components/ToastNotice.svelte';
 	import { data } from '#lib/data.svelte.js';
@@ -28,10 +29,11 @@
 
 	onMount(() => mark('plán zobrazen'));
 
-	const today = todayKey();
+	// Moves on at midnight; the timeline's range starts from the day the page opened.
+	const today = $derived(clock.today);
 
-	let start = $state(today);
-	let end = $state(addDays(today, 62));
+	let start = $state(todayKey());
+	let end = $state(addDays(todayKey(), 62));
 	let selected = $state<DateKey | null>(null);
 	/** "Naplánovat akci" open: the new-event form with a date picker, in place of a day. */
 	let planning = $state(false);
@@ -98,7 +100,7 @@
 
 	// Events can be sparse, so with that filter on, scrolling alone loads only a year ahead;
 	// past that a button asks for more instead of loading empty months forever.
-	let limit = $state(addDays(today, 365));
+	let limit = $state(addDays(todayKey(), 365));
 	const autoload = $derived(view === 'calendar' || filter !== 'events' || end < limit);
 
 	// Infinite scroll forward. Re-observing after each load fires again if the sentinel is
@@ -200,9 +202,9 @@
 
 	// The day at the top of the timeline (just under the sticky headings). Rows are in date
 	// order, so a binary search finds the first one still showing below the headings.
-	let topDay = $state<DateKey>(today);
+	let topDay = $state<DateKey>(todayKey());
 	/** Last day of the top row: the same day in the list, the week row's last day in the calendar. */
-	let topEnd = $state<DateKey>(today);
+	let topEnd = $state<DateKey>(todayKey());
 	function findTopDay() {
 		// List: one per day. Calendar: one per week row, keyed by its first day in that month.
 		const rows = document.querySelectorAll<HTMLElement>('[data-top]');

@@ -62,6 +62,7 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | An old link after rotation shows the password screen | ✅ | [Access] |
 | "Nejsem to já", then pick a different member | ✅ | [Access] |
 | The member this device picked is archived on another phone: the device asks "Kdo jste?" again | ✅ | [Access] |
+| A newcomer not in the list taps "Nejsem v seznamu", adds themselves and continues as that member | ✅ | [Access] |
 | Firebase config missing, or the start fails ("Zkusit znovu") | ❌ needs a build without config or a broken backend at start | |
 
 ### Plan (list and calendar)
@@ -169,7 +170,7 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | Two phones: one marks an absence, the other sees the count change live | ✅ | [Availability] |
 | A new version reloads only after you leave a text field | ✅ | [App shell] |
 | "Přeskočit na obsah" for keyboard users; "Skrýt oznámení" on toasts | ✅ | [App shell], [Unit] |
-| The app is left open past midnight and "today" moves | ❌ the date is read when a page loads; a reload picks up the new day | |
+| The app is left open past midnight, or comes back from the background on a new day: "Dnes", the calendar, overdue tasks, upcoming absences and past activities move on | ✅ | [App shell] |
 
 The browser suite checks the web manifest and the handoff to the share API. Home-screen installation and the operating system's share sheet depend on the actual device. Production Firebase Hosting, optional reCAPTCHA App Check enforcement, and the rollout of a new service worker across deployed versions depend on deployed infrastructure. The separate [rules suite](scripts/test-rules.mjs) verifies which Firestore reads and writes the backend accepts.
 

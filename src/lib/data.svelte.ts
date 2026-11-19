@@ -30,6 +30,7 @@ import {
 import { nextColor, shortNames } from './colors';
 import { describe, matches, normalize, repeatDays, WEEKLY, type Repeat } from './repeat';
 import { mark } from './perf';
+import { clock } from './clock.svelte';
 import { nextTodoFields, type Todo, type TodoFields } from './todo';
 
 export interface Member {
@@ -290,7 +291,7 @@ class Data {
 	series = $state<Series[]>([]);
 	/** Stored events plus repeats up to a year ahead, by date and time. */
 	events = $derived.by(() => {
-		const end = addDays(todayKey(), 366);
+		const end = addDays(clock.today, 366);
 		const out = [...this.stored];
 		for (const s of this.series) {
 			for (const d of repeatDays(s.repeat, s.from, s.to, s.from, end)) {

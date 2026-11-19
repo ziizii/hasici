@@ -7,7 +7,7 @@ export const today = '2026-11-19';
 export const password = 'hasiči-test';
 export const member = 'Jana Nováková';
 export const otherMember = 'Petr Dvořák';
-const linkKey = 'playwright-local-link-key';
+export const linkKey = 'playwright-local-link-key';
 const firestore = 'http://127.0.0.1:8080';
 const database = 'projects/demo-hasici/databases/(default)';
 

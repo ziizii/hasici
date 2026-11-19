@@ -281,8 +281,8 @@ Hotovo. Aplikace běží a o nic dalšího se starat nemusíte.
   a zadá heslo jednotky.
 
 Pak jen jednou vybere ze seznamu sám sebe („Kdo jste?“). Pokud v seznamu není, klepne
-na **Nejsem v seznamu** a přidá se. Telefon si přístup i jméno zapamatuje, příště se
-aplikace rovnou otevře.
+na **Nejsem v seznamu**, napíše své jméno a klepne na **Přidat a pokračovat**. Telefon
+si přístup i jméno zapamatuje, příště se aplikace rovnou otevře.
 
 <p>
   <img src="docs/screenshots/telefon-kdo-jste.png" width="260" alt="Výběr člena">
