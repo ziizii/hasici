@@ -182,6 +182,7 @@ test('a day view links back to all tasks, and tasks show a deleted activity or a
 	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
 	acceptDialog(page);
 	await page.getByRole('button', { name: 'Smazat akci' }).click();
+	await expect(page.getByRole('heading', { name: 'Plán' })).toBeVisible();
 	await nav(page, 'Jednotka').click();
 	await page.getByRole('button', { name: new RegExp(otherMember) }).click();
 	await page.getByRole('button', { name: 'Archivovat' }).click();
@@ -195,4 +196,37 @@ test('a day view links back to all tasks, and tasks show a deleted activity or a
 	await page.getByRole('button', { name: `Trvale smazat ${otherMember}` }).click();
 	await nav(page, 'Úkoly').click();
 	await expect(task).toContainText('Bývalý člen');
+});
+
+test('editing a task keeps its repeat end, and shows a deleted activity and assignee', async ({ page }) => {
+	await seedActivity('drill', '2026-11-24', 'Cvičení');
+	await join(page, '/ukoly?akce=drill');
+	await startTodo(page, 'Nachystat hadice');
+	await page.getByLabel('Řešitel').selectOption({ label: otherMember });
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await page.getByRole('link', { name: 'Všechny úkoly' }).click();
+	await startTodo(page, 'Vyprat zásahovky');
+	await page.getByLabel('Termín dokončení').fill('2026-11-20');
+	await page.getByLabel('Opakování úkolu').selectOption('calendar');
+	await page.getByLabel(/Opakovat do/).fill('2026-12-31');
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await page.getByRole('button', { name: 'Upravit: Vyprat zásahovky' }).click();
+	await expect(page.getByLabel(/Opakovat do/)).toHaveValue('2026-12-31');
+	await page.getByRole('button', { name: 'Zrušit', exact: true }).click();
+
+	await page.goto('/akce/drill');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: 'Smazat akci' }).click();
+	await expect(page.getByRole('heading', { name: 'Plán' })).toBeVisible();
+	await nav(page, 'Jednotka').click();
+	await page.getByRole('button', { name: new RegExp(otherMember) }).click();
+	await page.getByRole('button', { name: 'Archivovat' }).click();
+	await page.getByRole('button', { name: 'Archiv (1)' }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: `Trvale smazat ${otherMember}` }).click();
+	await nav(page, 'Úkoly').click();
+	await page.getByRole('button', { name: 'Upravit: Nachystat hadice' }).click();
+	await expect(page.getByRole('combobox', { name: 'Akce', exact: true }).locator('option:checked')).toHaveText('Nedostupná akce');
+	await expect(page.getByLabel('Řešitel').locator('option:checked')).toHaveText('Bývalý člen');
 });

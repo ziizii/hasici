@@ -157,13 +157,13 @@
 					? { repeat: series.repeat ?? WEEKLY, until: series.to === OPEN_END ? '' : series.to }
 					: { repeat: null, until: '' }}
 				oncancel={finishEdit}
-				onsave={async (d, { following, repeat, until }) => {
+				onsave={async (d, { repeat, until }) => {
 					const original = ev;
 					if (!original) return;
 					try {
 						let id = original.id;
+						// "Tento i všechny další" (or a one-off) always passes the repeat.
 						if (repeat !== undefined) id = await data.updateRepeat(original, d, repeat, until);
-						else if (following) id = await data.updateFollowing(original, d);
 						else await data.updateEvent(original, d);
 						editing = false;
 						if (id !== original.id) goto(`/akce/${id}`, { replaceState: true });

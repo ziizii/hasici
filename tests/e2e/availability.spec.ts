@@ -275,3 +275,39 @@ test('an absence saved offline reaches another phone after reconnecting, and liv
 	await other.reload();
 	await expect(day(other, '2026-11-21')).toHaveAccessibleName(/může 1 z 2/);
 });
+
+for (const [weekday, date, from, to] of [
+	['Saturday', '2026-11-21', '2026-11-21', '2026-11-22'],
+	['Sunday', '2026-11-22', '2026-11-22', '2026-11-22']
+]) {
+	test(`the "Víkend" chip on a ${weekday} picks the rest of this weekend`, async ({ page }) => {
+		await freezeDate(page, date);
+		await join(page, '/ja');
+		await page.getByRole('button', { name: 'Naplánovat nepřítomnost' }).click();
+		await page.getByRole('button', { name: 'Víkend', exact: true }).click();
+		await expect(page.getByLabel('Od', { exact: true })).toHaveValue(from);
+		await expect(page.getByLabel(/^Do \(/)).toHaveValue(to);
+	});
+}
+
+test('freeing the last day of a range shortens it', async ({ page }) => {
+	await seedAbsence('range', { memberId: 'jana', from: '2026-11-20', to: '2026-11-22' });
+	await join(page);
+	await day(page, '2026-11-22').click();
+	await page.getByRole('button', { name: /přece jen můžu/ }).click();
+	await expect(day(page, '2026-11-22')).toHaveAccessibleName(/může 2 z 2/);
+	for (const away of ['2026-11-20', '2026-11-21']) await expect(day(page, away)).toHaveAccessibleName(/může 1 z 2/);
+});
+
+test('Jednotka describes repeating absences with exceptions and merges overlapping notes', async ({ page }) => {
+	await seedAbsence('thursdays', {
+		memberId: 'jana', from: today, to: '9999-12-31', note: 'Směna',
+		repeat: { freq: 'week', every: 1, weekdays: [3] }, except: ['2026-11-26', '2026-12-03', '2026-12-10']
+	});
+	await seedAbsence('course', { memberId: 'petr', from: '2026-11-23', to: '2026-11-25', note: 'Kurz' });
+	await seedAbsence('holiday', { memberId: 'petr', from: '2026-11-24', to: '2026-11-27', note: 'Dovolená' });
+	await join(page, '/jednotka');
+	await expect(page.getByRole('heading', { name: 'Nadcházející nepřítomnosti (2)' })).toBeVisible();
+	await expect(page.getByText('Každý týden ve čtvrtek, do odvolání (kromě Čt 26. 11., Čt 3. 12. …) · Směna')).toBeVisible();
+	await expect(page.getByText(/27\. 11\..* · Kurz, Dovolená$/)).toBeVisible();
+});

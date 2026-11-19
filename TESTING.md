@@ -71,7 +71,9 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | --- | --- | --- |
 | Counts, member labels, duplicate first names, nicknames | ✅ | [Plan], [Unit] |
 | Vše / Víkendy (with fixed and movable holidays) / Akce filters, "Hledat akce dál" | ✅ | [Plan] |
-| Jump buttons: Dnes, Příští týden, Za 2 týdny, the next months | ✅ | [Plan] |
+| Jump buttons: Dnes, Příští týden, Za 2 týdny, the next months, in the list and the calendar | ✅ | [Plan] |
+| The Akce filter says when nothing is planned for a year | ✅ | [Plan] |
+| The count is coloured by how many can come (most, some, few) | ✅ | [Plan] |
 | Scrolling down keeps loading days (list) and months (calendar) | ✅ | [Plan] |
 | "Zobrazit dřívější dny" / "Zobrazit dřívější měsíc" | ✅ | [Plan] |
 | The calendar is remembered and shows today, the ring and activity slices in time order | ✅ | [Plan] |
@@ -89,6 +91,8 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | Long-term unavailable members are listed as "Dlouhodobě mimo" and not counted | ✅ | [Availability] |
 | Plan an activity from the day panel; the default place is pre-filled | ✅ | [Unit] |
 | Phone bottom sheet: focus, Escape, focus returns, no sideways scroll at 150 % text | ✅ | [Plan] |
+| Phone: "Naplánovat akci" in a bottom sheet, tapping outside closes the sheet, a place suggestion picked by touch | ✅ | [Plan] |
+| Plan a repeating activity from the day panel | ✅ | [Activities] |
 
 ### Activities
 
@@ -118,12 +122,16 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | Cancel a date that was already moved | ✅ | [Activities] |
 | "Tento i všechny další": new rule and end, "Neopakovat", turn a one-off into a repeat | ✅ | [Activities] |
 | "Smazat tuto i všechny další" | ✅ | [Activities] |
+| "Tento i všechny další" or "Smazat tuto i všechny další" on the first date changes or removes the whole series; a new rule from there replaces it | ✅ | [Activities] |
+| Ending a series also drops later dates moved on their own, even right after the app opens | ✅ | [Activities] |
+| Moving a date of a Vlastní rule with "Tento i všechny další" moves only that date | ✅ | [Activities] |
 
 ### My absences (Já)
 
 | User story | | Spec |
 | --- | --- | --- |
-| Quick Dnes / Zítra / Víkend, reason chips, note, the "Nebudete k dispozici" summary | ✅ | [Availability] |
+| Quick Dnes / Zítra / Víkend (also on a Saturday or Sunday), reason chips, note, the "Nebudete k dispozici" summary | ✅ | [Availability] |
+| Freeing the first, a middle or the last day of a range | ✅ | [Availability] |
 | Delete an absence and undo | ✅ | [Availability] |
 | Overlapping absences are listed as one range and freed together | ✅ | [Availability] |
 | A repeating absence warns about clashing activities; exception chips | ✅ | [Availability] |
@@ -143,11 +151,14 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | With every palette colour taken, colours are shared | ✅ | [Unit] |
 | Another member's "Není k dispozici" switch, "Je zpět" | ✅ | [Availability] |
 | Copy, share sheet, rotate the link | ✅ | [Access] |
+| Without a share sheet, "Sdílet" copies the link | ✅ | [Unit] |
+| Dismissing a confirmation (delete an activity or task, rotate the link, permanently delete a member) changes nothing | ✅ | [Unit] |
 | A failed copy asks to select the link by hand | ✅ | [Unit] |
 | Change the password (too short is refused) | ✅ | [Access] |
 | "Odhlásit ostatní", with or without a new password | ✅ | [Access] |
-| Saved places: suggestions ignoring case and accents, keyboard, Escape, default, remove, places used before | ✅ | [Unit] |
-| Upcoming absences and activities, show all / show less, past activities | ✅ | [Unit], [Availability] |
+| Saved places: suggestions ignoring case and accents, keyboard, Escape, default (set and cleared), remove, places used before | ✅ | [Unit] |
+| Upcoming absences and activities, show all / show less, past activities (also more than ten) | ✅ | [Unit], [Availability] |
+| Upcoming absences describe repeats and exceptions ("kromě …") and merge overlapping notes | ✅ | [Availability] |
 
 ### Tasks
 
@@ -157,8 +168,9 @@ Every user story we know of, and the Playwright spec that walks through it. ✅ 
 | Tasks on a day or an activity, in the day panel, on the activity page and in the calendar | ✅ | [Tasks] |
 | Repeating tasks, intervals after completion, the reopen rules, two devices completing at once | ✅ | [Tasks], [Recurrence] |
 | "Všechny úkoly" from a day or activity view | ✅ | [Tasks] |
-| The linked activity was deleted ("Nedostupná akce") | ✅ | [Tasks] |
-| The assignee was archived (name kept) or deleted ("Bývalý člen") | ✅ | [Tasks] |
+| The linked activity was deleted ("Nedostupná akce"), also when editing the task | ✅ | [Tasks] |
+| Editing a repeating task keeps its end date | ✅ | [Tasks] |
+| The assignee was archived (name kept) or deleted ("Bývalý člen"), also when editing the task | ✅ | [Tasks] |
 | Saving or deleting a task fails (error toast) | ❌ Firestore keeps writes pending offline instead of failing, so this needs a rejected write | |
 
 ### App shell, offline and phone

@@ -4,11 +4,14 @@ import {
 	collection,
 	deleteDoc,
 	doc,
+	getDocs,
 	onSnapshot,
+	query,
 	runTransaction,
 	serverTimestamp,
 	setDoc,
 	updateDoc,
+	where,
 	writeBatch,
 	type DocumentSnapshot,
 	type FirestoreError,
@@ -966,8 +969,8 @@ class Data {
 		if (s && ev.slot) {
 			if (ev.slot <= s.from) batch.delete(doc(db, 'series', s.id));
 			else batch.update(doc(db, 'series', s.id), { to: addDays(ev.slot, -1) });
-			for (const x of this.stored) {
-				if (x.series === s.id && x.slot && x.slot >= ev.slot) batch.delete(doc(db, 'events', x.id));
+			for (const x of await this.#movedDates(s.id)) {
+				if (x.slot >= ev.slot) batch.delete(doc(db, 'events', x.id));
 			}
 		}
 		if (this.stored.some((x) => x.id === ev.id)) batch.delete(doc(db, 'events', ev.id));
@@ -990,6 +993,18 @@ class Data {
 		return `${ref.id}_${first ?? date}`;
 	}
 
+	/**
+	 * Dates of a repeat edited on their own, read from the database. Right after the app
+	 * opens, the shown data can still be the saved copy, which may miss a date moved a
+	 * moment ago; it would then outlive the end of its repeat.
+	 */
+	async #movedDates(seriesId: string): Promise<{ id: string; slot: DateKey }[]> {
+		const snap = await getDocs(query(collection(db, 'events'), where('series', '==', seriesId)));
+		return snap.docs
+			.filter((d) => d.id.startsWith(`${seriesId}_`))
+			.map((d) => ({ id: d.id, slot: d.id.slice(seriesId.length + 1) }));
+	}
+
 	async deleteEvent(ev: Event) {
 		const s = this.seriesOf(ev);
 		if (!s || !ev.slot) return deleteDoc(doc(db, 'events', ev.id));
@@ -1006,10 +1021,8 @@ class Data {
 		const batch = writeBatch(db);
 		if (ev.slot <= s.from) batch.delete(doc(db, 'series', s.id));
 		else batch.update(doc(db, 'series', s.id), { to: addDays(ev.slot, -1) });
-		for (const x of this.stored) {
-			if (x.series === s.id && x.slot && x.slot >= ev.slot) {
-				batch.delete(doc(db, 'events', x.id));
-			}
+		for (const x of await this.#movedDates(s.id)) {
+			if (x.slot >= ev.slot) batch.delete(doc(db, 'events', x.id));
 		}
 		await batch.commit();
 	}
