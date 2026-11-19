@@ -43,8 +43,13 @@ export async function seedMember(id: string, name: string, color: string) {
 	await seed(`members/${id}`, { name, color, archived: false, createdAt: new Date('2026-10-01') });
 }
 
-export async function seedActivity(id: string, date: string, title: string, time = '09:00') {
-	await seed(`events/${id}`, { date, title, time, place: '', note: '', createdAt: new Date('2026-10-01') });
+export async function seedActivity(id: string, date: string, title: string, time = '09:00', place = '') {
+	await seed(`events/${id}`, { date, title, time, place, note: '', createdAt: new Date('2026-10-01') });
+}
+
+/** `to: '9999-12-31'` is the "Nejsem k dispozici" switch or a repeat without an end. */
+export async function seedAbsence(id: string, fields: Record<string, Value> & { memberId: string; from: string; to: string }) {
+	await seed(`absences/${id}`, { note: '', except: [], createdAt: new Date('2026-10-01'), ...fields });
 }
 
 export async function seedSeries(id: string, fields: Record<string, Value>) {

@@ -6,6 +6,10 @@ test.describe('uninitialized unit', () => {
 	test('sets up a password and creates the first member', async ({ page }) => {
 		await page.goto('/');
 		await expect(page.getByRole('heading', { name: /Nastavte heslo jednotky/ })).toBeVisible();
+		await page.getByLabel('Nové heslo').fill('abc');
+		await page.getByLabel('Heslo znovu').fill('abc');
+		await page.getByRole('button', { name: /Uložit heslo a pokračovat/ }).click();
+		await expect(page.getByRole('alert')).toHaveText('Heslo musí mít aspoň 4 znaky.');
 		await page.getByLabel('Nové heslo').fill(password);
 		await page.getByLabel('Heslo znovu').fill('jiné heslo');
 		await page.getByRole('button', { name: 'Zobrazit heslo' }).click();
@@ -100,4 +104,69 @@ test('passes the current invite to the native share sheet', async ({ signedIn: p
 	await expect(link).toHaveValue(/\?k=/);
 	await page.getByRole('button', { name: 'Sdílet', exact: true }).click();
 	await expect.poll(() => page.evaluate(() => sessionStorage.getItem('shared-url'))).toBe(await link.inputValue());
+});
+
+test('the same device can try again after the guess limit has passed', async ({ page }) => {
+	await page.goto('/');
+	const field = page.getByLabel('Heslo jednotky');
+	await field.fill('chybné heslo');
+	await page.getByRole('button', { name: 'Vstoupit' }).click();
+	await expect(page.getByRole('alert')).toContainText('Špatné heslo');
+	await field.fill(password);
+	await page.getByRole('button', { name: 'Vstoupit' }).click();
+	await expect(page.getByRole('alert')).toContainText('Moc pokusů');
+	// The rules allow the next attempt more than 2 s after the first one (real server time).
+	await page.waitForTimeout(3_000);
+	await page.getByRole('button', { name: 'Vstoupit' }).click();
+	await page.getByRole('button', { name: new RegExp(member) }).click();
+	await expect(nav(page, 'Plán')).toBeVisible();
+});
+
+test('a device whose member was archived elsewhere asks who it is again', async ({ signedIn: page, browser }, info) => {
+	const second = await browser.newContext({ baseURL: info.project.use.baseURL });
+	try {
+		const other = await second.newPage();
+		await join(other, '/', otherMember);
+		await nav(page, 'Jednotka').click();
+		await page.getByRole('button', { name: new RegExp(otherMember) }).click();
+		await page.getByRole('button', { name: 'Archivovat' }).click();
+		await expect(other.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
+		await expect(other.getByRole('button', { name: new RegExp(otherMember) })).toHaveCount(0);
+		await other.getByRole('button', { name: new RegExp(member) }).click();
+		await expect(nav(other, 'Plán')).toBeVisible();
+	} finally {
+		await second.close();
+	}
+});
+
+test('a too short new password is refused, and signing out others can set a new password', async ({ signedIn: page, browser }, info) => {
+	await nav(page, 'Jednotka').click();
+	await page.getByRole('button', { name: 'Změnit', exact: true }).click();
+	const newPassword = page.getByLabel('Nové heslo', { exact: true });
+	await newPassword.fill('abc');
+	await page.getByRole('button', { name: 'Uložit heslo' }).click();
+	await expect(newPassword).toHaveJSProperty('validity.tooShort', true);
+	await page.getByRole('button', { name: 'Zrušit', exact: true }).click();
+
+	await page.getByRole('button', { name: 'Odhlásit…' }).click();
+	const outPassword = page.getByLabel(/^Nové heslo \(nepovinné\)/);
+	await outPassword.fill('abc');
+	await page.getByRole('button', { name: 'Odhlásit ostatní', exact: true }).click();
+	await expect(page.getByRole('status')).toHaveText('Heslo musí mít aspoň 4 znaky.');
+	await outPassword.fill('po-odhlášení');
+	await page.getByRole('button', { name: 'Odhlásit ostatní', exact: true }).click();
+	await expect(page.getByRole('status')).toHaveText('Ostatní jsou odhlášení. Pošlete členům nový odkaz.');
+	for (const [tried, accepted] of [[password, false], ['po-odhlášení', true]] as const) {
+		const device = await browser.newContext({ baseURL: info.project.use.baseURL });
+		try {
+			const newPage = await device.newPage();
+			await newPage.goto('/');
+			await newPage.getByLabel('Heslo jednotky').fill(tried);
+			await newPage.getByRole('button', { name: 'Vstoupit' }).click();
+			if (accepted) await expect(newPage.getByRole('heading', { name: 'Kdo jste?' })).toBeVisible();
+			else await expect(newPage.getByRole('alert')).toContainText('Špatné heslo');
+		} finally {
+			await device.close();
+		}
+	}
 });

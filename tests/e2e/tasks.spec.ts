@@ -162,3 +162,37 @@ test('a dated recurring task carries its day offset forward and deleting it ends
 	await page.getByRole('button', { name: 'Znovu otevřít: Vyčistit vybavení' }).click();
 	await expect(page.getByRole('status')).toHaveText('Další výskyt už byl dokončen nebo smazán.');
 });
+
+test('a day view links back to all tasks, and tasks show a deleted activity or a former member', async ({ page }) => {
+	await seedActivity('inspection', '2026-11-24', 'Kontrola hydrantů');
+	await join(page, '/ukoly?akce=inspection');
+	await startTodo(page, 'Připravit klíče');
+	await page.getByLabel('Řešitel').selectOption({ label: otherMember });
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await page.goto('/ukoly?den=2026-11-25');
+	await startTodo(page, 'Koupit baterie');
+	await page.getByRole('button', { name: 'Uložit úkol' }).click();
+	await expect(page.getByRole('button', { name: 'Dokončit: Připravit klíče' })).toHaveCount(0);
+	await page.getByRole('link', { name: 'Všechny úkoly' }).click();
+	await expect(page).toHaveURL(/\/ukoly$/);
+	await expect(page.getByRole('button', { name: 'Dokončit: Připravit klíče' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Dokončit: Koupit baterie' })).toBeVisible();
+
+	await page.goto('/akce/inspection');
+	await page.getByRole('button', { name: 'Upravit', exact: true }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: 'Smazat akci' }).click();
+	await nav(page, 'Jednotka').click();
+	await page.getByRole('button', { name: new RegExp(otherMember) }).click();
+	await page.getByRole('button', { name: 'Archivovat' }).click();
+	await nav(page, 'Úkoly').click();
+	const task = page.getByRole('listitem').filter({ hasText: 'Připravit klíče' });
+	await expect(task).toContainText('Nedostupná akce');
+	await expect(task).toContainText(otherMember);
+	await nav(page, 'Jednotka').click();
+	await page.getByRole('button', { name: 'Archiv (1)' }).click();
+	acceptDialog(page);
+	await page.getByRole('button', { name: `Trvale smazat ${otherMember}` }).click();
+	await nav(page, 'Úkoly').click();
+	await expect(task).toContainText('Bývalý člen');
+});
