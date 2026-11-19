@@ -189,6 +189,32 @@ await expect('bad repeat rule', false, () =>
 	addDoc(collection(db, 'series'), { title: 'X', time: '', place: '', note: '', from: '2026-07-01', to: '9999-12-31', except: [], repeat: { freq: 'hour', every: 1 }, createdAt: serverTimestamp() })
 );
 
+const todo = { title: 'Vyměnit olej', date: null, eventId: null, dueDate: null, assigneeId: memberId, completed: false };
+const todoRef = doc(collection(db, 'todos'));
+const nextTodoRef = doc(collection(db, 'todos'));
+const completionRepeat = { mode: 'completion', freq: 'year', every: 2 };
+const calendarRepeat = { mode: 'calendar', from: '2026-07-10', until: '2026-08-01', rule: { freq: 'week', every: 1 } };
+await expect('outsider reads tasks', false, () => getDocs(collection(outsider.db, 'todos')));
+await expect('add a task with the original fields', true, () => setDoc(todoRef, todo));
+await expect('add completion-based repetition without a due date', true, () => updateDoc(todoRef, { recurrence: completionRepeat }));
+await expect('reject a zero completion interval', false, () => updateDoc(todoRef, { recurrence: { ...completionRepeat, every: 0 } }));
+await expect('reject calendar repetition without a due date', false, () => updateDoc(todoRef, { recurrence: calendarRepeat }));
+await expect('reject a calendar task due after repetition ends', false, () => updateDoc(todoRef, { recurrence: calendarRepeat, dueDate: '2026-08-02' }));
+await expect('save a calendar task within the repeat range', true, () => updateDoc(todoRef, { recurrence: calendarRepeat, dueDate: '2026-07-10' }));
+await expect('reject a successor on an open task', false, () => updateDoc(todoRef, { nextId: nextTodoRef.id }));
+await expect('complete a calendar task and create its successor atomically', true, async () => {
+	const b = writeBatch(db);
+	b.update(todoRef, { completed: true, completedOn: '2026-07-11', nextId: nextTodoRef.id });
+	b.set(nextTodoRef, { ...todo, dueDate: '2026-07-17', recurrence: calendarRepeat });
+	await b.commit();
+});
+await expect('reopen the task and remove its pending successor atomically', true, async () => {
+	const b = writeBatch(db);
+	b.update(todoRef, { completed: false, completedOn: null, nextId: null });
+	b.delete(nextTodoRef);
+	await b.commit();
+});
+
 await expect('a batch of 40 writes (rules look up the session and access docs once)', true, async () => {
 	const b = writeBatch(db);
 	for (let i = 0; i < 40; i++)

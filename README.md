@@ -78,6 +78,14 @@ každý měsíc, nebo podle vlastního pravidla (např. každý první pátek v 
 opakované akce jde přesunout nebo zrušit zvlášť. U akce je vidět, kdo přijde a kdo ne,
 a každý může klepnout na „Nemůžu přijít“.
 
+**Úkoly.** Úkolu můžete přiřadit termín, řešitele, den nebo akci. V poli
+**Opakování úkolu** vyberte **Podle kalendáře** pro stejná pravidla jako u
+nepřítomností (např. každý první pátek v měsíci). Nebo vyberte **Po dokončení**
+a zadejte odstup, třeba 2 roky od poslední výměny oleje. Z každé řady je otevřený
+jen jeden úkol. Po dokončení se objeví nejbližší další termín, pokud opakování
+ještě trvá. Splněné úkoly najdete v **Hotové**. U úkolu přiřazeného k akci se
+další termín objeví v přehledu **Úkoly** jako samostatný úkol.
+
 **Moje nepřítomnost.** Každý si zapíše, kdy nemůže: jeden den, několik dní za sebou
 (dovolená), nebo pravidelně (např. „každé úterý – práce“). Přepínač „Nejsem
 k dispozici“ platí do odvolání, třeba při nemoci nebo zranění. Kdo ho má zapnutý,

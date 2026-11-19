@@ -206,15 +206,34 @@ service cloud.firestore {
       allow read, delete: if hasSession();
       allow create, update: if hasSession() && validTodo(request.resource.data);
 
+      function validRecurrence(r, dueDate) {
+        return r == null || (r is map && (
+          (r.mode == 'calendar'
+            && r.keys().hasOnly(['mode', 'from', 'until', 'rule'])
+            && isDate(r.from) && isDate(r.until)
+            && isDate(dueDate) && r.from <= dueDate && dueDate <= r.until
+            && isRepeat(r.rule))
+          || (r.mode == 'completion'
+            && r.keys().hasOnly(['mode', 'freq', 'every'])
+            && r.freq in ['day', 'week', 'month', 'year']
+            && r.every is int && r.every >= 1 && r.every <= 99)
+        ));
+      }
+
       function validTodo(d) {
-        return d.keys().hasOnly(['title', 'date', 'eventId', 'dueDate', 'assigneeId', 'completed'])
+        return d.keys().hasOnly(['title', 'date', 'eventId', 'dueDate', 'assigneeId', 'completed',
+            'recurrence', 'completedOn', 'nextId'])
           && isText(d.title, 1, 120)
           && (d.date == null || isDate(d.date))
           && (d.eventId == null || isText(d.eventId, 1, 100))
           && (d.date == null || d.eventId == null)
           && (d.dueDate == null || isDate(d.dueDate))
           && (d.assigneeId == null || isText(d.assigneeId, 1, 64))
-          && d.completed is bool;
+          && d.completed is bool
+          && validRecurrence(d.get('recurrence', null), d.dueDate)
+          && (d.get('completedOn', null) == null || (d.completed && isDate(d.completedOn)))
+          && (d.get('nextId', null) == null
+            || (d.completed && d.nextId is string && d.nextId.matches('^[a-zA-Z0-9]{20}$')));
       }
     }
 

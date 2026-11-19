@@ -22,24 +22,30 @@
 		date,
 		value = $bindable(null),
 		until = $bindable(''),
-		initial = null
+		initial = null,
+		allowNone = true,
+		previewFrom,
+		previewLimit = 4
 	}: {
 		date: DateKey;
 		value?: Repeat | null;
 		until?: string;
 		initial?: Repeat | null;
+		allowNone?: boolean;
+		previewFrom?: DateKey;
+		previewLimit?: number;
 	} = $props();
 
 	const quick = $derived(quickRepeats(date));
 
 	// svelte-ignore state_referenced_locally
-	const start = { date, initial, quick };
+	const start = { date, initial, quick, allowNone };
 	const same = (a: Repeat, b: Repeat) =>
 		JSON.stringify(normalize(a, start.date) ?? null) === JSON.stringify(normalize(b, start.date) ?? null);
 	const quickIndex = start.initial ? start.quick.findIndex((q) => same(q, start.initial!)) : -1;
 
 	let choice = $state<'none' | 'custom' | number>(
-		!start.initial ? 'none' : quickIndex >= 0 ? quickIndex : 'custom'
+		!start.initial ? (start.allowNone ? 'none' : 0) : quickIndex >= 0 ? quickIndex : 'custom'
 	);
 
 	// The custom rule, starting from the event's day like Apple's editor (or the rule being edited).
@@ -75,7 +81,9 @@
 
 	const empty = $derived(!!value && isEmpty(value));
 	const preview = $derived(
-		value && !empty ? repeatDays(value, date, until || OPEN_END, date, until || OPEN_END, 4) : []
+		value && !empty
+			? repeatDays(value, date, until || OPEN_END, previewFrom ?? date, until || OPEN_END, previewLimit)
+			: []
 	);
 
 	const toggle = (list: number[], x: number) =>
@@ -87,8 +95,6 @@
 		['month', 'Měsíčně'],
 		['year', 'Ročně']
 	];
-	/** "Čt 29. 10.", with the year when it isn't this event's year. */
-	const dayText = (k: DateKey) => formatShort(k) + (k.slice(0, 4) === date.slice(0, 4) ? '' : ` ${k.slice(0, 4)}`);
 	const cap = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
 
 	const cell = (on: boolean) =>
@@ -111,10 +117,12 @@
 
 <fieldset class="flex flex-col gap-1">
 	<legend class="mb-1 text-[0.9375rem] font-semibold text-ink-2">Opakování</legend>
-	<label class="flex min-h-11 items-center gap-3 text-base">
-		<input type="radio" bind:group={choice} value="none" class="size-6 shrink-0 accent-accent" />
-		Neopakovat
-	</label>
+	{#if allowNone}
+		<label class="flex min-h-11 items-center gap-3 text-base">
+			<input type="radio" bind:group={choice} value="none" class="size-6 shrink-0 accent-accent" />
+			Neopakovat
+		</label>
+	{/if}
 	{#each quick as r, i (i)}
 		<label class="flex min-h-11 items-center gap-3 text-base">
 			<input type="radio" bind:group={choice} value={i} class="size-6 shrink-0 accent-accent" />
@@ -213,7 +221,7 @@
 		{:else}
 			{cap(describe(value, date))}{#if choice === 'custom' && freq === 'month' && !monthNth && days.some((x) => x > 28)}{' '}(měsíce bez toho dne se přeskočí){/if}.
 			{#if preview.length}
-				<br /><span class="text-muted">Nejbližší: {preview.map(dayText).join(', ')}{preview.length === 4 ? ' …' : ''}</span>
+				<br /><span class="text-muted">Nejbližší: {preview.map(formatShort).join(', ')}{previewLimit > 1 && preview.length === previewLimit ? ' …' : ''}</span>
 			{:else}
 				<br /><span class="font-semibold text-accent-dark">Do zvoleného konce už nevychází žádný den.</span>
 			{/if}

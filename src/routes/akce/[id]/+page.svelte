@@ -4,7 +4,9 @@
 	import { page } from '$app/state';
 	import { access } from '#lib/access.svelte.js';
 	import { contrastText, initials } from '#lib/colors.js';
-	import { data, type Todo } from '#lib/data.svelte.js';
+	import { data } from '#lib/data.svelte.js';
+	import type { Todo } from '#lib/todo.js';
+	import { toggleTodo } from '#lib/todo-actions.js';
 	import { formatLong, OPEN_END, formatShort, todayKey } from '#lib/dates.js';
 	import { describe, lastDay, nextAfter, WEEKLY } from '#lib/repeat.js';
 	import { toasts } from '#lib/toast.svelte.js';
@@ -64,11 +66,7 @@
 		const completed = checkbox.checked;
 		pendingTodos[todo.id] = completed;
 		try {
-			await data.updateTodo(todo.id, { completed });
-			toasts.show(completed ? 'Úkol dokončen' : 'Úkol znovu otevřen');
-		} catch {
-			checkbox.checked = todo.completed;
-			toasts.error('Stav úkolu se nepodařilo změnit.');
+			if (!await toggleTodo(todo, completed)) checkbox.checked = todo.completed;
 		} finally {
 			delete pendingTodos[todo.id];
 			await tick();
