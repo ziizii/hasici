@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
-	import { data, type Todo, type TodoFields } from '#lib/data.svelte.js';
-	import { formatShort, todayKey } from '#lib/dates.js';
+	import { data } from '#lib/data.svelte.js';
+	import { formatShort, OPEN_END, todayKey } from '#lib/dates.js';
+	import { isEmpty, normalize, WEEKLY, type Freq, type Repeat } from '#lib/repeat.js';
+	import { describeTodoRepeat, firstTodoDate, type Todo, type TodoFields } from '#lib/todo.js';
+	import { toggleTodo } from '#lib/todo-actions.js';
 	import { toasts } from '#lib/toast.svelte.js';
 	import Icon from '#lib/components/Icon.svelte';
+	import RepeatPicker from '#lib/components/RepeatPicker.svelte';
 
 	const eventId = $derived(page.url.searchParams.get('akce') || '');
 	const requestedDate = $derived(page.url.searchParams.get('den') ?? '');
@@ -18,6 +22,7 @@
 
 	let completed = $state(false);
 	let editing = $state<string | null>(null);
+	let original = $state<Todo>();
 	let busy = $state(false);
 	let title = $state('');
 	let titleInput = $state<HTMLInputElement>();
@@ -38,6 +43,23 @@
 	let originalEventId = $state('');
 	let dueDate = $state('');
 	let assignee = $state('');
+	let repeatMode = $state<'none' | 'calendar' | 'completion'>('none');
+	let calendarRule = $state<Repeat | null>(null);
+	let repeatUntil = $state('');
+	let interval = $state<number | undefined>(1);
+	let intervalUnit = $state<Freq>('year');
+
+	const calendarFrom = $derived(
+		original?.recurrence?.mode === 'calendar' && dueDate === original.dueDate
+			? original.recurrence.from
+			: dueDate
+	);
+	const firstDueDate = $derived(
+		repeatMode === 'calendar' && calendarRule && dueDate && !isEmpty(calendarRule)
+			? firstTodoDate(calendarRule, calendarFrom, repeatUntil || OPEN_END, dueDate)
+			: undefined
+	);
+	const validInterval = $derived(interval !== undefined && Number.isInteger(interval) && interval >= 1 && interval <= 99);
 
 	const button = 'flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-bold disabled:opacity-50';
 	const eventsLoaded = $derived(data.loaded.events && data.loaded.series);
@@ -63,6 +85,7 @@
 		if (!todo && eventId && (!scopedEvent || scopedEvent.date < todayKey())) return;
 		formTrigger = trigger;
 		editing = todo?.id ?? '';
+		original = todo;
 		originalEventId = todo?.eventId ?? '';
 		title = todo?.title ?? '';
 		linkedDate = todo ? todo.date ?? '' : date;
@@ -70,6 +93,12 @@
 		target = linkedEvent ? 'event' : linkedDate ? 'date' : 'none';
 		dueDate = todo?.dueDate ?? '';
 		assignee = todo?.assigneeId ?? '';
+		const recurrence = todo?.completed ? null : todo?.recurrence;
+		repeatMode = recurrence?.mode ?? 'none';
+		calendarRule = recurrence?.mode === 'calendar' ? recurrence.rule : null;
+		repeatUntil = recurrence?.mode === 'calendar' && recurrence.until !== OPEN_END ? recurrence.until : '';
+		interval = recurrence?.mode === 'completion' ? recurrence.every : 1;
+		intervalUnit = recurrence?.mode === 'completion' ? recurrence.freq : 'year';
 		await tick();
 		titleInput?.focus();
 	}
@@ -86,16 +115,29 @@
 				return;
 			}
 		}
+		if ((repeatMode === 'calendar' && !firstDueDate) || (repeatMode === 'completion' && !validInterval)) return;
 		const fields: TodoFields = {
 			title: title.trim(),
 			date: target === 'date' ? linkedDate : null,
 			eventId: target === 'event' ? linkedEvent : null,
-			dueDate: dueDate || null,
+			dueDate: firstDueDate ?? (dueDate || null),
 			assigneeId: assignee || null
 		};
+		if (repeatMode === 'calendar' && calendarRule) {
+			fields.recurrence = {
+				mode: 'calendar',
+				from: calendarFrom,
+				until: repeatUntil || OPEN_END,
+				rule: normalize(calendarRule, calendarFrom) ?? WEEKLY
+			};
+		} else if (repeatMode === 'completion' && interval !== undefined) {
+			fields.recurrence = { mode: 'completion', freq: intervalUnit, every: interval };
+		} else if (original?.recurrence && !original.completed) {
+			fields.recurrence = null;
+		}
 		busy = true;
 		try {
-			if (editing) await data.updateTodo(editing, fields);
+			if (editing) await data.updateTodo(editing, fields, original?.completed ?? false);
 			else {
 				await data.addTodo(fields);
 				completed = false;
@@ -112,7 +154,9 @@
 	async function removeTodo() {
 		if (busy || !editing) return;
 		const todo = data.todos.find((item) => item.id === editing);
-		if (!todo || !confirm(`Opravdu smazat úkol „${todo.title}“?`)) return;
+		if (!todo) return;
+		const consequence = todo.recurrence && !todo.completed ? ' Tím skončí i jeho opakování.' : '';
+		if (!confirm(`Opravdu smazat úkol „${todo.title}“?${consequence}`)) return;
 		busy = true;
 		try {
 			await data.deleteTodo(todo.id);
@@ -130,18 +174,14 @@
 		if (busy) return;
 		busy = true;
 		try {
-			await data.updateTodo(todo.id, { completed: !todo.completed });
+			await toggleTodo(todo, !todo.completed);
+		} finally {
 			busy = false;
 			await tick();
 			if (document.activeElement === document.body) {
 				if (trigger.isConnected) trigger.focus();
 				else taskHeading?.focus();
 			}
-			toasts.show(todo.completed ? 'Úkol znovu otevřen' : 'Úkol dokončen');
-		} catch {
-			toasts.error('Stav úkolu se nepodařilo změnit.');
-		} finally {
-			busy = false;
 		}
 	}
 </script>
@@ -209,7 +249,8 @@
 				{/if}
 				<label class="todo-label">
 					Termín dokončení
-					<input type="date" class="todo-field" bind:value={dueDate} />
+					<input type="date" class="todo-field" bind:value={dueDate} required={repeatMode === 'calendar'}
+						readonly={original?.completed && original.recurrence?.mode === 'calendar'} />
 				</label>
 				<label class="todo-label">
 					Řešitel
@@ -223,6 +264,41 @@
 						{/if}
 					</select>
 				</label>
+				{#if !original?.completed}
+					<label class="todo-label sm:col-span-2">
+						Opakování úkolu
+						<select class="todo-field" bind:value={repeatMode}>
+							<option value="none">Neopakovat</option>
+							<option value="calendar">Podle kalendáře</option>
+							<option value="completion">Po dokončení</option>
+						</select>
+					</label>
+					{#if repeatMode === 'calendar'}
+						{#if dueDate}
+							<div class="flex min-w-0 flex-col gap-3 sm:col-span-2">
+								<RepeatPicker date={calendarFrom} initial={calendarRule} bind:value={calendarRule}
+									bind:until={repeatUntil} allowNone={false} previewFrom={dueDate} previewLimit={1} />
+							</div>
+						{:else}
+							<p class="text-sm text-muted sm:col-span-2">Vyplňte termín, od kterého se má úkol opakovat.</p>
+						{/if}
+					{:else if repeatMode === 'completion'}
+						<label class="todo-label">
+							Za jak dlouho po dokončení
+							<input type="number" class="todo-field" bind:value={interval} inputmode="numeric"
+								min="1" max="99" required />
+						</label>
+						<label class="todo-label">
+							Jednotka
+							<select class="todo-field" bind:value={intervalUnit}>
+								<option value="day">Dny</option>
+								<option value="week">Týdny</option>
+								<option value="month">Měsíce</option>
+								<option value="year">Roky</option>
+							</select>
+						</label>
+					{/if}
+				{/if}
 			</fieldset>
 			<div class="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
 				{#if editing}
@@ -232,7 +308,9 @@
 					</button>
 				{/if}
 				<button type="button" class="{button} border border-field text-ink" disabled={busy} onclick={closeForm}>Zrušit</button>
-				<button type="submit" class="{button} bg-accent text-white" disabled={busy || !title.trim()}>Uložit úkol</button>
+				<button type="submit" class="{button} bg-accent text-white"
+					disabled={busy || !title.trim() || (repeatMode === 'calendar' && !firstDueDate) ||
+						(repeatMode === 'completion' && !validInterval)}>Uložit úkol</button>
 			</div>
 		</form>
 	{/if}
@@ -262,7 +340,7 @@
 				<li class="flex items-start gap-2 rounded-2xl border border-line bg-surface p-2 sm:gap-3">
 					<button type="button" class="grid size-11 shrink-0 place-items-center rounded-xl"
 						aria-label={todo.completed ? `Znovu otevřít: ${todo.title}` : `Dokončit: ${todo.title}`}
-						disabled={busy} onclick={(event) => toggle(todo, event.currentTarget)}>
+						disabled={busy || editing === todo.id} onclick={(event) => toggle(todo, event.currentTarget)}>
 						<span class="grid size-6 place-items-center rounded-md border-2 {todo.completed ? 'border-ink bg-ink text-white' : 'border-muted'}">
 							{#if todo.completed}<Icon name="check" size={16} />{/if}
 						</span>
@@ -283,6 +361,8 @@
 								</span>
 							{/if}
 							{#if todo.assigneeId}<span>{member?.name ?? 'Bývalý člen'}</span>{/if}
+							{#if todo.completedOn}<span>Hotovo {formatShort(todo.completedOn)}</span>{/if}
+							{#if !todo.completed && todo.recurrence}<span>{describeTodoRepeat(todo.recurrence)}</span>{/if}
 						</div>
 					</div>
 					<button type="button" class="grid size-11 shrink-0 place-items-center rounded-xl text-muted"

@@ -5,6 +5,7 @@ import {
 	deleteDoc,
 	doc,
 	onSnapshot,
+	runTransaction,
 	serverTimestamp,
 	setDoc,
 	updateDoc,
@@ -27,6 +28,7 @@ import {
 import { nextColor, shortNames } from './colors';
 import { describe, matches, normalize, repeatDays, WEEKLY, type Repeat } from './repeat';
 import { mark } from './perf';
+import { nextTodoFields, type Todo, type TodoFields } from './todo';
 
 export interface Member {
 	id: string;
@@ -149,19 +151,6 @@ function absenceFields(a: Omit<Absence, 'id'>) {
 		...(a.except.length ? { except: [...a.except].sort() } : {}),
 		createdAt: serverTimestamp()
 	};
-}
-
-export interface TodoFields {
-	title: string;
-	date: DateKey | null;
-	eventId: string | null;
-	dueDate: DateKey | null;
-	assigneeId: string | null;
-}
-
-export interface Todo extends TodoFields {
-	id: string;
-	completed: boolean;
 }
 
 export interface Event {
@@ -755,13 +744,68 @@ class Data {
 		await addDoc(collection(db, 'todos'), todo);
 	}
 
-	async updateTodo(id: string, patch: TodoFields | { completed: boolean }) {
-		const fields = 'title' in patch ? { ...patch, title: patch.title.trim() } : patch;
+	async updateTodo(id: string, patch: TodoFields, completed: boolean) {
+		const fields = { ...patch, title: patch.title.trim() };
 		if (this.#demo) {
+			if (!this.todos.some((todo) => todo.id === id && todo.completed === completed)) {
+				throw new Error('Task changed while editing');
+			}
 			this.todos = this.todos.map((todo) => (todo.id === id ? { ...todo, ...fields } : todo));
 			return;
 		}
-		await updateDoc(doc(db, 'todos', id), fields);
+		const ref = doc(db, 'todos', id);
+		await runTransaction(db, async (transaction) => {
+			const snapshot = await transaction.get(ref);
+			if (snapshot.data()?.completed !== completed) throw new Error('Task changed while editing');
+			transaction.update(ref, fields);
+		});
+	}
+
+	/** Completing a task and adding its next occurrence are one write. */
+	async setTodoCompleted(id: string, completed: boolean, removeNextId?: string): Promise<boolean> {
+		const today = todayKey();
+		const change = (nextId: string | null) => ({
+			completed, completedOn: completed ? today : null, nextId
+		});
+		if (this.#demo) {
+			const todo = this.todos.find((item) => item.id === id);
+			if (!todo) return false;
+			if (todo.completed === completed) return true;
+			if (!completed && todo.nextId &&
+				(todo.nextId !== removeNextId ||
+					!this.todos.some((item) => item.id === todo.nextId && !item.completed))) return false;
+
+			const fields = completed ? nextTodoFields(todo, today) : undefined;
+			const next = fields ? { ...fields, id: crypto.randomUUID(), completed: false } : undefined;
+			const updated = { ...todo, ...change(next?.id ?? null) };
+			this.todos = this.todos
+				.filter((item) => completed || item.id !== todo.nextId)
+				.map((item) => item.id === id ? updated : item)
+				.concat(next ? [next] : []);
+			return true;
+		}
+
+		const ref = doc(db, 'todos', id);
+		return runTransaction(db, async (transaction) => {
+			const snapshot = await transaction.get(ref);
+			if (!snapshot.exists()) return false;
+			const todo = { ...(snapshot.data() as Omit<Todo, 'id'>), id };
+			if (todo.completed === completed) return true;
+
+			if (!completed && todo.nextId) {
+				if (todo.nextId !== removeNextId) return false;
+				const next = doc(db, 'todos', todo.nextId);
+				const successor = await transaction.get(next);
+				if (!successor.exists() || successor.data().completed) return false;
+				transaction.delete(next);
+			}
+
+			const fields = completed ? nextTodoFields(todo, today) : undefined;
+			const next = fields ? doc(collection(db, 'todos')) : undefined;
+			if (next && fields) transaction.set(next, { ...fields, completed: false });
+			transaction.update(ref, change(next?.id ?? null));
+			return true;
+		});
 	}
 
 	async deleteTodo(id: string) {

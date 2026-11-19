@@ -2,7 +2,7 @@
 // every n days / weeks (on weekdays) / months (on days, or the nth weekday) / years.
 // A rule is anchored at the series' first day `from`; missing fields default to it.
 
-import { addDays, daysBetween, DOW_ON, parseKey, startOfWeek, weekdayIndex, type DateKey } from './dates';
+import { addDays, daysBetween, DOW_ON, parseKey, startOfWeek, toKey, weekdayIndex, type DateKey } from './dates';
 
 export type Freq = 'day' | 'week' | 'month' | 'year';
 
@@ -91,6 +91,7 @@ export function repeatDays(
 	const first = start > from ? start : from;
 	const last = end < to ? end : to;
 	const out: DateKey[] = [];
+	if (first > last || limit <= 0 || isEmpty(r)) return out;
 	// A fixed step: daily, or weekly on a single weekday.
 	const step =
 		r.freq === 'day'
@@ -100,11 +101,63 @@ export function repeatDays(
 				: 0;
 	if (step) {
 		const k = Math.ceil(daysBetween(from, first) / step) * step;
-		for (let d = addDays(from, k); d <= last && out.length < limit; d = addDays(d, step)) out.push(d);
+		const max = daysBetween(from, last);
+		for (let offset = k; offset <= max && out.length < limit; offset += step) {
+			out.push(addDays(from, offset));
+		}
 		return out;
 	}
-	for (let d = first; d <= last && out.length < limit; d = addDays(d, 1)) {
-		if (matches(r, from, d)) out.push(d);
+	if (r.freq === 'week') {
+		const startWeek = startOfWeek(from);
+		const step = 7 * r.every;
+		const firstWeek = daysBetween(startWeek, startOfWeek(first));
+		const lastDay = daysBetween(startWeek, last);
+		const weekdays = [...new Set(r.weekdays)].sort((a, b) => a - b);
+		for (let offset = Math.ceil(firstWeek / step) * step; offset <= lastDay; offset += step) {
+			for (const day of weekdays) {
+				if (offset + day > lastDay) break;
+				const key = addDays(startWeek, offset + day);
+				if (key >= first) out.push(key);
+				if (out.length === limit) return out;
+			}
+		}
+		return out;
+	}
+
+	// Jump over inactive months and years, including long gaps in yearly rules.
+	const a = parseKey(from);
+	const f = parseKey(first);
+	const endDate = parseKey(last);
+	const monthIndex = (d: Date) => d.getFullYear() * 12 + d.getMonth();
+	const anchor = monthIndex(a);
+	const firstMonth = monthIndex(f);
+	const lastMonth = monthIndex(endDate);
+	const yearly = r.freq === 'year';
+	const months = yearly
+		? [...new Set(r.months ?? [a.getMonth() + 1])].sort((a, b) => a - b)
+		: [1];
+	const origin = yearly ? anchor - a.getMonth() : anchor;
+	const period = yearly ? 12 * r.every : r.every;
+	for (let base = origin + Math.floor((firstMonth - origin) / period) * period;
+		base <= lastMonth; base += period) {
+		for (const month of months) {
+			const index = base + month - 1;
+			if (index < firstMonth || index > lastMonth) continue;
+			const y = Math.floor(index / 12);
+			const m = index % 12;
+			const lastInMonth = new Date(y, m + 1, 0).getDate();
+			const days = r.nth
+				? Array.from({ length: lastInMonth }, (_, i) => i + 1)
+				: yearly ? [a.getDate()] : [...new Set(r.days ?? [a.getDate()])].sort((a, b) => a - b);
+			for (const day of days) {
+				if (day > lastInMonth) break;
+				const key = toKey(new Date(y, m, day));
+				if (key >= first && key <= last && (!r.nth || isNth(key, r.nth, r.kind ?? KIND_ANY))) {
+					out.push(key);
+					if (out.length === limit) return out;
+				}
+			}
+		}
 	}
 	return out;
 }
